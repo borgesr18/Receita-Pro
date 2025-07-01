@@ -1,14 +1,23 @@
 'use client'
 
 import { createContext, useContext, useState, ReactNode } from 'react'
-import Toast, { ToastProps } from '@/components/Toast'
+import Toast from '@/components/Toast'
+
+// Definindo tipos localmente para máxima compatibilidade
+interface ToastData {
+  id: string
+  type: 'success' | 'error' | 'warning'
+  title: string
+  message?: string
+  duration?: number
+  onClose: (id: string) => void
+}
 
 interface ToastContextType {
-  showToast: (toast: Omit<ToastProps, 'id' | 'onClose'>) => void
+  showToast: (toast: Omit<ToastData, 'id' | 'onClose'>) => void
   showSuccess: (title: string, message?: string) => void
   showError: (title: string, message?: string) => void
   showWarning: (title: string, message?: string) => void
-  showInfo: (title: string, message?: string) => void
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
@@ -26,15 +35,15 @@ interface ToastProviderProps {
 }
 
 export function ToastProvider({ children }: ToastProviderProps) {
-  const [toasts, setToasts] = useState<ToastProps[]>([])
+  const [toasts, setToasts] = useState<ToastData[]>([])
 
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
-  const showToast = (toast: Omit<ToastProps, 'id' | 'onClose'>) => {
+  const showToast = (toast: Omit<ToastData, 'id' | 'onClose'>) => {
     const id = Math.random().toString(36).substr(2, 9)
-    const newToast: ToastProps = {
+    const newToast: ToastData = {
       ...toast,
       id,
       onClose: removeToast
@@ -54,17 +63,12 @@ export function ToastProvider({ children }: ToastProviderProps) {
     showToast({ type: 'warning', title, message })
   }
 
-  const showInfo = (title: string, message?: string) => {
-    showToast({ type: 'info', title, message })
-  }
-
   return (
     <ToastContext.Provider value={{
       showToast,
       showSuccess,
       showError,
-      showWarning,
-      showInfo
+      showWarning
     }}>
       {children}
       <div className="fixed top-0 right-0 z-50 p-4 space-y-4 pointer-events-none">
