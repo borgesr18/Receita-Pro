@@ -2,21 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUser } from '@/lib/auth'
 
-interface LowStockIngredient {
-  id: string
-  name: string
-  current_stock: number
-  minimum_stock: number
-  user_id: string
-}
-
 export async function GET(request: NextRequest) {
   try {
     const { user, error } = await getUser(request)
     if (error || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
+    
     const today = new Date()
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
     
@@ -26,7 +18,7 @@ export async function GET(request: NextRequest) {
       totalProducts,
       monthlySales,
       monthlyProductions,
-      lowStockIngredientsRaw,
+      lowStockIngredients,
       recentSales,
       recentProductions
     ] = await Promise.all([
@@ -58,31 +50,42 @@ export async function GET(request: NextRequest) {
         },
         _count: true
       }),
-      prisma.$queryRaw<LowStockIngredient[]>`
-        SELECT * FROM ingredients 
+      // Tipagem correta para o resultado do queryRaw
+      prisma.$queryRaw<Array<{
+        id: string;
+        name: string;
+        current_stock: number;
+        minimum_stock: number;
+      }>>`
+        SELECT id, name, current_stock, minimum_stock 
+        FROM ingredients 
         WHERE user_id = ${user.id} 
         AND current_stock <= minimum_stock 
         LIMIT 5
       `,
       prisma.sale.findMany({
         where: { userId: user.id },
-        orderBy: { saleDate: 'desc' },
-        take: 5,
         include: {
-          salesChannel: true
-        }
+          product: true,
+          channel: true  // ✅ CORRETO: usar 'channel', não 'salesChannel'
+        },
+        orderBy: {
+          saleDate: 'desc'
+        },
+        take: 5
       }),
       prisma.production.findMany({
         where: { userId: user.id },
-        orderBy: { productionDate: 'desc' },
-        take: 5,
         include: {
-          recipe: true
-        }
+          recipe: true,
+          product: true
+        },
+        orderBy: {
+          productionDate: 'desc'
+        },
+        take: 5
       })
     ])
-
-    const lowStockIngredients = lowStockIngredientsRaw as LowStockIngredient[]
 
     const dashboardData = {
       stats: {
@@ -102,14 +105,14 @@ export async function GET(request: NextRequest) {
         sales: recentSales,
         productions: recentProductions
       },
-      lowStockItems: lowStockIngredients
+      lowStockIngredients
     }
 
     return NextResponse.json(dashboardData)
   } catch (error) {
-    console.error('Dashboard API error:', error)
+    console.error('Error fetching dashboard data:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to fetch dashboard data' },
       { status: 500 }
     )
   }
