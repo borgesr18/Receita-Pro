@@ -1,10 +1,20 @@
 'use client'
 
 import { createContext, useContext, useState, ReactNode } from 'react'
-import Toast, { ToastProps } from '@/components/Toast'
+import Toast from '@/components/Toast'
+
+// Definindo o tipo localmente para evitar problemas de import
+interface ToastData {
+  id: string
+  type: 'success' | 'error' | 'warning' | 'info'
+  title: string
+  message?: string
+  duration?: number
+  onClose: (id: string) => void
+}
 
 interface ToastContextType {
-  showToast: (toast: Omit<ToastProps, 'id' | 'onClose'>) => void
+  showToast: (toast: Omit<ToastData, 'id' | 'onClose'>) => void
   showSuccess: (title: string, message?: string) => void
   showError: (title: string, message?: string) => void
   showWarning: (title: string, message?: string) => void
@@ -26,15 +36,15 @@ interface ToastProviderProps {
 }
 
 export function ToastProvider({ children }: ToastProviderProps) {
-  const [toasts, setToasts] = useState<(ToastProps & { id: string })[]>([])
+  const [toasts, setToasts] = useState<ToastData[]>([])
 
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
-  const showToast = (toast: Omit<ToastProps, 'id' | 'onClose'>) => {
+  const showToast = (toast: Omit<ToastData, 'id' | 'onClose'>) => {
     const id = Math.random().toString(36).substr(2, 9)
-    const newToast = {
+    const newToast: ToastData = {
       ...toast,
       id,
       onClose: removeToast
@@ -81,4 +91,3 @@ export function ToastProvider({ children }: ToastProviderProps) {
     </ToastContext.Provider>
   )
 }
-
