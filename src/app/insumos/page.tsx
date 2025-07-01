@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Search, Plus, Edit, Trash2, Filter, X, Save, MoreHorizontal, Package, TrendingUp, AlertTriangle } from 'lucide-react'
+import { Search, Plus, Edit, Trash2, X, Save, Package, TrendingUp, AlertTriangle } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/contexts/ToastContext'
 
