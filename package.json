@@ -5,12 +5,13 @@
   "engines": {
     "node": "22.x"
   },
-  "scripts": {
-    "dev": "next dev --turbopack",
+"scripts": {
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts"
   },
   "prisma": {
