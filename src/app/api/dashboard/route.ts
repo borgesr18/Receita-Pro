@@ -2,13 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUser } from '@/lib/auth'
 
+interface LowStockIngredient {
+  id: string
+  name: string
+  current_stock: number
+  minimum_stock: number
+  user_id: string
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { user, error } = await getUser(request)
     if (error || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    
 
     const today = new Date()
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -19,7 +26,7 @@ export async function GET(request: NextRequest) {
       totalProducts,
       monthlySales,
       monthlyProductions,
-      lowStockIngredients,
+      lowStockIngredientsRaw,
       recentSales,
       recentProductions
     ] = await Promise.all([
@@ -51,7 +58,7 @@ export async function GET(request: NextRequest) {
         },
         _count: true
       }),
-      prisma.$queryRaw`
+      prisma.$queryRaw<LowStockIngredient[]>`
         SELECT * FROM ingredients 
         WHERE user_id = ${user.id} 
         AND current_stock <= minimum_stock 
@@ -59,26 +66,23 @@ export async function GET(request: NextRequest) {
       `,
       prisma.sale.findMany({
         where: { userId: user.id },
+        orderBy: { saleDate: 'desc' },
+        take: 5,
         include: {
-          product: true,
-          channel: true
-        },
-        orderBy: {
-          saleDate: 'desc'
-        },
-        take: 5
+          salesChannel: true
+        }
       }),
       prisma.production.findMany({
         where: { userId: user.id },
+        orderBy: { productionDate: 'desc' },
+        take: 5,
         include: {
           recipe: true
-        },
-        orderBy: {
-          productionDate: 'desc'
-        },
-        take: 5
+        }
       })
     ])
+
+    const lowStockIngredients = lowStockIngredientsRaw as LowStockIngredient[]
 
     const dashboardData = {
       stats: {
@@ -97,14 +101,15 @@ export async function GET(request: NextRequest) {
       recent: {
         sales: recentSales,
         productions: recentProductions
-      }
+      },
+      lowStockItems: lowStockIngredients
     }
 
     return NextResponse.json(dashboardData)
   } catch (error) {
-    console.error('Error fetching dashboard data:', error)
+    console.error('Dashboard API error:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch dashboard data' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
