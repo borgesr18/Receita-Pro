@@ -3,10 +3,10 @@
 import { createContext, useContext, useState, ReactNode } from 'react'
 import Toast from '@/components/Toast'
 
-// Definindo tipos localmente para máxima compatibilidade
+// Definindo tipos exatamente como o componente Toast espera
 interface ToastData {
   id: string
-  type: 'success' | 'error' | 'warning'
+  type: 'success' | 'error' | 'warning' | 'info'
   title: string
   message?: string
   duration?: number
@@ -18,6 +18,7 @@ interface ToastContextType {
   showSuccess: (title: string, message?: string) => void
   showError: (title: string, message?: string) => void
   showWarning: (title: string, message?: string) => void
+  showInfo: (title: string, message?: string) => void
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
@@ -63,12 +64,17 @@ export function ToastProvider({ children }: ToastProviderProps) {
     showToast({ type: 'warning', title, message })
   }
 
+  const showInfo = (title: string, message?: string) => {
+    showToast({ type: 'info', title, message })
+  }
+
   return (
     <ToastContext.Provider value={{
       showToast,
       showSuccess,
       showError,
-      showWarning
+      showWarning,
+      showInfo
     }}>
       {children}
       <div className="fixed top-0 right-0 z-50 p-4 space-y-4 pointer-events-none">
@@ -78,7 +84,14 @@ export function ToastProvider({ children }: ToastProviderProps) {
             className="pointer-events-auto"
             style={{ transform: `translateY(${index * 80}px)` }}
           >
-            <Toast {...toast} />
+            <Toast 
+              id={toast.id}
+              type={toast.type}
+              title={toast.title}
+              message={toast.message}
+              duration={toast.duration}
+              onClose={toast.onClose}
+            />
           </div>
         ))}
       </div>
