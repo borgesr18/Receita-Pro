@@ -195,7 +195,7 @@ export default function Configuracoes() {
       }
 
       // Tipagem explícita para response
-      let response: { data: any }
+      let response: { data?: any } 
       if (editingItem) {
         response = await api.put(`${endpoint}/${editingItem.id}`, payload)
         const currentData = getCurrentData()
