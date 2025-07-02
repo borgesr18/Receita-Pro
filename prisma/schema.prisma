@@ -339,6 +339,7 @@ enum UnitType {
   WEIGHT    // Peso
   VOLUME    // Volume  
   LENGTH    // Comprimento
+  UNIT      // Unidade (mantido para compatibilidade)
 }
 
 enum IngredientType {
@@ -371,4 +372,3 @@ enum MovementType {
   IN  // Entrada
   OUT // Saída
 }
-
