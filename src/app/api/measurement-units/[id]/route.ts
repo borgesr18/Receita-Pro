@@ -114,7 +114,7 @@ export async function PUT(
     console.error('❌ Error updating measurement unit:', error)
     
     // Verificar se é erro de duplicata
-    if (error && typeof error === 'object' && 'code' in error && (error as any).code === 'P2002') {
+ if ((error as any).code === 'P2002') {
       return NextResponse.json(
         { error: 'A unit with this name or abbreviation already exists' },
         { status: 409 }
