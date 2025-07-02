@@ -142,7 +142,7 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('❌ Error updating measurement unit:', error)
     
-    if (error.code === 'P2002') {
+     if ((error as any).code === 'P2002') {
       return NextResponse.json(
         { error: 'Já existe uma unidade com este nome ou símbolo' },
         { status: 409 }
