@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Plus, 
   Edit, 
@@ -61,8 +61,8 @@ export default function Configuracoes() {
     { id: 'fornecedores', label: 'Fornecedores', icon: Truck }
   ]
 
-  // Carregar dados
-  const loadData = async () => {
+  // Carregar dados com useCallback para evitar warning
+  const loadData = useCallback(async () => {
     try {
       setLoading(true)
       console.log('🔄 Carregando dados das configurações...')
@@ -80,22 +80,22 @@ export default function Configuracoes() {
       setFornecedores(Array.isArray(fornecedoresRes.data) ? fornecedoresRes.data : [])
 
       console.log('✅ Dados carregados:', {
-      receitas: Array.isArray(receitasRes.data) ? receitasRes.data.length : 0,
-      insumos: Array.isArray(insumosRes.data) ? insumosRes.data.length : 0,
-      unidades: Array.isArray(unidadesRes.data) ? unidadesRes.data.length : 0,
-      fornecedores: Array.isArray(fornecedoresRes.data) ? fornecedoresRes.data.length : 0
-    })
+        receitas: Array.isArray(receitasRes.data) ? receitasRes.data.length : 0,
+        insumos: Array.isArray(insumosRes.data) ? insumosRes.data.length : 0,
+        unidades: Array.isArray(unidadesRes.data) ? unidadesRes.data.length : 0,
+        fornecedores: Array.isArray(fornecedoresRes.data) ? fornecedoresRes.data.length : 0
+      })
     } catch (error) {
       console.error('❌ Erro ao carregar configurações:', error)
       showError('Erro ao carregar configurações')
     } finally {
       setLoading(false)
     }
-  }
+  }, [showError])
 
   useEffect(() => {
-  loadData()
-}, [loadData])
+    loadData()
+  }, [loadData])
 
   // Obter dados da aba atual
   const getCurrentData = () => {
@@ -194,18 +194,19 @@ export default function Configuracoes() {
         }
       }
 
-      let response
+      // Tipagem explícita para response
+      let response: { data: any }
       if (editingItem) {
         response = await api.put(`${endpoint}/${editingItem.id}`, payload)
         const currentData = getCurrentData()
         updateState(currentData.map(item => 
-          item.id === editingItem.id ? response.data as any : item
+          item.id === editingItem.id ? response.data : item
         ))
         showSuccess('Item atualizado com sucesso!')
       } else {
         response = await api.post(endpoint, payload)
         const currentData = getCurrentData()
-        updateState([...currentData, response.data as any])
+        updateState([...currentData, response.data])
         showSuccess('Item criado com sucesso!')
       }
 
