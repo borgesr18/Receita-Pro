@@ -103,13 +103,13 @@ export default function InsumosPage() {
       if (editingItem) {
         const response = await api.put(`/api/ingredients/${editingItem.id}`, formData)
         if (response.data) {
-          setInsumos(insumos.map(item => item.id === editingItem.id ? response.data : item))
+          setInsumos(insumos.map(item => item.id === editingItem.id ? response.data as Ingredient : item))
           showSuccess('Insumo atualizado com sucesso!')
         }
       } else {
         const response = await api.post('/api/ingredients', formData)
         if (response.data) {
-          setInsumos([...insumos, response.data])
+          setInsumos([...insumos, response.data as Ingredient])
           showSuccess('Insumo criado com sucesso!')
         }
       }
