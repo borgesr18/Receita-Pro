@@ -80,11 +80,11 @@ export default function Configuracoes() {
       setFornecedores(Array.isArray(fornecedoresRes.data) ? fornecedoresRes.data : [])
 
       console.log('✅ Dados carregados:', {
-        receitas: receitasRes.data?.length || 0,
-        insumos: insumosRes.data?.length || 0,
-        unidades: unidadesRes.data?.length || 0,
-        fornecedores: fornecedoresRes.data?.length || 0
-      })
+      receitas: Array.isArray(receitasRes.data) ? receitasRes.data.length : 0,
+      insumos: Array.isArray(insumosRes.data) ? insumosRes.data.length : 0,
+      unidades: Array.isArray(unidadesRes.data) ? unidadesRes.data.length : 0,
+      fornecedores: Array.isArray(fornecedoresRes.data) ? fornecedoresRes.data.length : 0
+    })
     } catch (error) {
       console.error('❌ Erro ao carregar configurações:', error)
       showError('Erro ao carregar configurações')
