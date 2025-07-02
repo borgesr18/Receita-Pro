@@ -8,7 +8,8 @@ import {
   Package,
   Scale,
   Tag,
-  Truck
+  Truck,
+  Eye
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/contexts/ToastContext'
@@ -32,6 +33,8 @@ interface Supplier {
   phone: string
   email: string
   address: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 export default function Configuracoes() {
@@ -39,6 +42,10 @@ export default function Configuracoes() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const { showSuccess, showError } = useToast()
+
+  // NOVO: Estado para modal de visualização
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const [viewingItem, setViewingItem] = useState<any>(null)
 
   // Estados para cada tipo de dados
   const [categoriasReceitas, setCategoriasReceitas] = useState<Category[]>([])
@@ -100,6 +107,12 @@ export default function Configuracoes() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // NOVA: Função para visualizar item
+  const handleView = (item: any) => {
+    setViewingItem(item)
+    setIsViewModalOpen(true)
+  }
 
   // Obter dados da aba atual
   const getCurrentData = () => {
@@ -477,6 +490,14 @@ export default function Configuracoes() {
               {item.email || '-'}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+              {/* NOVO: Botão de visualização */}
+              <button
+                onClick={() => handleView(item)}
+                className="text-green-600 hover:text-green-900 mr-3"
+                title="Visualizar"
+              >
+                <Eye className="h-4 w-4" />
+              </button>
               <button
                 onClick={() => handleEdit(item)}
                 className="text-blue-600 hover:text-blue-900 mr-3"
@@ -506,6 +527,22 @@ export default function Configuracoes() {
       case 'unidades-medida': return `${action} Unidade de Medida`
       case 'fornecedores': return `${action} Fornecedor`
       default: return action
+    }
+  }
+
+  // NOVA: Função para formatar data
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '-'
+    try {
+      return new Date(dateString).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch {
+      return '-'
     }
   }
 
@@ -577,7 +614,7 @@ export default function Configuracoes() {
               ))}
               {getCurrentData().length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
                     Nenhum item encontrado
                   </td>
                 </tr>
@@ -587,7 +624,7 @@ export default function Configuracoes() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal de Edição/Criação */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
@@ -619,7 +656,125 @@ export default function Configuracoes() {
           </div>
         </div>
       )}
+
+      {/* NOVO: Modal de Visualização */}
+      {isViewModalOpen && viewingItem && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-medium text-gray-900">
+                  Detalhes do Fornecedor
+                </h3>
+                <button
+                  onClick={() => setIsViewModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <Trash2 className="h-5 w-5 rotate-45" />
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">
+                      Nome
+                    </label>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {viewingItem.name || '-'}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">
+                      Contato
+                    </label>
+                    <p className="text-gray-900">
+                      {viewingItem.contact || '-'}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">
+                      Telefone
+                    </label>
+                    <p className="text-gray-900">
+                      {viewingItem.phone || '-'}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">
+                      Email
+                    </label>
+                    <p className="text-gray-900">
+                      {viewingItem.email || '-'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">
+                      Endereço
+                    </label>
+                    <p className="text-gray-900">
+                      {viewingItem.address || '-'}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">
+                      Criado em
+                    </label>
+                    <p className="text-gray-900">
+                      {formatDate(viewingItem.createdAt)}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">
+                      Atualizado em
+                    </label>
+                    <p className="text-gray-900">
+                      {formatDate(viewingItem.updatedAt)}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">
+                      ID
+                    </label>
+                    <p className="text-xs text-gray-500 font-mono">
+                      {viewingItem.id}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 mt-8">
+                <button
+                  onClick={() => {
+                    setIsViewModalOpen(false)
+                    handleEdit(viewingItem)
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => setIsViewModalOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
 
