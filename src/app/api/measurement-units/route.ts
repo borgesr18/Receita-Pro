@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     console.error('❌ Error creating measurement unit:', error)
     
     // Verificar se é erro de duplicação
-    if (error.code === 'P2002') {
+    if ((error as any).code === 'P2002') {
       return NextResponse.json(
         { error: 'Já existe uma unidade com este nome ou símbolo' },
         { status: 409 }
