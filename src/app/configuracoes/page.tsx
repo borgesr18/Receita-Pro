@@ -18,6 +18,8 @@ interface Category {
   id: string
   name: string
   description: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 interface Unit {
@@ -507,14 +509,23 @@ export default function Configuracoes() {
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
               <button
+                onClick={() => handleView(item)}
+                className="text-green-600 hover:text-green-900 mr-3"
+                title="Visualizar"
+              >
+                <Eye className="h-4 w-4" />
+              </button>
+              <button
                 onClick={() => handleEdit(item)}
                 className="text-blue-600 hover:text-blue-900 mr-3"
+                title="Editar"
               >
                 <Edit className="h-4 w-4" />
               </button>
               <button
                 onClick={() => handleDelete(item.id)}
                 className="text-red-600 hover:text-red-900"
+                title="Excluir"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -622,6 +633,8 @@ export default function Configuracoes() {
 
     const getViewTitle = () => {
       switch (activeTab) {
+        case 'categorias-receitas': return 'Detalhes da Categoria de Receita'
+        case 'categorias-insumos': return 'Detalhes da Categoria de Insumo'
         case 'unidades-medida': return 'Detalhes da Unidade de Medida'
         case 'fornecedores': return 'Detalhes do Fornecedor'
         default: return 'Detalhes'
@@ -654,6 +667,17 @@ export default function Configuracoes() {
                   {viewingItem.name}
                 </p>
               </div>
+
+              {(activeTab === 'categorias-receitas' || activeTab === 'categorias-insumos') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Descrição
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded min-h-[60px]">
+                    {viewingItem.description || '-'}
+                  </p>
+                </div>
+              )}
 
               {activeTab === 'unidades-medida' && (
                 <>
@@ -759,15 +783,6 @@ export default function Configuracoes() {
                   </p>
                 </div>
               )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ID
-                </label>
-                <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded font-mono">
-                  {viewingItem.id}
-                </p>
-              </div>
             </div>
           </div>
 
@@ -913,5 +928,6 @@ export default function Configuracoes() {
     </div>
   )
 }
+
 
 
