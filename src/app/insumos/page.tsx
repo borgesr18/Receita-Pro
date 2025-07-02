@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search, Edit, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/contexts/ToastContext'
@@ -56,39 +56,45 @@ export default function InsumosPage() {
     currentStock: 0
   })
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       console.log('🔄 Carregando dados dos insumos...')
       
       const [ingredientsRes, categoriesRes, unitsRes, suppliersRes] = await Promise.all([
         api.get('/api/ingredients'),
         api.get('/api/ingredient-categories'),
-        api.get('/api/measurement-units'), // CORRIGIDO: era /units
+        api.get('/api/measurement-units'),
         api.get('/api/suppliers')
       ])
 
+      // Verificação segura de tipos para evitar erro de build
+      const ingredientsData = Array.isArray(ingredientsRes.data) ? ingredientsRes.data : []
+      const categoriesData = Array.isArray(categoriesRes.data) ? categoriesRes.data : []
+      const unitsData = Array.isArray(unitsRes.data) ? unitsRes.data : []
+      const suppliersData = Array.isArray(suppliersRes.data) ? suppliersRes.data : []
+
       console.log('📊 Dados carregados:', {
-        ingredients: ingredientsRes.data?.length || 0,
-        categories: categoriesRes.data?.length || 0,
-        units: unitsRes.data?.length || 0,
-        suppliers: suppliersRes.data?.length || 0
+        ingredients: ingredientsData.length,
+        categories: categoriesData.length,
+        units: unitsData.length,
+        suppliers: suppliersData.length
       })
 
-      setInsumos(Array.isArray(ingredientsRes.data) ? ingredientsRes.data : [])
-      setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : [])
-      setUnits(Array.isArray(unitsRes.data) ? unitsRes.data : [])
-      setSuppliers(Array.isArray(suppliersRes.data) ? suppliersRes.data : [])
+      setInsumos(ingredientsData)
+      setCategories(categoriesData)
+      setUnits(unitsData)
+      setSuppliers(suppliersData)
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error)
       showError('Erro ao carregar dados')
     } finally {
       setLoading(false)
     }
-  }
+  }, [showError])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const handleSave = async () => {
     try {
