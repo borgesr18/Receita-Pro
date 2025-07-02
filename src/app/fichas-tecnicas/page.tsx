@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Plus, 
   Edit, 
@@ -10,179 +10,241 @@ import {
   Search,
   Clock,
   Thermometer,
-  Copy
+  Copy,
+  Eye
 } from 'lucide-react'
+import { api } from '@/lib/api'
+import { useToast } from '@/contexts/ToastContext'
+
+interface Recipe {
+  id: string
+  name: string
+  description?: string
+  categoryId: string
+  productId?: string
+  preparationTime: number
+  ovenTemperature: number
+  instructions?: string
+  technicalNotes?: string
+  createdAt?: string
+  updatedAt?: string
+  category?: { name: string }
+  product?: { name: string }
+  ingredients?: RecipeIngredient[]
+}
+
+interface RecipeIngredient {
+  id: string
+  ingredientId: string
+  quantity: number
+  percentage: number
+  unitId: string
+  order?: number
+  ingredient?: { name: string; pricePerUnit: number }
+  unit?: { name: string; symbol?: string }
+}
+
+interface Category {
+  id: string
+  name: string
+  description?: string
+}
+
+interface Ingredient {
+  id: string
+  name: string
+  pricePerUnit: number
+  unit?: { name: string; symbol?: string }
+}
+
+interface Unit {
+  id: string
+  name: string
+  symbol?: string
+}
 
 export default function FichasTecnicas() {
+  const { showSuccess, showError } = useToast()
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<{
-    id: string;
-    name: string;
-    category: string;
-    description: string;
-    prepTime: number;
-    ovenTemperature: number;
-    instructions: string;
-    technicalNotes: string;
-    ingredients: Array<{
-      ingredientId: string;
-      quantity: number;
-      percentage: number;
-      unitId: string;
-    }>;
-  } | null>(null)
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const [viewingItem, setViewingItem] = useState<Recipe | null>(null)
+  const [editingItem, setEditingItem] = useState<Recipe | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [activeTab, setActiveTab] = useState('info')
+  const [loading, setLoading] = useState(true)
+
+  // Estados para dados
+  const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [ingredients, setIngredients] = useState<Ingredient[]>([])
+  const [units, setUnits] = useState<Unit[]>([])
+
+  // Estado do formulário
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    category: '',
-    prepTime: 0,
-    ovenTemp: 0,
-    yield: 0,
+    categoryId: '',
+    productId: '',
+    preparationTime: 0,
+    ovenTemperature: 0,
     instructions: '',
-    observations: '',
-    version: '1.0',
-    ingredients: [] as Array<{id: number; name: string; quantity: number; percentage: number; cost: number}>,
-    totalCost: 0,
-    costPerGram: 0
+    technicalNotes: '',
+    ingredients: [] as Array<{
+      ingredientId: string
+      quantity: number
+      percentage: number
+      unitId: string
+      order: number
+    }>
   })
 
-  const availableIngredients = [
-    { id: 1, name: 'Farinha de Trigo Especial', unit: 'g', pricePerGram: 0.0045 },
-    { id: 2, name: 'Açúcar Cristal', unit: 'g', pricePerGram: 0.0032 },
-    { id: 3, name: 'Manteiga sem Sal', unit: 'g', pricePerGram: 0.0128 },
-    { id: 4, name: 'Fermento Biológico Seco', unit: 'g', pricePerGram: 0.08 },
-    { id: 5, name: 'Leite Integral', unit: 'ml', pricePerGram: 0.0042 },
-    { id: 6, name: 'Ovos', unit: 'g', pricePerGram: 0.012 },
-    { id: 7, name: 'Sal Refinado', unit: 'g', pricePerGram: 0.002 }
-  ]
+  // Carregar dados com useCallback
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true)
+      console.log('🔄 Carregando dados das fichas técnicas...')
+      
+      const [recipesRes, categoriesRes, ingredientsRes, unitsRes] = await Promise.all([
+        api.get('/api/recipes'),
+        api.get('/api/recipe-categories'),
+        api.get('/api/ingredients'),
+        api.get('/api/measurement-units')
+      ])
 
-  const [fichasTecnicas, setFichasTecnicas] = useState([
-    {
-      id: 1,
-      name: 'Pão Francês Tradicional',
-      description: 'Receita clássica de pão francês',
-      category: 'Pães',
-      prepTime: 180,
-      ovenTemp: 220,
-      yield: 1000,
-      version: '2.1',
-      totalCost: 3.45,
-      costPerGram: 0.00345,
-      ingredients: [
-        { id: 1, name: 'Farinha de Trigo Especial', quantity: 500, percentage: 100, cost: 2.25 },
-        { id: 5, name: 'Leite Integral', quantity: 300, percentage: 60, cost: 1.26 },
-        { id: 4, name: 'Fermento Biológico Seco', quantity: 10, percentage: 2, cost: 0.80 },
-        { id: 7, name: 'Sal Refinado', quantity: 8, percentage: 1.6, cost: 0.016 }
-      ],
-      instructions: '1. Misture todos os ingredientes secos\n2. Adicione o leite morno\n3. Sove por 10 minutos\n4. Deixe descansar por 1 hora\n5. Modele os pães\n6. Deixe crescer por 45 minutos\n7. Asse por 25 minutos',
-      observations: 'Temperatura do leite deve estar entre 35-40°C. Umidade do forno importante nos primeiros 10 minutos.',
-      createdAt: '2025-06-15',
-      updatedAt: '2025-06-28'
-    },
-    {
-      id: 2,
-      name: 'Bolo de Chocolate Premium',
-      description: 'Bolo de chocolate com cobertura especial',
-      category: 'Bolos',
-      prepTime: 120,
-      ovenTemp: 180,
-      yield: 1200,
-      version: '1.5',
-      totalCost: 8.75,
-      costPerGram: 0.00729,
-      ingredients: [
-        { id: 1, name: 'Farinha de Trigo Especial', quantity: 300, percentage: 100, cost: 1.35 },
-        { id: 2, name: 'Açúcar Cristal', quantity: 250, percentage: 83.3, cost: 0.80 },
-        { id: 3, name: 'Manteiga sem Sal', quantity: 150, percentage: 50, cost: 1.92 },
-        { id: 6, name: 'Ovos', quantity: 200, percentage: 66.7, cost: 2.40 },
-        { id: 5, name: 'Leite Integral', quantity: 200, percentage: 66.7, cost: 0.84 }
-      ],
-      instructions: '1. Bata a manteiga com açúcar\n2. Adicione os ovos um a um\n3. Intercale farinha e leite\n4. Asse por 40 minutos\n5. Prepare a cobertura\n6. Decore após esfriar',
-      observations: 'Não abra o forno nos primeiros 30 minutos. Teste com palito antes de retirar.',
-      createdAt: '2025-06-10',
-      updatedAt: '2025-06-25'
+      const recipesData = Array.isArray(recipesRes.data) ? recipesRes.data : []
+      const categoriesData = Array.isArray(categoriesRes.data) ? categoriesRes.data : []
+      const ingredientsData = Array.isArray(ingredientsRes.data) ? ingredientsRes.data : []
+      const unitsData = Array.isArray(unitsRes.data) ? unitsRes.data : []
+
+      setRecipes(recipesData)
+      setCategories(categoriesData)
+      setIngredients(ingredientsData)
+      setUnits(unitsData)
+
+      console.log('✅ Dados carregados:', {
+        recipes: recipesData.length,
+        categories: categoriesData.length,
+        ingredients: ingredientsData.length,
+        units: unitsData.length
+      })
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados:', error)
+      showError('Erro ao carregar dados')
+    } finally {
+      setLoading(false)
     }
-  ])
+  }, [showError])
 
-  const categorias = ['Pães', 'Bolos', 'Doces', 'Salgados', 'Biscoitos', 'Tortas']
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
-  const filteredFichas = fichasTecnicas.filter(ficha => {
-    const matchesSearch = ficha.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ficha.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = filterCategory === '' || ficha.category === filterCategory
-    return matchesSearch && matchesCategory
-  })
+  const handleView = (item: Recipe) => {
+    setViewingItem(item)
+    setIsViewModalOpen(true)
+  }
 
   const handleAdd = () => {
     setEditingItem(null)
     setFormData({
       name: '',
       description: '',
-      category: '',
-      prepTime: 0,
-      ovenTemp: 0,
-      yield: 0,
+      categoryId: '',
+      productId: '',
+      preparationTime: 0,
+      ovenTemperature: 0,
       instructions: '',
-      observations: '',
-      version: '1.0',
-      ingredients: [],
-      totalCost: 0,
-      costPerGram: 0
+      technicalNotes: '',
+      ingredients: []
     })
     setIsModalOpen(true)
     setActiveTab('info')
   }
 
-  const handleEdit = (item: any) => {
+  const handleEdit = (item: Recipe) => {
     setEditingItem(item)
-    setFormData(item)
+    setFormData({
+      name: item.name,
+      description: item.description || '',
+      categoryId: item.categoryId,
+      productId: item.productId || '',
+      preparationTime: item.preparationTime,
+      ovenTemperature: item.ovenTemperature,
+      instructions: item.instructions || '',
+      technicalNotes: item.technicalNotes || '',
+      ingredients: item.ingredients?.map((ing, index) => ({
+        ingredientId: ing.ingredientId,
+        quantity: ing.quantity,
+        percentage: ing.percentage,
+        unitId: ing.unitId,
+        order: ing.order || index
+      })) || []
+    })
     setIsModalOpen(true)
     setActiveTab('info')
   }
 
-  const handleDelete = (id: number) => {
-    if (confirm('Tem certeza que deseja excluir esta ficha técnica?')) {
-      setFichasTecnicas(fichasTecnicas.filter(item => item.id !== id))
+  const handleSave = async () => {
+    try {
+      console.log('📤 Enviando dados:', formData)
+
+      // Validação básica
+      if (!formData.name.trim()) {
+        showError('Nome é obrigatório')
+        return
+      }
+      if (!formData.categoryId) {
+        showError('Categoria é obrigatória')
+        return
+      }
+
+      let response: any
+
+      if (editingItem) {
+        // Editar item existente
+        response = await api.put(`/api/recipes/${editingItem.id}`, formData)
+        const updatedData = recipes.map(item => 
+          item.id === editingItem.id ? response.data as Recipe : item
+        )
+        setRecipes(updatedData)
+        showSuccess('Ficha técnica atualizada com sucesso!')
+      } else {
+        // Criar novo item
+        response = await api.post('/api/recipes', formData)
+        setRecipes([...recipes, response.data as Recipe])
+        showSuccess('Ficha técnica criada com sucesso!')
+      }
+
+      setIsModalOpen(false)
+      setEditingItem(null)
+    } catch (error) {
+      console.error('❌ Erro ao salvar:', error)
+      showError('Erro ao salvar ficha técnica')
     }
   }
 
-  const handleSave = () => {
-    const updatedFormData = {
-      ...formData,
-      totalCost: calculateTotalCost(),
-      costPerGram: calculateCostPerGram()
-    }
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta ficha técnica?')) return
 
-    if (editingItem) {
-      setFichasTecnicas(fichasTecnicas.map(item => 
-        item.id.toString() === editingItem.id.toString() 
-          ? { ...item, ...updatedFormData, updatedAt: new Date().toISOString().split('T')[0] }
-          : item
-      ))
-    } else {
-      const newId = Math.max(...fichasTecnicas.map(item => item.id)) + 1
-      setFichasTecnicas([...fichasTecnicas, { 
-        id: newId, 
-        ...updatedFormData,
-        createdAt: new Date().toISOString().split('T')[0],
-        updatedAt: new Date().toISOString().split('T')[0]
-      }])
+    try {
+      await api.delete(`/api/recipes/${id}`)
+      const filteredData = recipes.filter(item => item.id !== id)
+      setRecipes(filteredData)
+      showSuccess('Ficha técnica excluída com sucesso!')
+    } catch (error) {
+      console.error('❌ Erro ao excluir:', error)
+      showError('Erro ao excluir ficha técnica')
     }
-    
-    setIsModalOpen(false)
-    setEditingItem(null)
   }
 
   const addIngredient = () => {
     const newIngredient = {
-      id: 0,
-      name: '',
+      ingredientId: '',
       quantity: 0,
       percentage: 0,
-      cost: 0
+      unitId: '',
+      order: formData.ingredients.length
     }
     setFormData({
       ...formData,
@@ -198,171 +260,344 @@ export default function FichasTecnicas() {
   const updateIngredient = (index: number, field: string, value: string | number) => {
     const newIngredients = [...formData.ingredients]
     newIngredients[index] = { ...newIngredients[index], [field]: value }
-    
-    if (field === 'quantity') {
-      const flourQuantity = newIngredients.find(ing => ing.percentage === 100)?.quantity || 1
-      newIngredients[index].percentage = (Number(value) / flourQuantity) * 100
-    }
-    
-    if (field === 'id' || field === 'quantity') {
-      const ingredient = availableIngredients.find(ing => ing.id === newIngredients[index].id)
-      if (ingredient) {
-        newIngredients[index].name = ingredient.name
-        newIngredients[index].cost = newIngredients[index].quantity * ingredient.pricePerGram
-      }
-    }
-    
     setFormData({ ...formData, ingredients: newIngredients })
   }
 
   const calculateTotalCost = () => {
-    return formData.ingredients.reduce((total, ing) => total + (ing.cost || 0), 0)
+    return formData.ingredients.reduce((total, ing) => {
+      const ingredient = ingredients.find(i => i.id === ing.ingredientId)
+      return total + (ingredient ? ingredient.pricePerUnit * ing.quantity : 0)
+    }, 0)
   }
 
-  const calculateCostPerGram = () => {
-    const totalCost = calculateTotalCost()
-    return formData.yield > 0 ? totalCost / formData.yield : 0
+  const filteredRecipes = recipes.filter(recipe => {
+    const matchesSearch = recipe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (recipe.description && recipe.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    const matchesCategory = filterCategory === '' || recipe.categoryId === filterCategory
+    return matchesSearch && matchesCategory
+  })
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '-'
+    return new Date(dateString).toLocaleDateString('pt-BR')
   }
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value)
+  const renderViewModal = () => {
+    if (!isViewModalOpen || !viewingItem) return null
+
+    const totalCost = viewingItem.ingredients?.reduce((total, ing) => {
+      return total + (ing.ingredient ? ing.ingredient.pricePerUnit * ing.quantity : 0)
+    }, 0) || 0
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Detalhes da Ficha Técnica
+            </h2>
+            <button
+              onClick={() => setIsViewModalOpen(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* Informações básicas */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome
+                </label>
+                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                  {viewingItem.name}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Categoria
+                </label>
+                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                  {viewingItem.category?.name || '-'}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tempo de Preparo
+                </label>
+                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                  {viewingItem.preparationTime} minutos
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Temperatura do Forno
+                </label>
+                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                  {viewingItem.ovenTemperature}°C
+                </p>
+              </div>
+            </div>
+
+            {/* Informações secundárias */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Descrição
+                </label>
+                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded min-h-[60px]">
+                  {viewingItem.description || '-'}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Custo Total Estimado
+                </label>
+                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                  R$ {totalCost.toFixed(2)}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Criado em
+                </label>
+                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                  {formatDate(viewingItem.createdAt || '')}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Ingredientes */}
+          {viewingItem.ingredients && viewingItem.ingredients.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Ingredientes</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Ingrediente
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Quantidade
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Porcentagem
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Custo
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {viewingItem.ingredients.map((ing, index) => (
+                      <tr key={index}>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {ing.ingredient?.name || '-'}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-500">
+                          {ing.quantity} {ing.unit?.symbol || ing.unit?.name}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-500">
+                          {ing.percentage}%
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-500">
+                          R$ {(ing.ingredient ? ing.ingredient.pricePerUnit * ing.quantity : 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Instruções */}
+          {viewingItem.instructions && (
+            <div className="mb-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Instruções</h3>
+              <div className="bg-gray-50 p-4 rounded">
+                <pre className="whitespace-pre-wrap text-sm text-gray-700">
+                  {viewingItem.instructions}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {/* Observações técnicas */}
+          {viewingItem.technicalNotes && (
+            <div className="mb-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Observações Técnicas</h3>
+              <div className="bg-gray-50 p-4 rounded">
+                <pre className="whitespace-pre-wrap text-sm text-gray-700">
+                  {viewingItem.technicalNotes}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {/* Botões de ação */}
+          <div className="flex justify-end space-x-3 pt-4 border-t">
+            <button
+              onClick={() => {
+                setIsViewModalOpen(false)
+                handleEdit(viewingItem)
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Editar
+            </button>
+            <button
+              onClick={() => setIsViewModalOpen(false)}
+              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Fichas Técnicas</h1>
-          <p className="text-gray-600 mt-1">Gerencie receitas e cálculos de custos</p>
-        </div>
-        <button
-          onClick={handleAdd}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus size={16} />
-          <span>Nova Ficha</span>
-        </button>
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Fichas Técnicas</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Gerencie suas receitas e fichas técnicas de produção
+        </p>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      {/* Filtros e busca */}
+      <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <input
                 type="text"
-                placeholder="Buscar por nome ou descrição..."
+                placeholder="Buscar fichas técnicas..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
-          <div className="md:w-48">
+          <div className="w-full md:w-48">
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Todas as categorias</option>
-              {categorias.map(categoria => (
-                <option key={categoria} value={categoria}>{categoria}</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
               ))}
             </select>
           </div>
+          <button
+            onClick={handleAdd}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center space-x-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Nova Ficha</span>
+          </button>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receita</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rendimento</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Custo Total</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Custo/g</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tempo</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Versão</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredFichas.map((ficha) => (
-                <tr key={ficha.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{ficha.name}</div>
-                      <div className="text-sm text-gray-500">{ficha.description}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{ficha.category}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{ficha.yield}g</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrency(ficha.totalCost)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrency(ficha.costPerGram)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-gray-900">
-                      <Clock size={14} className="mr-1" />
-                      {ficha.prepTime}min
-                    </div>
-                    <div className="flex items-center text-sm text-gray-500">
-                      <Thermometer size={14} className="mr-1" />
-                      {ficha.ovenTemp}°C
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded-full">
-                      v{ficha.version}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button
-                      onClick={() => handleEdit(ficha)}
-                      className="text-blue-600 hover:text-blue-900 mr-3"
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(ficha.id)}
-                      className="text-red-600 hover:text-red-900 mr-3"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                    <button className="text-green-600 hover:text-green-900">
-                      <Copy size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* Lista de fichas técnicas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredRecipes.map((recipe) => (
+          <div key={recipe.id} className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                  {recipe.name}
+                </h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  {recipe.category?.name}
+                </p>
+                <p className="text-sm text-gray-500 line-clamp-2">
+                  {recipe.description || 'Sem descrição'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
+              <div className="flex items-center">
+                <Clock className="h-4 w-4 mr-1" />
+                {recipe.preparationTime}min
+              </div>
+              <div className="flex items-center">
+                <Thermometer className="h-4 w-4 mr-1" />
+                {recipe.ovenTemperature}°C
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => handleView(recipe)}
+                className="p-2 text-green-600 hover:text-green-900"
+                title="Visualizar"
+              >
+                <Eye className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => handleEdit(recipe)}
+                className="p-2 text-blue-600 hover:text-blue-900"
+                title="Editar"
+              >
+                <Edit className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => handleDelete(recipe.id)}
+                className="p-2 text-red-600 hover:text-red-900"
+                title="Excluir"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Modal */}
+      {filteredRecipes.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-500">Nenhuma ficha técnica encontrada</p>
+        </div>
+      )}
+
+      {/* Modal de Edição/Criação */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {editingItem ? 'Editar' : 'Adicionar'} Ficha Técnica
-              </h3>
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {editingItem ? 'Editar' : 'Nova'} Ficha Técnica
+              </h2>
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <X size={20} />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
@@ -374,17 +609,17 @@ export default function FichasTecnicas() {
                   className={`py-2 px-1 border-b-2 font-medium text-sm ${
                     activeTab === 'info'
                       ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Informações Gerais
+                  Informações Básicas
                 </button>
                 <button
                   onClick={() => setActiveTab('ingredients')}
                   className={`py-2 px-1 border-b-2 font-medium text-sm ${
                     activeTab === 'ingredients'
                       ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
                   Ingredientes
@@ -394,239 +629,248 @@ export default function FichasTecnicas() {
                   className={`py-2 px-1 border-b-2 font-medium text-sm ${
                     activeTab === 'instructions'
                       ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Modo de Preparo
+                  Instruções
                 </button>
               </nav>
             </div>
 
-            {/* Tab Content */}
-            {activeTab === 'info' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nome da Receita</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ex: Pão Francês Tradicional"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Categoria</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Selecione a categoria</option>
-                    {categorias.map(categoria => (
-                      <option key={categoria} value={categoria}>{categoria}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Tempo de Preparo (min)</label>
-                  <input
-                    type="number"
-                    value={formData.prepTime}
-                    onChange={(e) => setFormData({ ...formData, prepTime: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ex: 180"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Temperatura do Forno (°C)</label>
-                  <input
-                    type="number"
-                    value={formData.ovenTemp}
-                    onChange={(e) => setFormData({ ...formData, ovenTemp: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ex: 220"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rendimento (g)</label>
-                  <input
-                    type="number"
-                    value={formData.yield}
-                    onChange={(e) => setFormData({ ...formData, yield: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ex: 1000"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Versão</label>
-                  <input
-                    type="text"
-                    value={formData.version}
-                    onChange={(e) => setFormData({ ...formData, version: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ex: 1.0"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={3}
-                    placeholder="Descrição da receita"
-                  />
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'ingredients' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-lg font-medium text-gray-900">Ingredientes</h4>
-                  <button
-                    onClick={addIngredient}
-                    className="flex items-center space-x-2 px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                  >
-                    <Plus size={14} />
-                    <span>Adicionar</span>
-                  </button>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ingrediente</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantidade (g/ml)</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Porcentagem (%)</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Custo (R$)</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {formData.ingredients.map((ingredient, index) => (
-                        <tr key={index}>
-                          <td className="px-4 py-2">
-                            <select
-                              value={ingredient.id}
-                              onChange={(e) => updateIngredient(index, 'id', parseInt(e.target.value))}
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            >
-                              <option value={0}>Selecione o ingrediente</option>
-                              {availableIngredients.map(ing => (
-                                <option key={ing.id} value={ing.id}>{ing.name}</option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-4 py-2">
-                            <input
-                              type="number"
-                              value={ingredient.quantity}
-                              onChange={(e) => updateIngredient(index, 'quantity', parseFloat(e.target.value))}
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              placeholder="0"
-                            />
-                          </td>
-                          <td className="px-4 py-2">
-                            <input
-                              type="number"
-                              step="0.1"
-                              value={ingredient.percentage.toFixed(1)}
-                              onChange={(e) => updateIngredient(index, 'percentage', parseFloat(e.target.value))}
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              placeholder="0.0"
-                            />
-                          </td>
-                          <td className="px-4 py-2">
-                            <span className="text-sm text-gray-900">
-                              {formatCurrency(ingredient.cost || 0)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2">
-                            <button
-                              onClick={() => removeIngredient(index)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+            <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+              {/* Tab: Informações Básicas */}
+              {activeTab === 'info' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <span className="font-medium text-gray-700">Custo Total:</span>
-                      <span className="ml-2 text-lg font-bold text-green-600">
-                        {formatCurrency(calculateTotalCost())}
-                      </span>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nome *
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Nome da receita"
+                        required
+                      />
                     </div>
                     <div>
-                      <span className="font-medium text-gray-700">Custo por Grama:</span>
-                      <span className="ml-2 text-lg font-bold text-blue-600">
-                        {formatCurrency(calculateCostPerGram())}
-                      </span>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Categoria *
+                      </label>
+                      <select
+                        value={formData.categoryId}
+                        onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        <option value="">Selecione uma categoria</option>
+                        {categories.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Descrição
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Descrição da receita"
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Tempo de Preparo (minutos)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.preparationTime}
+                        onChange={(e) => setFormData({ ...formData, preparationTime: parseInt(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Temperatura do Forno (°C)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.ovenTemperature}
+                        onChange={(e) => setFormData({ ...formData, ovenTemperature: parseInt(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="0"
+                      />
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {activeTab === 'instructions' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Modo de Preparo</label>
-                  <textarea
-                    value={formData.instructions}
-                    onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={8}
-                    placeholder="Descreva o passo a passo do preparo..."
-                  />
+              {/* Tab: Ingredientes */}
+              {activeTab === 'ingredients' && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-medium text-gray-900">Ingredientes</h3>
+                    <button
+                      type="button"
+                      onClick={addIngredient}
+                      className="bg-green-600 text-white px-3 py-1 rounded-md hover:bg-green-700 text-sm"
+                    >
+                      <Plus className="h-4 w-4 inline mr-1" />
+                      Adicionar
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {formData.ingredients.map((ingredient, index) => (
+                      <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 p-3 border rounded-md">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Ingrediente
+                          </label>
+                          <select
+                            value={ingredient.ingredientId}
+                            onChange={(e) => updateIngredient(index, 'ingredientId', e.target.value)}
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">Selecione</option>
+                            {ingredients.map((ing) => (
+                              <option key={ing.id} value={ing.id}>
+                                {ing.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Quantidade
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={ingredient.quantity}
+                            onChange={(e) => updateIngredient(index, 'quantity', parseFloat(e.target.value) || 0)}
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Porcentagem
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={ingredient.percentage}
+                            onChange={(e) => updateIngredient(index, 'percentage', parseFloat(e.target.value) || 0)}
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Unidade
+                          </label>
+                          <select
+                            value={ingredient.unitId}
+                            onChange={(e) => updateIngredient(index, 'unitId', e.target.value)}
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">Selecione</option>
+                            {units.map((unit) => (
+                              <option key={unit.id} value={unit.id}>
+                                {unit.name} {unit.symbol && `(${unit.symbol})`}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex items-end">
+                          <button
+                            type="button"
+                            onClick={() => removeIngredient(index)}
+                            className="w-full bg-red-600 text-white px-2 py-1 rounded text-sm hover:bg-red-700"
+                          >
+                            <Trash2 className="h-4 w-4 inline" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {formData.ingredients.length > 0 && (
+                    <div className="bg-gray-50 p-3 rounded-md">
+                      <p className="text-sm font-medium text-gray-700">
+                        Custo Total Estimado: R$ {calculateTotalCost().toFixed(2)}
+                      </p>
+                    </div>
+                  )}
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Observações Técnicas</label>
-                  <textarea
-                    value={formData.observations}
-                    onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={4}
-                    placeholder="Dicas importantes, temperaturas, tempos de repouso, etc..."
-                  />
+              {/* Tab: Instruções */}
+              {activeTab === 'instructions' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Instruções de Preparo
+                    </label>
+                    <textarea
+                      value={formData.instructions}
+                      onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Descreva o passo a passo da receita..."
+                      rows={8}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Observações Técnicas
+                    </label>
+                    <textarea
+                      value={formData.technicalNotes}
+                      onChange={(e) => setFormData({ ...formData, technicalNotes: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Dicas técnicas, temperaturas específicas, cuidados especiais..."
+                      rows={4}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <div className="flex space-x-3 mt-6">
-              <button
-                onClick={handleSave}
-                className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Save size={16} />
-                <span>Salvar Ficha</span>
-              </button>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
+              <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  Salvar
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
+
+      {/* Modal de Visualização */}
+      {renderViewModal()}
     </div>
   )
 }
+
+
