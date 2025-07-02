@@ -252,7 +252,7 @@ export default function CalculoReceita() {
           <div className="text-center py-8 text-gray-500">
             <FileText size={48} className="mx-auto mb-4 text-gray-300" />
             <p>Nenhuma ficha técnica encontrada</p>
-            <p className="text-sm">Cadastre receitas em "Fichas Técnicas" primeiro</p>
+            <p className="text-sm">Cadastre receitas em &ldquo;Fichas Técnicas&rdquo; primeiro</p>
           </div>
         )}
       </div>
@@ -396,4 +396,3 @@ export default function CalculoReceita() {
     </div>
   )
 }
-
