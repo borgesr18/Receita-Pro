@@ -329,45 +329,54 @@ model PrecoCalculado {
 }
 
 enum UserRole {
-  ADMIN
-  EDITOR
-  VIEWER
+  Admin
+  Editor
+  Visualizador
 }
 
 enum UnitType {
-  WEIGHT
-  VOLUME
-  UNIT
+  Peso
+  Unidade
+  Volume
 }
 
 enum IngredientType {
-  FLOUR
-  FAT
-  YEAST
-  SUGAR
-  DAIRY
-  EGG
-  LIQUID
-  ADDITIVE
-  SPICE
-  OTHER
+  Açúcares
+  Aditivos Industriais
+  Adoçantes
+  Agentes de Crescimento
+  Coberturas
+  Derivados
+  Enriquecedores
+  Farinha
+  Fermentos
+  Finalizações
+  Gorduras
+  Ingredientes Adicionais
+  Ingredientes Secundários
+  Líquidos
+  Recheios
+  Sal
+  Temperos
 }
 
 enum StorageCondition {
-  DRY
-  REFRIGERATED
-  FROZEN
+  Ambiente Controlado
+  Ambiente Seco
+  Congelado
+  Refrigerado
+  Uso Imediato
 }
 
 enum ProductionStatus {
-  PLANNED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
+  Planejado
+  Em Andamento
+  Concluído
+  Cancelado
 }
 
 enum MovementType {
-  IN
-  OUT
+  Entrada
+  Saída
 }
 
