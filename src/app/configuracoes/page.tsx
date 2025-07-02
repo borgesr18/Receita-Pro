@@ -94,8 +94,8 @@ export default function Configuracoes() {
   }
 
   useEffect(() => {
-    loadData()
-  }, [])
+  loadData()
+}, [loadData])
 
   // Obter dados da aba atual
   const getCurrentData = () => {
