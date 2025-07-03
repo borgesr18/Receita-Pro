@@ -76,7 +76,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(unit, { status: 201 })
   } catch (error) {
     console.error('❌ POST measurement-units - Erro detalhado:', error)
-    console.error('❌ POST measurement-units - Stack trace:', error.stack)
     
     // Tratamento específico para erro de duplicação
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
@@ -179,11 +178,4 @@ export async function DELETE(request: NextRequest) {
     )
   }
 }
-
-
-
-
-
-
-
 
