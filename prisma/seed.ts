@@ -42,7 +42,7 @@ async function main() {
       data: {
         name: 'Quilograma',
         abbreviation: 'kg',
-        type: 'WEIGHT',
+        type: 'Peso',
         baseUnit: 'g',
         conversionFactor: 1000,
         userId: users[0].id
@@ -52,7 +52,7 @@ async function main() {
       data: {
         name: 'Grama',
         abbreviation: 'g',
-        type: 'WEIGHT',
+        type: 'Peso',
         baseUnit: 'g',
         conversionFactor: 1,
         userId: users[0].id
@@ -62,7 +62,7 @@ async function main() {
       data: {
         name: 'Litro',
         abbreviation: 'L',
-        type: 'VOLUME',
+        type: 'Volume',
         baseUnit: 'ml',
         conversionFactor: 1000,
         userId: users[0].id
@@ -72,7 +72,7 @@ async function main() {
       data: {
         name: 'Mililitro',
         abbreviation: 'ml',
-        type: 'VOLUME',
+        type: 'Volume',
         baseUnit: 'ml',
         conversionFactor: 1,
         userId: users[0].id
@@ -82,7 +82,7 @@ async function main() {
       data: {
         name: 'Unidade',
         abbreviation: 'un',
-        type: 'UNIT',
+        type: 'Unidade',
         conversionFactor: 1,
         userId: users[0].id
       }
@@ -223,8 +223,8 @@ async function main() {
         pricePerUnit: 4.50,
         supplierId: suppliers[0].id,
         userId: users[0].id,
-        ingredientType: 'FLOUR',
-        storageCondition: 'DRY',
+        ingredientType: 'Farinha',
+        storageCondition: 'Ambiente_Seco',
         currentStock: 25000,
         minimumStock: 5000
       }
@@ -237,8 +237,8 @@ async function main() {
         pricePerUnit: 3.20,
         supplierId: suppliers[1].id,
         userId: users[0].id,
-        ingredientType: 'SUGAR',
-        storageCondition: 'DRY',
+        ingredientType: 'Açúcares',
+        storageCondition: 'Ambiente_Seco',
         currentStock: 15000,
         minimumStock: 3000
       }
@@ -251,8 +251,8 @@ async function main() {
         pricePerUnit: 12.80,
         supplierId: suppliers[2].id,
         userId: users[0].id,
-        ingredientType: 'FAT',
-        storageCondition: 'REFRIGERATED',
+        ingredientType: 'Gorduras',
+        storageCondition: 'Refrigerado',
         currentStock: 8000,
         minimumStock: 1000
       }
@@ -264,8 +264,8 @@ async function main() {
         unitId: units[1].id,
         pricePerUnit: 0.08,
         userId: users[0].id,
-        ingredientType: 'YEAST',
-        storageCondition: 'DRY',
+        ingredientType: 'Fermentos',
+        storageCondition: 'Ambiente_Seco',
         currentStock: 2000,
         minimumStock: 500
       }
@@ -278,8 +278,8 @@ async function main() {
         pricePerUnit: 4.20,
         supplierId: suppliers[2].id,
         userId: users[0].id,
-        ingredientType: 'DAIRY',
-        storageCondition: 'REFRIGERATED',
+        ingredientType: 'Derivados',
+        storageCondition: 'Refrigerado',
         currentStock: 12000,
         minimumStock: 2000
       }
