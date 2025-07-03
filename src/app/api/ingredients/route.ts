@@ -2,7 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUser } from '@/lib/auth'
 import { ingredientSchema } from '@/lib/validations'
+import { IngredientType, StorageCondition } from '@prisma/client'
 import { z } from 'zod'
+
+// Função para validar e converter string para enum IngredientType
+function mapIngredientType(value: string): IngredientType {
+  if (Object.values(IngredientType).includes(value as IngredientType)) {
+    return value as IngredientType
+  }
+  throw new Error(`Invalid ingredient type: ${value}`)
+}
+
+// Função para validar e converter string para enum StorageCondition
+function mapStorageCondition(value: string): StorageCondition {
+  if (Object.values(StorageCondition).includes(value as StorageCondition)) {
+    return value as StorageCondition
+  }
+  throw new Error(`Invalid storage condition: ${value}`)
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,8 +58,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const data = ingredientSchema.parse(body)
-    
+    const parsedData = ingredientSchema.parse(body)
+
+    // Converte os valores do frontend para os enums corretos do Prisma
+    const ingredientType = mapIngredientType(parsedData.ingredientType)
+    const storageCondition = mapStorageCondition(parsedData.storageCondition)
+
     const parseDate = (dateString: string | null | undefined): Date | null => {
       if (!dateString || dateString === '' || dateString === 'undefined') return null
       
@@ -58,21 +79,21 @@ export async function POST(request: NextRequest) {
         return null
       }
     }
-    
+
     const ingredient = await prisma.ingredient.create({
       data: {
-        name: data.name,
-        categoryId: data.categoryId,
-        unitId: data.unitId,
-        pricePerUnit: data.pricePerUnit,
-        supplierId: data.supplierId || null,
+        name: parsedData.name,
+        categoryId: parsedData.categoryId,
+        unitId: parsedData.unitId,
+        pricePerUnit: parsedData.pricePerUnit,
+        supplierId: parsedData.supplierId || null,
         userId: user.id,
-        purchaseDate: parseDate(data.purchaseDate),
-        ingredientType: data.ingredientType,
-        expirationDate: parseDate(data.expirationDate),
-        storageCondition: data.storageCondition,
-        currentStock: data.currentStock,
-        minimumStock: data.minimumStock
+        purchaseDate: parseDate(parsedData.purchaseDate),
+        ingredientType: ingredientType,
+        expirationDate: parseDate(parsedData.expirationDate),
+        storageCondition: storageCondition,
+        currentStock: parsedData.currentStock,
+        minimumStock: parsedData.minimumStock
       },
       include: {
         category: true,
@@ -89,6 +110,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
     console.error('Error creating ingredient:', error)
     return NextResponse.json(
       { error: 'Failed to create ingredient' },
