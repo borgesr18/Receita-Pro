@@ -74,8 +74,8 @@ export default function Insumos() {
       
       const [ingredientsRes, categoriesRes, unitsRes, suppliersRes] = await Promise.all([
         api.get('/ingredients'),
-        api.get('/ingredient-categories'), // API correta para categorias de ingredientes
-        api.get('/measurement-units'), // API correta para unidades de medida
+        api.get('/ingredient-categories'),
+        api.get('/measurement-units'),
         api.get('/suppliers')
       ])
 
@@ -93,7 +93,6 @@ export default function Insumos() {
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error)
       showError('Erro ao carregar dados')
-      // Definir arrays vazios em caso de erro
       setInsumos([])
       setCategories([])
       setUnits([])
@@ -111,13 +110,11 @@ export default function Insumos() {
     try {
       console.log('💾 Salvando insumo:', formData)
       
-      // Validação básica
       if (!formData.name || !formData.categoryId || !formData.unitId) {
         showError('Nome, categoria e unidade são obrigatórios')
         return
       }
 
-      // Preparar dados para envio
       const dataToSend = {
         name: formData.name.trim(),
         categoryId: formData.categoryId,
@@ -225,13 +222,11 @@ export default function Insumos() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Insumos</h1>
         <p className="text-gray-600">Gerencie seus ingredientes e matérias-primas</p>
       </div>
 
-      {/* Cards de Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
@@ -270,7 +265,6 @@ export default function Insumos() {
         </div>
       </div>
 
-      {/* Filtros e Busca */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
@@ -315,7 +309,6 @@ export default function Insumos() {
         </div>
       </div>
 
-      {/* Tabela */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -409,7 +402,6 @@ export default function Insumos() {
         </div>
       </div>
 
-      {/* Modal de Adição/Edição */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -418,5 +410,328 @@ export default function Insumos() {
                 {editingItem ? 'Editar Insumo' : 'Adicionar Insumo'}
               </h2>
               <button
-                onClick={()
-(Content truncated due to size limit. Use line ranges to read in chunks)
+                onClick={() => setIsModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nome *
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Nome do insumo"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Categoria *
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.categoryId}
+                    onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                  >
+                    <option value="">Selecione uma categoria</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Unidade *
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.unitId}
+                    onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
+                  >
+                    <option value="">Selecione uma unidade</option>
+                    {units.map((unit) => (
+                      <option key={unit.id} value={unit.id}>
+                        {unit.name} ({unit.abbreviation})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fornecedor
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.supplierId}
+                    onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
+                  >
+                    <option value="">Selecione um fornecedor</option>
+                    {suppliers.map((supplier) => (
+                      <option key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Estoque Atual
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.currentStock}
+                    onChange={(e) => setFormData({ ...formData, currentStock: parseFloat(e.target.value) || 0 })}
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Estoque Mínimo
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.minimumStock}
+                    onChange={(e) => setFormData({ ...formData, minimumStock: parseFloat(e.target.value) || 0 })}
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Preço por Unidade
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.pricePerUnit}
+                    onChange={(e) => setFormData({ ...formData, pricePerUnit: parseFloat(e.target.value) || 0 })}
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tipo de Ingrediente
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.ingredientType}
+                    onChange={(e) => setFormData({ ...formData, ingredientType: e.target.value })}
+                  >
+                    <option value="PRINCIPAL">Principal</option>
+                    <option value="SECUNDARIO">Secundário</option>
+                    <option value="ADITIVO">Aditivo</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Condição de Armazenamento
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.storageCondition}
+                    onChange={(e) => setFormData({ ...formData, storageCondition: e.target.value })}
+                  >
+                    <option value="AMBIENTE_SECO">Ambiente Seco</option>
+                    <option value="REFRIGERADO">Refrigerado</option>
+                    <option value="CONGELADO">Congelado</option>
+                    <option value="AMBIENTE_CONTROLADO">Ambiente Controlado</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Data de Compra
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.purchaseDate}
+                    onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Data de Validade
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.expirationDate}
+                    onChange={(e) => setFormData({ ...formData, expirationDate: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSave}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isViewModalOpen && viewingItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Detalhes do Insumo</h2>
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Informações Básicas</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Nome:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.name}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Categoria:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.category?.name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Unidade:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.unit?.name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Fornecedor:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.supplier?.name || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Estoque e Preços</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Estoque Atual:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.currentStock}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Estoque Mínimo:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.minimumStock}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Preço por Unidade:</span>
+                      <p className="text-sm text-gray-900">R$ {viewingItem.pricePerUnit.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Valor Total:</span>
+                      <p className="text-sm text-gray-900">R$ {(viewingItem.currentStock * viewingItem.pricePerUnit).toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Detalhes Técnicos</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Tipo:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.ingredientType || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Armazenamento:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.storageCondition || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Data de Compra:</span>
+                      <p className="text-sm text-gray-900">
+                        {viewingItem.purchaseDate ? new Date(viewingItem.purchaseDate).toLocaleDateString('pt-BR') : 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Data de Validade:</span>
+                      <p className="text-sm text-gray-900">
+                        {viewingItem.expirationDate ? new Date(viewingItem.expirationDate).toLocaleDateString('pt-BR') : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Informações do Sistema</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Criado em:</span>
+                      <p className="text-sm text-gray-900">
+                        {new Date(viewingItem.createdAt).toLocaleDateString('pt-BR')} às {new Date(viewingItem.createdAt).toLocaleTimeString('pt-BR')}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Atualizado em:</span>
+                      <p className="text-sm text-gray-900">
+                        {new Date(viewingItem.updatedAt).toLocaleDateString('pt-BR')} às {new Date(viewingItem.updatedAt).toLocaleTimeString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setIsViewModalOpen(false)
+                  handleEdit(viewingItem)
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Editar
+              </button>
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
