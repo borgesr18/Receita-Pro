@@ -85,8 +85,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ Error creating measurement unit:', error)
     
-    // Verificar se é erro de duplicação
-    if (error.code === 'P2002') {
+    // Verificar se é erro de duplicação - TypeScript safe
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
       return NextResponse.json(
         { error: 'Já existe uma unidade com este nome ou símbolo' },
         { status: 409 }
@@ -165,7 +165,8 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('❌ Error updating measurement unit:', error)
     
-    if (error.code === 'P2002') {
+    // Verificar se é erro de duplicação - TypeScript safe
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
       return NextResponse.json(
         { error: 'Já existe uma unidade com este nome ou símbolo' },
         { status: 409 }
@@ -213,4 +214,5 @@ export async function DELETE(request: NextRequest) {
     )
   }
 }
+
 
