@@ -9,7 +9,8 @@ import {
   Scale,
   Tag,
   Truck,
-  Eye
+  Eye,
+  X
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/contexts/ToastContext'
@@ -25,10 +26,11 @@ interface Category {
 interface Unit {
   id: string
   name: string
-  abbreviation: string
-  type: string
+  symbol: string
+  abbreviation?: string
+  type?: string
   baseUnit?: string
-  conversionFactor: number
+  conversionFactor?: number
   createdAt?: string
   updatedAt?: string
 }
@@ -52,27 +54,31 @@ interface UnitType {
 export default function Configuracoes() {
   const [activeTab, setActiveTab] = useState('categorias-receitas')
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<any>(null)
-  const [viewingItem, setViewingItem] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const { showSuccess, showError } = useToast()
 
-  // Estados para dados
+  // Estado para modal de visualização
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const [viewingItem, setViewingItem] = useState<any>(null)
+
+  // Estados para cada tipo de dados
   const [categoriasReceitas, setCategoriasReceitas] = useState<Category[]>([])
   const [categoriasInsumos, setCategoriasInsumos] = useState<Category[]>([])
   const [unidadesMedida, setUnidadesMedida] = useState<Unit[]>([])
   const [fornecedores, setFornecedores] = useState<Supplier[]>([])
+
+  // Estado para tipos de unidades (carregado dinamicamente)
   const [unitTypes, setUnitTypes] = useState<UnitType[]>([])
 
   // Estado do formulário
+  const [editingItem, setEditingItem] = useState<any>(null)
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    abbreviation: '',
-    type: '',
+    symbol: '',
+    type: 'WEIGHT',
     baseUnit: '',
-    conversionFactor: 1.0,
+    conversionFactor: 1,
     contact: '',
     phone: '',
     email: '',
@@ -86,12 +92,12 @@ export default function Configuracoes() {
     { id: 'fornecedores', label: 'Fornecedores', icon: Truck }
   ]
 
-  // Carregar tipos de unidades dinamicamente
+  // Carregar tipos de unidades dinamicamente do banco
   const loadUnitTypes = useCallback(async () => {
     try {
       console.log('🔄 Carregando tipos de unidades do banco...')
       const response = await api.get('/api/enums/unit-types')
-      const types = response.data || []
+      const types = Array.isArray(response.data) ? response.data : []
       setUnitTypes(types)
       
       // Definir o primeiro tipo como padrão se existir
@@ -104,10 +110,9 @@ export default function Configuracoes() {
       console.error('❌ Erro ao carregar tipos de unidades:', error)
       // Fallback para valores padrão em caso de erro
       const fallbackTypes = [
-        { value: 'Peso', label: 'Peso' },
-        { value: 'Volume', label: 'Volume' },
-        { value: 'Comprimento', label: 'Comprimento' },
-        { value: 'Pacote', label: 'Pacote' }
+        { value: 'WEIGHT', label: 'Peso' },
+        { value: 'VOLUME', label: 'Volume' },
+        { value: 'LENGTH', label: 'Comprimento' }
       ]
       setUnitTypes(fallbackTypes)
       showError('Erro ao carregar tipos de unidades, usando valores padrão')
@@ -145,35 +150,39 @@ export default function Configuracoes() {
       })
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error)
-      showError('Erro ao carregar dados das configurações')
+      showError('Erro ao carregar dados')
     } finally {
       setLoading(false)
     }
   }, [showError])
 
   useEffect(() => {
-    loadData()
-    loadUnitTypes()
-  }, [loadData, loadUnitTypes])
+    // Carregar tipos de unidades primeiro, depois os dados
+    loadUnitTypes().then(() => {
+      loadData()
+    })
+  }, [loadUnitTypes, loadData])
 
-  const resetForm = () => {
+  const handleView = (item: any) => {
+    setViewingItem(item)
+    setIsViewModalOpen(true)
+  }
+
+  const handleAdd = () => {
+    setEditingItem(null)
+    const defaultType = unitTypes.length > 0 ? unitTypes[0].value : 'WEIGHT'
     setFormData({
       name: '',
       description: '',
-      abbreviation: '',
-      type: unitTypes.length > 0 ? unitTypes[0].value : '',
+      symbol: '',
+      type: defaultType,
       baseUnit: '',
-      conversionFactor: 1.0,
+      conversionFactor: 1,
       contact: '',
       phone: '',
       email: '',
       address: ''
     })
-  }
-
-  const handleAdd = () => {
-    setEditingItem(null)
-    resetForm()
     setIsModalOpen(true)
   }
 
@@ -182,21 +191,16 @@ export default function Configuracoes() {
     setFormData({
       name: item.name || '',
       description: item.description || '',
-      abbreviation: item.abbreviation || '',
-      type: item.type || (unitTypes.length > 0 ? unitTypes[0].value : ''),
+      symbol: item.symbol || item.abbreviation || '',
+      type: item.type || (unitTypes.length > 0 ? unitTypes[0].value : 'WEIGHT'),
       baseUnit: item.baseUnit || '',
-      conversionFactor: item.conversionFactor || 1.0,
+      conversionFactor: item.conversionFactor || 1,
       contact: item.contact || '',
       phone: item.phone || '',
       email: item.email || '',
       address: item.address || ''
     })
     setIsModalOpen(true)
-  }
-
-  const handleView = (item: any) => {
-    setViewingItem(item)
-    setIsViewModalOpen(true)
   }
 
   const handleSave = async () => {
@@ -231,17 +235,14 @@ export default function Configuracoes() {
           break
         case 'unidades-medida':
           endpoint = '/api/measurement-units'
-          if (!formData.abbreviation.trim()) {
+          if (!formData.symbol.trim()) {
             showError('Símbolo é obrigatório')
             return
           }
-          if (!formData.type.trim()) {
-            showError('Tipo é obrigatório')
-            return
-          }
+          // CORREÇÃO: Enviar campos corretos para unidades de medida
           dataToSend = {
             name: formData.name,
-            abbreviation: formData.abbreviation,
+            abbreviation: formData.symbol,
             type: formData.type,
             baseUnit: formData.baseUnit || null,
             conversionFactor: parseFloat(formData.conversionFactor.toString()) || 1.0
@@ -315,475 +316,117 @@ export default function Configuracoes() {
       }
 
       setIsModalOpen(false)
-      resetForm()
       setEditingItem(null)
-    } catch (error: any) {
+    } catch (error) {
       console.error('❌ Erro ao salvar:', error)
-      const errorMessage = error.response?.data?.error || 'Erro ao salvar item'
-      showError(errorMessage)
+      showError('Erro ao salvar item')
     }
   }
 
-  const handleDelete = async (item: any) => {
-    if (!confirm('Tem certeza que deseja excluir este item?')) {
-      return
-    }
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir este item?')) return
 
     try {
       let endpoint = ''
       
       switch (activeTab) {
         case 'categorias-receitas':
-          endpoint = `/api/recipe-categories/${item.id}`
+          endpoint = '/api/recipe-categories'
           break
         case 'categorias-insumos':
-          endpoint = `/api/ingredient-categories/${item.id}`
+          endpoint = '/api/ingredient-categories'
           break
         case 'unidades-medida':
-          endpoint = `/api/measurement-units/${item.id}`
+          endpoint = '/api/measurement-units'
           break
         case 'fornecedores':
-          endpoint = `/api/suppliers/${item.id}`
+          endpoint = '/api/suppliers'
           break
       }
 
-      await api.delete(endpoint)
-
+      await api.delete(`${endpoint}/${id}`)
+      
       // Remover do estado local
       switch (activeTab) {
         case 'categorias-receitas':
-          setCategoriasReceitas(categoriasReceitas.filter(i => i.id !== item.id))
+          const filteredCategoriasReceitas = categoriasReceitas.filter(item => item.id !== id)
+          setCategoriasReceitas(filteredCategoriasReceitas)
           break
         case 'categorias-insumos':
-          setCategoriasInsumos(categoriasInsumos.filter(i => i.id !== item.id))
+          const filteredCategoriasInsumos = categoriasInsumos.filter(item => item.id !== id)
+          setCategoriasInsumos(filteredCategoriasInsumos)
           break
         case 'unidades-medida':
-          setUnidadesMedida(unidadesMedida.filter(i => i.id !== item.id))
+          const filteredUnidades = unidadesMedida.filter(item => item.id !== id)
+          setUnidadesMedida(filteredUnidades)
           break
         case 'fornecedores':
-          setFornecedores(fornecedores.filter(i => i.id !== item.id))
+          const filteredFornecedores = fornecedores.filter(item => item.id !== id)
+          setFornecedores(filteredFornecedores)
           break
       }
-
+      
       showSuccess('Item excluído com sucesso!')
-    } catch (error: any) {
+    } catch (error) {
       console.error('❌ Erro ao excluir:', error)
-      const errorMessage = error.response?.data?.error || 'Erro ao excluir item'
-      showError(errorMessage)
+      showError('Erro ao excluir item')
     }
   }
 
   const getCurrentData = () => {
     switch (activeTab) {
-      case 'categorias-receitas': return categoriasReceitas
-      case 'categorias-insumos': return categoriasInsumos
-      case 'unidades-medida': return unidadesMedida
-      case 'fornecedores': return fornecedores
-      default: return []
-    }
-  }
-
-  const renderTableHeaders = () => {
-    switch (activeTab) {
+      case 'categorias-receitas':
+        return categoriasReceitas
+      case 'categorias-insumos':
+        return categoriasInsumos
       case 'unidades-medida':
-        return (
-          <tr className="bg-gray-50">
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Símbolo</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-          </tr>
-        )
+        return unidadesMedida
       case 'fornecedores':
-        return (
-          <tr className="bg-gray-50">
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contato</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefone</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-          </tr>
-        )
+        return fornecedores
       default:
-        return (
-          <tr className="bg-gray-50">
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-          </tr>
-        )
+        return []
     }
   }
 
-  const renderTableRows = () => {
-    const data = getCurrentData()
-    
-    if (data.length === 0) {
-      return (
-        <tr>
-          <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
-            Nenhum item cadastrado
-          </td>
-        </tr>
-      )
-    }
-
-    return data.map((item: any) => (
-      <tr key={item.id} className="bg-white border-b border-gray-200 hover:bg-gray-50">
-        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-          {item.name}
-        </td>
-        {activeTab === 'unidades-medida' ? (
-          <>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {item.abbreviation}
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {item.type}
-            </td>
-          </>
-        ) : activeTab === 'fornecedores' ? (
-          <>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {item.contact}
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {item.phone}
-            </td>
-          </>
-        ) : (
-          <td className="px-6 py-4 text-sm text-gray-500">
-            {item.description}
-          </td>
-        )}
-        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-          <button
-            onClick={() => handleView(item)}
-            className="text-green-600 hover:text-green-900 p-1 rounded"
-            title="Visualizar"
-          >
-            <Eye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => handleEdit(item)}
-            className="text-blue-600 hover:text-blue-900 p-1 rounded"
-            title="Editar"
-          >
-            <Edit className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => handleDelete(item)}
-            className="text-red-600 hover:text-red-900 p-1 rounded"
-            title="Excluir"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </td>
-      </tr>
-    ))
-  }
-
-  const renderFormFields = () => {
+  const getModalTitle = () => {
+    const action = editingItem ? 'Editar' : 'Adicionar'
     switch (activeTab) {
+      case 'categorias-receitas':
+        return `${action} Categoria de Receita`
+      case 'categorias-insumos':
+        return `${action} Categoria de Insumo`
       case 'unidades-medida':
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nome *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Nome da unidade"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Símbolo *
-              </label>
-              <input
-                type="text"
-                value={formData.abbreviation}
-                onChange={(e) => setFormData({ ...formData, abbreviation: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Símbolo (ex: kg, L, un)"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tipo
-              </label>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {unitTypes.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Fator de Conversão
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.conversionFactor}
-                onChange={(e) => setFormData({ ...formData, conversionFactor: parseFloat(e.target.value) || 1.0 })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="1.0"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Unidade Base (opcional)
-              </label>
-              <input
-                type="text"
-                value={formData.baseUnit}
-                onChange={(e) => setFormData({ ...formData, baseUnit: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Unidade base para conversão"
-              />
-            </div>
-          </div>
-        )
+        return `${action} Unidade de Medida`
       case 'fornecedores':
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nome *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Nome do fornecedor"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Contato
-              </label>
-              <input
-                type="text"
-                value={formData.contact}
-                onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Nome do contato"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Telefone
-              </label>
-              <input
-                type="text"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Telefone"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Email"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Endereço
-              </label>
-              <textarea
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Endereço completo"
-                rows={3}
-              />
-            </div>
-          </div>
-        )
+        return `${action} Fornecedor`
       default:
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nome *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Nome da categoria"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Descrição
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Descrição da categoria"
-                rows={3}
-              />
-            </div>
-          </div>
-        )
+        return `${action} Item`
     }
   }
 
-  const renderViewModal = () => {
-    if (!viewingItem) return null
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '-'
+    return new Date(dateString).toLocaleDateString('pt-BR')
+  }
 
-    const formatDate = (dateString: string) => {
-      return new Date(dateString).toLocaleString('pt-BR')
-    }
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Visualizar Item
-            </h3>
-            <button
-              onClick={() => setIsViewModalOpen(false)}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X className="h-6 w-6" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
-              <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.name}</p>
-            </div>
-
-            {activeTab === 'unidades-medida' && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Símbolo</label>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.abbreviation}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.type}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fator de Conversão</label>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.conversionFactor}</p>
-                </div>
-                {viewingItem.baseUnit && (
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Unidade Base</label>
-                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.baseUnit}</p>
-                  </div>
-                )}
-              </>
-            )}
-
-            {activeTab === 'fornecedores' && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contato</label>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.contact}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.phone}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.email}</p>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.address}</p>
-                </div>
-              </>
-            )}
-
-            {(activeTab === 'categorias-receitas' || activeTab === 'categorias-insumos') && (
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.description}</p>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Criado em</label>
-              <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                {viewingItem.createdAt ? formatDate(viewingItem.createdAt) : 'N/A'}
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Atualizado em</label>
-              <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                {viewingItem.updatedAt ? formatDate(viewingItem.updatedAt) : 'N/A'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-3 mt-6">
-            <button
-              onClick={() => {
-                setIsViewModalOpen(false)
-                handleEdit(viewingItem)
-              }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              Editar
-            </button>
-            <button
-              onClick={() => setIsViewModalOpen(false)}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
-            >
-              Fechar
-            </button>
-          </div>
-        </div>
-      </div>
-    )
+  const getTypeLabel = (type: string) => {
+    const unitType = unitTypes.find(ut => ut.value === type)
+    return unitType ? unitType.label : type
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando configurações...</p>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
-          <p className="text-gray-600">Gerencie categorias, unidades de medida e fornecedores do sistema</p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Configurações</h1>
+        <p className="text-gray-600 mt-1">Gerencie categorias, unidades de medida e fornecedores do sistema</p>
       </div>
 
       {/* Tabs */}
@@ -795,14 +438,18 @@ export default function Configuracoes() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center space-x-2 ${
+                className={`group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                <Icon className="h-4 w-4" />
-                <span>{tab.label}</span>
+                <Icon
+                  className={`-ml-0.5 mr-2 h-5 w-5 ${
+                    activeTab === tab.id ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
+                  }`}
+                />
+                {tab.label}
               </button>
             )
           })}
@@ -811,38 +458,137 @@ export default function Configuracoes() {
 
       {/* Content */}
       <div className="bg-white shadow rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-lg font-medium text-gray-900">
-            {tabs.find(tab => tab.id === activeTab)?.label}
-          </h2>
-          <button
-            onClick={handleAdd}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar
-          </button>
-        </div>
+        <div className="px-4 py-5 sm:p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg leading-6 font-medium text-gray-900">
+              {tabs.find(tab => tab.id === activeTab)?.label}
+            </h3>
+            <button
+              onClick={handleAdd}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Plus className="-ml-1 mr-2 h-4 w-4" />
+              Adicionar
+            </button>
+          </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead>
-              {renderTableHeaders()}
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {renderTableRows()}
-            </tbody>
-          </table>
+          {/* Table */}
+          <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+            <table className="min-w-full divide-y divide-gray-300">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Nome
+                  </th>
+                  {activeTab === 'unidades-medida' && (
+                    <>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Símbolo
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Tipo
+                      </th>
+                    </>
+                  )}
+                  {activeTab === 'fornecedores' && (
+                    <>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Contato
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Telefone
+                      </th>
+                    </>
+                  )}
+                  {(activeTab === 'categorias-receitas' || activeTab === 'categorias-insumos') && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Descrição
+                    </th>
+                  )}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ações
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {getCurrentData().length === 0 ? (
+                  <tr>
+                    <td colSpan={activeTab === 'unidades-medida' || activeTab === 'fornecedores' ? 4 : 3} className="px-6 py-4 text-center text-gray-500">
+                      Nenhum item cadastrado
+                    </td>
+                  </tr>
+                ) : (
+                  getCurrentData().map((item: any) => (
+                    <tr key={item.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {item.name}
+                      </td>
+                      {activeTab === 'unidades-medida' && (
+                        <>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {item.symbol || item.abbreviation}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {getTypeLabel(item.type)}
+                          </td>
+                        </>
+                      )}
+                      {activeTab === 'fornecedores' && (
+                        <>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {item.contact}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {item.phone}
+                          </td>
+                        </>
+                      )}
+                      {(activeTab === 'categorias-receitas' || activeTab === 'categorias-insumos') && (
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {item.description}
+                        </td>
+                      )}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleView(item)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Visualizar"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEdit(item)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Editar"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       {/* Modal de Adição/Edição */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {editingItem ? 'Editar Item' : 'Adicionar Item'}
+              <h3 className="text-lg font-medium text-gray-900">
+                {getModalTitle()}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -852,7 +598,146 @@ export default function Configuracoes() {
               </button>
             </div>
 
-            {renderFormFields()}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Nome"
+                />
+              </div>
+
+              {(activeTab === 'categorias-receitas' || activeTab === 'categorias-insumos') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Descrição
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Descrição"
+                    rows={3}
+                  />
+                </div>
+              )}
+
+              {activeTab === 'unidades-medida' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Símbolo *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.symbol}
+                      onChange={(e) => setFormData({ ...formData, symbol: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Símbolo (ex: kg, L, un)"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tipo
+                    </label>
+                    <select
+                      value={formData.type}
+                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {unitTypes.map((type) => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Fator de Conversão
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.conversionFactor}
+                      onChange={(e) => setFormData({ ...formData, conversionFactor: parseFloat(e.target.value) || 1 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="1.0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Unidade Base (opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.baseUnit}
+                      onChange={(e) => setFormData({ ...formData, baseUnit: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Unidade base para conversão"
+                    />
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'fornecedores' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Contato
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.contact}
+                      onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Nome do contato"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Telefone
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Telefone"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Email"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Endereço
+                    </label>
+                    <textarea
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Endereço completo"
+                      rows={3}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
 
             <div className="flex justify-end space-x-3 mt-6">
               <button
@@ -873,7 +758,109 @@ export default function Configuracoes() {
       )}
 
       {/* Modal de Visualização */}
-      {isViewModalOpen && renderViewModal()}
+      {isViewModalOpen && viewingItem && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900">
+                Visualizar Item
+              </h3>
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Nome</label>
+                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.name}</p>
+              </div>
+
+              {(activeTab === 'categorias-receitas' || activeTab === 'categorias-insumos') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Descrição</label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.description}</p>
+                </div>
+              )}
+
+              {activeTab === 'unidades-medida' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Símbolo</label>
+                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.symbol || viewingItem.abbreviation}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Tipo</label>
+                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{getTypeLabel(viewingItem.type)}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Fator de Conversão</label>
+                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.conversionFactor}</p>
+                  </div>
+                  {viewingItem.baseUnit && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Unidade Base</label>
+                      <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.baseUnit}</p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {activeTab === 'fornecedores' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Contato</label>
+                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.contact}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Telefone</label>
+                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.phone}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Email</label>
+                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.email}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Endereço</label>
+                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.address}</p>
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Criado em</label>
+                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{formatDate(viewingItem.createdAt)}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Atualizado em</label>
+                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{formatDate(viewingItem.updatedAt)}</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setIsViewModalOpen(false)
+                  handleEdit(viewingItem)
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                Editar
+              </button>
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
