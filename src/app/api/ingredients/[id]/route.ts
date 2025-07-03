@@ -71,13 +71,12 @@ export async function PUT(
     const params = await context.params
     const body = await request.json()
 
-    // Atualiza o schema com os enums do Prisma
-    const updatedSchema = ingredientSchema.extend({
-      ingredientType: z.nativeEnum(IngredientType),
-      storageCondition: z.nativeEnum(StorageCondition)
-    })
+    // Valida os campos básicos (sem enums ainda)
+    const parsedData = ingredientSchema.parse(body)
 
-    const data = updatedSchema.parse(body)
+    // Converte os enums manualmente
+    const ingredientType = mapIngredientType(parsedData.ingredientType)
+    const storageCondition = mapStorageCondition(parsedData.storageCondition)
 
     const parseDate = (dateString: string | null | undefined): Date | null => {
       if (!dateString || dateString === '' || dateString === 'undefined') return null
@@ -95,17 +94,17 @@ export async function PUT(
     const result = await prisma.ingredient.updateMany({
       where: { id: params.id, userId: user.id },
       data: {
-        name: data.name,
-        categoryId: data.categoryId,
-        unitId: data.unitId,
-        pricePerUnit: data.pricePerUnit,
-        supplierId: data.supplierId || null,
-        purchaseDate: parseDate(data.purchaseDate),
-        ingredientType: data.ingredientType,
-        expirationDate: parseDate(data.expirationDate),
-        storageCondition: data.storageCondition,
-        currentStock: data.currentStock,
-        minimumStock: data.minimumStock
+        name: parsedData.name,
+        categoryId: parsedData.categoryId,
+        unitId: parsedData.unitId,
+        pricePerUnit: parsedData.pricePerUnit,
+        supplierId: parsedData.supplierId || null,
+        purchaseDate: parseDate(parsedData.purchaseDate),
+        ingredientType: ingredientType,
+        expirationDate: parseDate(parsedData.expirationDate),
+        storageCondition: storageCondition,
+        currentStock: parsedData.currentStock,
+        minimumStock: parsedData.minimumStock
       }
     })
 
@@ -172,5 +171,3 @@ export async function DELETE(
     )
   }
 }
-
-
