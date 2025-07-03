@@ -46,12 +46,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verificar se o tipo é válido
-    const validTypes = ['WEIGHT', 'VOLUME', 'LENGTH']
+    // Buscar os tipos válidos dinamicamente do banco
+    let validTypes: string[] = []
+    try {
+      const result = await prisma.$queryRaw`
+        SELECT unnest(enum_range(NULL::public."UnitType")) as value
+      ` as Array<{ value: string }>
+      validTypes = result.map(item => item.value)
+    } catch (enumError) {
+      console.error('❌ Erro ao buscar tipos válidos, usando fallback:', enumError)
+      // Fallback para os valores que você definiu no Supabase
+      validTypes = ['Peso', 'Volume', 'Comprimento', 'Pacote']
+    }
+
+    console.log('✅ Tipos válidos encontrados:', validTypes)
+
     if (!validTypes.includes(body.type)) {
-      console.error('❌ Tipo inválido:', body.type)
+      console.error('❌ Tipo inválido:', body.type, 'Tipos válidos:', validTypes)
       return NextResponse.json(
-        { error: 'Tipo de unidade inválido' },
+        { error: `Tipo de unidade inválido. Tipos válidos: ${validTypes.join(', ')}` },
         { status: 400 }
       )
     }
@@ -73,7 +86,7 @@ export async function POST(request: NextRequest) {
     console.error('❌ Error creating measurement unit:', error)
     
     // Verificar se é erro de duplicação
-    if ((error as any).code === 'P2002') {
+    if (error.code === 'P2002') {
       return NextResponse.json(
         { error: 'Já existe uma unidade com este nome ou símbolo' },
         { status: 409 }
@@ -114,11 +127,21 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Verificar se o tipo é válido
-    const validTypes = ['WEIGHT', 'VOLUME', 'LENGTH']
+    // Buscar os tipos válidos dinamicamente do banco
+    let validTypes: string[] = []
+    try {
+      const result = await prisma.$queryRaw`
+        SELECT unnest(enum_range(NULL::public."UnitType")) as value
+      ` as Array<{ value: string }>
+      validTypes = result.map(item => item.value)
+    } catch (enumError) {
+      console.error('❌ Erro ao buscar tipos válidos, usando fallback:', enumError)
+      validTypes = ['Peso', 'Volume', 'Comprimento', 'Pacote']
+    }
+
     if (!validTypes.includes(updateData.type)) {
       return NextResponse.json(
-        { error: 'Tipo de unidade inválido' },
+        { error: `Tipo de unidade inválido. Tipos válidos: ${validTypes.join(', ')}` },
         { status: 400 }
       )
     }
@@ -142,7 +165,7 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('❌ Error updating measurement unit:', error)
     
-     if ((error as any).code === 'P2002') {
+    if (error.code === 'P2002') {
       return NextResponse.json(
         { error: 'Já existe uma unidade com este nome ou símbolo' },
         { status: 409 }
