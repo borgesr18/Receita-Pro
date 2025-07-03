@@ -9,60 +9,34 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Consulta SQL para obter os valores possíveis do enum UnitType
+    // Consulta SQL para obter os valores possíveis do enum UnitType diretamente do Supabase
     const result = await prisma.$queryRaw`
       SELECT unnest(enum_range(NULL::public."UnitType")) as value
     ` as Array<{ value: string }>
 
-    // Mapear os valores para incluir labels em português
-    const unitTypes = result.map(item => {
-      let label = item.value
-      
-      // Traduzir para português
-      switch (item.value) {
-        case 'WEIGHT':
-          label = 'Peso'
-          break
-        case 'VOLUME':
-          label = 'Volume'
-          break
-        case 'LENGTH':
-          label = 'Comprimento'
-          break
-        case 'AREA':
-          label = 'Área'
-          break
-        case 'COUNT':
-          label = 'Contagem'
-          break
-        case 'TIME':
-          label = 'Tempo'
-          break
-        case 'TEMPERATURE':
-          label = 'Temperatura'
-          break
-        case 'UNIT':
-          label = 'Unidade'
-          break
-        default:
-          label = item.value
-      }
+    // Mapear os valores para o formato esperado pelo frontend
+    // Como você alterou os valores no Supabase para português, usamos eles diretamente
+    const unitTypes = result.map(item => ({
+      value: item.value,
+      label: item.value  // Usar o mesmo valor como label já que está em português
+    }))
 
-      return {
-        value: item.value,
-        label: label
-      }
-    })
-
-    console.log('✅ Valores do enum UnitType carregados:', unitTypes)
+    console.log('✅ Valores do enum UnitType carregados do Supabase:', unitTypes)
     
     return NextResponse.json(unitTypes)
   } catch (error) {
     console.error('❌ Erro ao buscar valores do enum UnitType:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch unit types' },
-      { status: 500 }
-    )
+    
+    // Fallback para valores padrão em caso de erro na consulta
+    const fallbackTypes = [
+      { value: 'Peso', label: 'Peso' },
+      { value: 'Volume', label: 'Volume' },
+      { value: 'Comprimento', label: 'Comprimento' },
+      { value: 'Pacote', label: 'Pacote' }
+    ]
+    
+    console.log('⚠️ Usando valores fallback:', fallbackTypes)
+    return NextResponse.json(fallbackTypes)
   }
 }
 
