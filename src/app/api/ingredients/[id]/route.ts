@@ -3,30 +3,22 @@ import { prisma } from '@/lib/prisma'
 import { getUser } from '@/lib/auth'
 import { ingredientSchema } from '@/lib/validations'
 import { z } from 'zod'
+import { IngredientType, StorageCondition } from '@prisma/client'
 
-function mapIngredientType(value: string): string {
-  const map: Record<string, string> = {
-    FLOUR: 'Farinha',
-    FAT: 'Gordura',
-    YEAST: 'Fermento',
-    SUGAR: 'Açúcar',
-    DAIRY: 'Derivado',
-    EGG: 'Ovo',
-    LIQUID: 'Líquido',
-    ADDITIVE: 'Aditivo',
-    SPICE: 'Tempero',
-    OTHER: 'Outro'
+// Função para validar e converter string para enum IngredientType
+function mapIngredientType(value: string): IngredientType {
+  if (Object.values(IngredientType).includes(value as IngredientType)) {
+    return value as IngredientType
   }
-  return map[value] || 'Outro'
+  throw new Error(`Invalid ingredient type: ${value}`)
 }
 
-function mapStorageCondition(value: string): string {
-  const map: Record<string, string> = {
-    DRY: 'Seco',
-    REFRIGERATED: 'Refrigerado',
-    FROZEN: 'Congelado'
+// Função para validar e converter string para enum StorageCondition
+function mapStorageCondition(value: string): StorageCondition {
+  if (Object.values(StorageCondition).includes(value as StorageCondition)) {
+    return value as StorageCondition
   }
-  return map[value] || 'Seco'
+  throw new Error(`Invalid storage condition: ${value}`)
 }
 
 export async function GET(
@@ -82,11 +74,14 @@ export async function PUT(
 
     const parseDate = (dateString: string | null | undefined): Date | null => {
       if (!dateString || dateString === '' || dateString === 'undefined') return null
+
       try {
         const date = new Date(dateString)
         if (isNaN(date.getTime())) return null
+
         const year = date.getFullYear()
         if (year < 1900 || year > 2100) return null
+
         return date
       } catch {
         return null
