@@ -336,39 +336,54 @@ enum UserRole {
 
 // Enums
 enum UnitType {
-  WEIGHT    // Peso
-  VOLUME    // Volume  
-  LENGTH    // Comprimento
-  UNIT      // Unidade (mantido para compatibilidade)
+  Balde
+  Caixa
+  Dúzia
+  Lata
+  Pacote
+  Peso
+  Pote
+  Volume
+  Unidade
+  Saco
 }
 
 enum IngredientType {
-  FLOUR     // Farinha
-  FAT       // Gordura
-  YEAST     // Fermento
-  SUGAR     // Açúcar
-  DAIRY     // Laticínio
-  EGG       // Ovo
-  LIQUID    // Líquido
-  ADDITIVE  // Aditivo
-  SPICE     // Tempero
-  OTHER     // Outro
+  Açúcares
+  Aditivos_Industriais
+  Adoçantes
+  Agentes_de_Crescimento
+  Coberturas
+  Derivados
+  Enriquecedores
+  Farinha
+  Fermentos
+  Finalizações
+  Gorduras
+  Ingredientes_Adicionais
+  Ingredientes_Secundários
+  Líquidos
+  Recheios
+  Sal
+  Temperos
 }
 
 enum StorageCondition {
-  DRY          // Seco
-  REFRIGERATED // Refrigerado
-  FROZEN       // Congelado
+  Ambiente_Controlado
+  Ambiente_Seco
+  Congelado
+  Refrigerado
+  Uso_Imediato
 }
 
 enum ProductionStatus {
-  PLANNED      // Planejado
-  IN_PROGRESS  // Em Andamento
-  COMPLETED    // Concluído
-  CANCELLED    // Cancelado
+  Planejado
+  Em_Andamento
+  Completo
+  Cencelado
 }
 
 enum MovementType {
-  IN  // Entrada
-  OUT // Saída
+  Entrada
+  Saída
 }
