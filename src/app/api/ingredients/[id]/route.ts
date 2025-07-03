@@ -10,7 +10,7 @@ function mapIngredientType(value: string): IngredientType {
   if (Object.values(IngredientType).includes(value as IngredientType)) {
     return value as IngredientType
   }
-  throw new Error(`Invalid ingredient type: ${value}`)
+  throw new Error(`Tipo de ingrediente inválido: ${value}`)
 }
 
 // Função para validar e converter string para enum StorageCondition
@@ -18,7 +18,7 @@ function mapStorageCondition(value: string): StorageCondition {
   if (Object.values(StorageCondition).includes(value as StorageCondition)) {
     return value as StorageCondition
   }
-  throw new Error(`Invalid storage condition: ${value}`)
+  throw new Error(`Condição de armazenamento inválida: ${value}`)
 }
 
 export async function GET(
@@ -28,7 +28,7 @@ export async function GET(
   try {
     const { user, error } = await getUser(request)
     if (error || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
 
     const params = await context.params
@@ -43,16 +43,16 @@ export async function GET(
 
     if (!ingredient) {
       return NextResponse.json(
-        { error: 'Ingredient not found or access denied' },
+        { error: 'Ingrediente não encontrado ou acesso negado' },
         { status: 404 }
       )
     }
 
     return NextResponse.json(ingredient)
   } catch (error) {
-    console.error('Error fetching ingredient:', error)
+    console.error('Erro ao buscar ingrediente:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch ingredient' },
+      { error: 'Erro ao buscar ingrediente' },
       { status: 500 }
     )
   }
@@ -65,7 +65,7 @@ export async function PUT(
   try {
     const { user, error } = await getUser(request)
     if (error || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
 
     const params = await context.params
@@ -107,7 +107,7 @@ export async function PUT(
 
     if (result.count === 0) {
       return NextResponse.json(
-        { error: 'Ingredient not found or access denied' },
+        { error: 'Ingrediente não encontrado ou acesso negado' },
         { status: 404 }
       )
     }
@@ -125,13 +125,13 @@ export async function PUT(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation failed', details: error.format() },
+        { error: 'Validação falhou', details: error.format() },
         { status: 400 }
       )
     }
-    console.error('Error updating ingredient:', error)
+    console.error('Erro ao atualizar ingrediente:', error)
     return NextResponse.json(
-      { error: 'Failed to update ingredient' },
+      { error: 'Erro ao atualizar ingrediente' },
       { status: 500 }
     )
   }
@@ -144,7 +144,7 @@ export async function DELETE(
   try {
     const { user, error } = await getUser(request)
     if (error || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
 
     const params = await context.params
@@ -154,17 +154,18 @@ export async function DELETE(
 
     if (result.count === 0) {
       return NextResponse.json(
-        { error: 'Ingredient not found or access denied' },
+        { error: 'Ingrediente não encontrado ou acesso negado' },
         { status: 404 }
       )
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting ingredient:', error)
+    console.error('Erro ao deletar ingrediente:', error)
     return NextResponse.json(
-      { error: 'Failed to delete ingredient' },
+      { error: 'Erro ao deletar ingrediente' },
       { status: 500 }
     )
   }
 }
+
