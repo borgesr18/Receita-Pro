@@ -3,6 +3,23 @@ import { prisma } from '@/lib/prisma'
 import { getUser } from '@/lib/auth'
 import { productionSchema } from '@/lib/validations'
 import { z } from 'zod'
+import { ProductionStatus } from '@prisma/client'
+
+// Mapeia status vindo do frontend (em inglês) para o enum do Prisma (em português)
+function mapProductionStatus(value: string): ProductionStatus {
+  const statusMap: Record<string, ProductionStatus> = {
+    PLANNED: 'Planejado',
+    IN_PROGRESS: 'Em_Andamento',
+    COMPLETED: 'Completo',
+    CANCELLED: 'Cencelado'
+  }
+
+  if (value in statusMap) {
+    return statusMap[value]
+  }
+
+  throw new Error(`Invalid production status: ${value}`)
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,7 +59,10 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const data = productionSchema.parse(body)
-    
+
+    // Converte status do frontend para enum correto do Prisma
+    const productionStatus = mapProductionStatus(data.status)
+
     const parseDate = (dateString: string | null | undefined): Date | null => {
       if (!dateString || dateString === '' || dateString === 'undefined') return null
       
@@ -58,7 +78,7 @@ export async function POST(request: NextRequest) {
         return null
       }
     }
-    
+
     const production = await prisma.production.create({
       data: {
         recipeId: data.recipeId,
@@ -72,7 +92,7 @@ export async function POST(request: NextRequest) {
         productionDate: parseDate(data.productionDate) || new Date(),
         expirationDate: parseDate(data.expirationDate),
         notes: data.notes || '',
-        status: data.status
+        status: productionStatus
       },
       include: {
         recipe: true,
@@ -89,6 +109,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
     console.error('Error creating production:', error)
     return NextResponse.json(
       { error: 'Failed to create production' },
@@ -96,3 +117,4 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
