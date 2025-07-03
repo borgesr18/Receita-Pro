@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { getUser } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
@@ -9,34 +8,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Consulta SQL para obter os valores possíveis do enum UnitType diretamente do Supabase
-    const result = await prisma.$queryRaw`
-      SELECT unnest(enum_range(NULL::public."UnitType")) as value
-    ` as Array<{ value: string }>
-
-    // Mapear os valores para o formato esperado pelo frontend
-    // Como você alterou os valores no Supabase para português, usamos eles diretamente
-    const unitTypes = result.map(item => ({
-      value: item.value,
-      label: item.value  // Usar o mesmo valor como label já que está em português
-    }))
-
-    console.log('✅ Valores do enum UnitType carregados do Supabase:', unitTypes)
-    
-    return NextResponse.json(unitTypes)
-  } catch (error) {
-    console.error('❌ Erro ao buscar valores do enum UnitType:', error)
-    
-    // Fallback para valores padrão em caso de erro na consulta
-    const fallbackTypes = [
+    // Valores fixos baseados no que você definiu no Supabase
+    const unitTypes = [
       { value: 'Peso', label: 'Peso' },
       { value: 'Volume', label: 'Volume' },
       { value: 'Comprimento', label: 'Comprimento' },
       { value: 'Pacote', label: 'Pacote' }
     ]
     
-    console.log('⚠️ Usando valores fallback:', fallbackTypes)
-    return NextResponse.json(fallbackTypes)
+    return NextResponse.json(unitTypes)
+  } catch (error) {
+    console.error('Error fetching unit types:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch unit types' },
+      { status: 500 }
+    )
   }
 }
 
