@@ -5,7 +5,7 @@ import { getUser } from '@/lib/auth'
 export async function GET(request: NextRequest) {
   try {
     console.log('🔍 GET measurement-units - Iniciando...')
-    
+
     const { user, error } = await getUser(request)
     if (error || !user) {
       console.log('❌ GET measurement-units - Unauthorized')
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     console.log('🔍 POST measurement-units - Iniciando...')
-    
+
     const { user, error } = await getUser(request)
     if (error || !user) {
       console.log('❌ POST measurement-units - Unauthorized')
@@ -46,8 +46,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     console.log('📤 POST measurement-units - Dados recebidos:', body)
-    
-    // Teste simples primeiro - apenas campos obrigatórios
+
     const unit = await prisma.measurementUnit.create({
       data: {
         name: body.name || 'Teste',
@@ -61,14 +60,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(unit, { status: 201 })
   } catch (error) {
     console.error('❌ POST measurement-units - Erro detalhado:', error)
-    console.error('❌ POST measurement-units - Stack trace:', error.stack)
+
+    // Correção aqui — valida se é um objeto e tem `.stack`
+    if (error instanceof Error) {
+      console.error('❌ POST measurement-units - Stack trace:', error.stack)
+    }
+
     return NextResponse.json(
       { error: 'Failed to create measurement unit' },
       { status: 500 }
     )
   }
 }
-
 
 
 
