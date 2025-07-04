@@ -68,8 +68,8 @@ export default function Insumos() {
     pricePerUnit: 0,
     supplierId: '',
     currentStock: 0,
-    ingredientType: 'PRINCIPAL',
-    storageCondition: 'AMBIENTE_SECO',
+    ingredientType: 'Ingredientes_Adicionais',
+    storageCondition: 'Ambiente_Seco',
     purchaseDate: '',
     expirationDate: ''
   })
@@ -133,8 +133,8 @@ export default function Insumos() {
         pricePerUnit: parseFloat(formData.pricePerUnit.toString()) || 0,
         supplierId: formData.supplierId || null,
         currentStock: parseFloat(formData.currentStock.toString()) || 0,
-        ingredientType: formData.ingredientType || 'PRINCIPAL',
-        storageCondition: formData.storageCondition || 'AMBIENTE_SECO',
+        ingredientType: formData.ingredientType || 'Ingredientes_Adicionais',
+        storageCondition: formData.storageCondition || 'Ambiente_Seco',
         purchaseDate: formData.purchaseDate || null,
         expirationDate: formData.expirationDate || null
       }
@@ -169,8 +169,8 @@ export default function Insumos() {
       pricePerUnit: 0,
       supplierId: '',
       currentStock: 0,
-      ingredientType: 'PRINCIPAL',
-      storageCondition: 'AMBIENTE_SECO',
+      ingredientType: 'Ingredientes_Adicionais',
+      storageCondition: 'Ambiente_Seco',
       purchaseDate: '',
       expirationDate: ''
     })
@@ -186,8 +186,8 @@ export default function Insumos() {
       pricePerUnit: item.pricePerUnit,
       supplierId: item.supplierId || '',
       currentStock: item.currentStock,
-      ingredientType: item.ingredientType || 'PRINCIPAL',
-      storageCondition: item.storageCondition || 'AMBIENTE_SECO',
+      ingredientType: item.ingredientType || 'Ingredientes_Adicionais',
+      storageCondition: item.storageCondition || 'Ambiente_Seco',
       purchaseDate: item.purchaseDate || '',
       expirationDate: item.expirationDate || ''
     })
@@ -220,8 +220,18 @@ export default function Insumos() {
   })
 
   const totalInsumos = insumos.length
-  const lowStockInsumos = insumos.filter(insumo => insumo.currentStock <= insumo.minimumStock).length
-  const totalValue = insumos.reduce((sum, insumo) => sum + (insumo.currentStock * insumo.pricePerUnit), 0)
+  const lowStockInsumos = insumos.filter(insumo => 
+    insumo && 
+    typeof insumo.currentStock === 'number' && 
+    typeof insumo.minimumStock === 'number' && 
+    insumo.currentStock <= insumo.minimumStock
+  ).length
+  const totalValue = insumos.reduce((sum, insumo) => {
+    if (!insumo || typeof insumo.currentStock !== 'number' || typeof insumo.pricePerUnit !== 'number') {
+      return sum
+    }
+    return sum + (insumo.currentStock * insumo.pricePerUnit)
+  }, 0)
 
   if (loading) {
     return (
@@ -566,10 +576,11 @@ export default function Insumos() {
                     value={formData.storageCondition}
                     onChange={(e) => setFormData({ ...formData, storageCondition: e.target.value })}
                   >
-                    <option value="AMBIENTE_SECO">Ambiente Seco</option>
-                    <option value="REFRIGERADO">Refrigerado</option>
-                    <option value="CONGELADO">Congelado</option>
-                    <option value="AMBIENTE_CONTROLADO">Ambiente Controlado</option>
+                    <option value="Ambiente_Seco">Ambiente Seco</option>
+                    <option value="Refrigerado">Refrigerado</option>
+                    <option value="Congelado">Congelado</option>
+                    <option value="Ambiente_Controlado">Ambiente Controlado</option>
+                    <option value="Uso_Imediato">Uso Imediato</option>
                   </select>
                 </div>
 
@@ -747,3 +758,4 @@ export default function Insumos() {
     </div>
   )
 }
+
