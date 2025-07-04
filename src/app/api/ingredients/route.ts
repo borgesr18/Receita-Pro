@@ -87,13 +87,11 @@ export async function POST(request: NextRequest) {
       supplierId: body.supplierId || null,
       userId: user.id,
       purchaseDate: parseDate(body.purchaseDate),
-      ingredientType: body.ingredientType || 'Ingredientes_Adicionais',
+      ingredientType: body.ingredientType || 'PRINCIPAL',
       expirationDate: parseDate(body.expirationDate),
-      storageCondition: body.storageCondition || 'Ambiente_Seco',
+      storageCondition: body.storageCondition || 'AMBIENTE_SECO',
       currentStock: body.currentStock ? parseFloat(body.currentStock.toString()) : 0,
-      minimumStock: body.minimumStock ? parseFloat(body.minimumStock.toString()) : 0,
-      conversionFactor: body.conversionFactor ? parseFloat(body.conversionFactor.toString()) : null,
-      baseUnit: body.baseUnit || null
+      minimumStock: body.minimumStock ? parseFloat(body.minimumStock.toString()) : 0
     }
 
     console.log('📤 POST ingredients - Dados preparados para criação:', ingredientData)
@@ -171,13 +169,11 @@ export async function PUT(request: NextRequest) {
       pricePerUnit: updateData.pricePerUnit ? parseFloat(updateData.pricePerUnit.toString()) : 0,
       supplierId: updateData.supplierId || null,
       purchaseDate: parseDate(updateData.purchaseDate),
-      ingredientType: updateData.ingredientType || 'Ingredientes_Adicionais',
+      ingredientType: updateData.ingredientType || 'PRINCIPAL',
       expirationDate: parseDate(updateData.expirationDate),
-      storageCondition: updateData.storageCondition || 'Ambiente_Seco',
+      storageCondition: updateData.storageCondition || 'AMBIENTE_SECO',
       currentStock: updateData.currentStock ? parseFloat(updateData.currentStock.toString()) : 0,
       minimumStock: updateData.minimumStock ? parseFloat(updateData.minimumStock.toString()) : 0,
-      conversionFactor: updateData.conversionFactor ? parseFloat(updateData.conversionFactor.toString()) : null,
-      baseUnit: updateData.baseUnit || null,
       updatedAt: new Date()
     }
 
@@ -243,4 +239,5 @@ export async function DELETE(request: NextRequest) {
     )
   }
 }
+
 
