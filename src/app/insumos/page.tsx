@@ -18,6 +18,8 @@ interface Ingredient {
   storageCondition: string
   purchaseDate?: string
   expirationDate?: string
+  conversionFactor?: number
+  baseUnit?: string
   category?: { name: string }
   unit?: { name: string; abbreviation: string }
   supplier?: { name: string }
@@ -71,7 +73,9 @@ export default function Insumos() {
     ingredientType: 'Ingredientes_Adicionais',
     storageCondition: 'Ambiente_Seco',
     purchaseDate: '',
-    expirationDate: ''
+    expirationDate: '',
+    conversionFactor: '',
+    baseUnit: 'g'
   })
 
   const loadData = useCallback(async () => {
@@ -136,7 +140,9 @@ export default function Insumos() {
         ingredientType: formData.ingredientType || 'Ingredientes_Adicionais',
         storageCondition: formData.storageCondition || 'Ambiente_Seco',
         purchaseDate: formData.purchaseDate || null,
-        expirationDate: formData.expirationDate || null
+        expirationDate: formData.expirationDate || null,
+        conversionFactor: formData.conversionFactor ? parseFloat(formData.conversionFactor.toString()) : null,
+        baseUnit: formData.baseUnit || null
       }
 
       console.log('📤 Dados preparados para envio:', dataToSend)
@@ -172,7 +178,9 @@ export default function Insumos() {
       ingredientType: 'Ingredientes_Adicionais',
       storageCondition: 'Ambiente_Seco',
       purchaseDate: '',
-      expirationDate: ''
+      expirationDate: '',
+      conversionFactor: '',
+      baseUnit: 'g'
     })
   }
 
@@ -189,7 +197,9 @@ export default function Insumos() {
       ingredientType: item.ingredientType || 'Ingredientes_Adicionais',
       storageCondition: item.storageCondition || 'Ambiente_Seco',
       purchaseDate: item.purchaseDate || '',
-      expirationDate: item.expirationDate || ''
+      expirationDate: item.expirationDate || '',
+      conversionFactor: item.conversionFactor?.toString() || '',
+      baseUnit: item.baseUnit || 'g'
     })
     setIsModalOpen(true)
   }
@@ -608,6 +618,44 @@ export default function Insumos() {
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fator de Conversão
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.conversionFactor}
+                    onChange={(e) => setFormData({ ...formData, conversionFactor: e.target.value })}
+                    placeholder="Ex: 50 (1 ovo = 50g)"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Quantos gramas/ml equivale a 1 unidade deste insumo
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Unidade Base
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.baseUnit}
+                    onChange={(e) => setFormData({ ...formData, baseUnit: e.target.value })}
+                  >
+                    <option value="g">Gramas (g)</option>
+                    <option value="ml">Mililitros (ml)</option>
+                    <option value="kg">Quilogramas (kg)</option>
+                    <option value="l">Litros (l)</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Unidade usada nos cálculos das receitas
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
@@ -711,6 +759,16 @@ export default function Insumos() {
                         {viewingItem.expirationDate ? new Date(viewingItem.expirationDate).toLocaleDateString('pt-BR') : 'N/A'}
                       </p>
                     </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Fator de Conversão:</span>
+                      <p className="text-sm text-gray-900">
+                        {viewingItem.conversionFactor ? `${viewingItem.conversionFactor} ${viewingItem.baseUnit || 'g'}` : 'Não definido'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Unidade Base:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.baseUnit || 'Não definida'}</p>
+                    </div>
                   </div>
                 </div>
 
@@ -758,4 +816,6 @@ export default function Insumos() {
     </div>
   )
 }
+
+
 
