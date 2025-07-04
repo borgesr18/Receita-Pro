@@ -73,10 +73,10 @@ export default function Insumos() {
       console.log('🔄 Carregando dados dos insumos...')
       
       const [ingredientsRes, categoriesRes, unitsRes, suppliersRes] = await Promise.all([
-        api.get('/ingredients'),
-        api.get('/ingredient-categories'),
-        api.get('/measurement-units'),
-        api.get('/suppliers')
+        api.get('/api/ingredients'),
+        api.get('/api/ingredient-categories'),
+        api.get('/api/measurement-units'),
+        api.get('/api/suppliers')
       ])
 
       console.log('📊 Dados carregados:', {
@@ -132,11 +132,11 @@ export default function Insumos() {
       console.log('📤 Dados preparados para envio:', dataToSend)
 
       if (editingItem) {
-        const response = await api.put(`/ingredients/${editingItem.id}`, dataToSend)
+        const response = await api.put(`/api/ingredients/${editingItem.id}`, dataToSend)
         setInsumos(insumos.map(item => item.id === editingItem.id ? response.data as Ingredient : item))
         showSuccess('Insumo atualizado com sucesso!')
       } else {
-        const response = await api.post('/ingredients', dataToSend)
+        const response = await api.post('/api/ingredients', dataToSend)
         setInsumos([...insumos, response.data as Ingredient])
         showSuccess('Insumo criado com sucesso!')
       }
@@ -192,7 +192,7 @@ export default function Insumos() {
   const handleDelete = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir este insumo?')) {
       try {
-        await api.delete(`/ingredients/${id}`)
+        await api.delete(`/api/ingredients/${id}`)
         setInsumos(insumos.filter(item => item.id !== id))
         showSuccess('Insumo excluído com sucesso!')
       } catch (error) {
@@ -733,3 +733,5 @@ export default function Insumos() {
     </div>
   )
 }
+
+
