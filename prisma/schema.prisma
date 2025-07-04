@@ -242,7 +242,7 @@ model Production {
   productionDate   DateTime               @default(now())
   expirationDate   DateTime?
   notes            String?
-  status           ProductionStatus       @default(PLANNED)
+  status           ProductionStatus       @default(Planejado)
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
   ingredients      ProductionIngredient[]
