@@ -1,4 +1,4 @@
-'use client'
+ 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Search, Plus, Edit, Trash2, Filter, X, Save, MoreHorizontal, Package, TrendingUp, AlertTriangle, Eye } from 'lucide-react'
@@ -733,5 +733,3 @@ export default function Insumos() {
     </div>
   )
 }
-
-
