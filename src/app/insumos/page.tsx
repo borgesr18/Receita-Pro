@@ -41,6 +41,11 @@ interface Supplier {
   name: string
 }
 
+interface IngredientType {
+  value: string
+  label: string
+}
+
 export default function Insumos() {
   const { showSuccess, showError } = useToast()
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -50,6 +55,7 @@ export default function Insumos() {
   const [categories, setCategories] = useState<Category[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [ingredientTypes, setIngredientTypes] = useState<IngredientType[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
@@ -72,24 +78,27 @@ export default function Insumos() {
     try {
       console.log('🔄 Carregando dados dos insumos...')
       
-      const [ingredientsRes, categoriesRes, unitsRes, suppliersRes] = await Promise.all([
+      const [ingredientsRes, categoriesRes, unitsRes, suppliersRes, ingredientTypesRes] = await Promise.all([
         api.get('/api/ingredients'),
         api.get('/api/ingredient-categories'),
         api.get('/api/measurement-units'),
-        api.get('/api/suppliers')
+        api.get('/api/suppliers'),
+        api.get('/api/enums/ingredient-types')
       ])
 
       console.log('📊 Dados carregados:', {
         ingredients: Array.isArray(ingredientsRes.data) ? ingredientsRes.data.length : 0,
         categories: Array.isArray(categoriesRes.data) ? categoriesRes.data.length : 0,
         units: Array.isArray(unitsRes.data) ? unitsRes.data.length : 0,
-        suppliers: Array.isArray(suppliersRes.data) ? suppliersRes.data.length : 0
+        suppliers: Array.isArray(suppliersRes.data) ? suppliersRes.data.length : 0,
+        ingredientTypes: Array.isArray(ingredientTypesRes.data) ? ingredientTypesRes.data.length : 0
       })
 
       setInsumos(Array.isArray(ingredientsRes.data) ? ingredientsRes.data : [])
       setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : [])
       setUnits(Array.isArray(unitsRes.data) ? unitsRes.data : [])
       setSuppliers(Array.isArray(suppliersRes.data) ? suppliersRes.data : [])
+      setIngredientTypes(Array.isArray(ingredientTypesRes.data) ? ingredientTypesRes.data : [])
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error)
       showError('Erro ao carregar dados')
@@ -97,6 +106,7 @@ export default function Insumos() {
       setCategories([])
       setUnits([])
       setSuppliers([])
+      setIngredientTypes([])
     } finally {
       setLoading(false)
     }
@@ -203,6 +213,7 @@ export default function Insumos() {
   }
 
   const filteredInsumos = insumos.filter(insumo => {
+    if (!insumo || !insumo.name) return false
     const matchesSearch = insumo.name.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = !selectedCategory || insumo.categoryId === selectedCategory
     return matchesSearch && matchesCategory
@@ -537,9 +548,12 @@ export default function Insumos() {
                     value={formData.ingredientType}
                     onChange={(e) => setFormData({ ...formData, ingredientType: e.target.value })}
                   >
-                    <option value="PRINCIPAL">Principal</option>
-                    <option value="SECUNDARIO">Secundário</option>
-                    <option value="ADITIVO">Aditivo</option>
+                    <option value="">Selecione um tipo</option>
+                    {ingredientTypes.map(type => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -733,5 +747,3 @@ export default function Insumos() {
     </div>
   )
 }
-
-
