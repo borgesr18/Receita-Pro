@@ -1,7 +1,7 @@
- 'use client'
+'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Search, Plus, Edit, Trash2, Filter, X, Save, MoreHorizontal, Package, TrendingUp, AlertTriangle, Eye } from 'lucide-react'
+import { Search, Plus, Edit, Trash2, X, Save, Package, TrendingUp, AlertTriangle, Eye } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/contexts/ToastContext'
 
@@ -80,10 +80,10 @@ export default function Insumos() {
       ])
 
       console.log('📊 Dados carregados:', {
-        ingredients: ingredientsRes.data?.length || 0,
-        categories: categoriesRes.data?.length || 0,
-        units: unitsRes.data?.length || 0,
-        suppliers: suppliersRes.data?.length || 0
+        ingredients: Array.isArray(ingredientsRes.data) ? ingredientsRes.data.length : 0,
+        categories: Array.isArray(categoriesRes.data) ? categoriesRes.data.length : 0,
+        units: Array.isArray(unitsRes.data) ? unitsRes.data.length : 0,
+        suppliers: Array.isArray(suppliersRes.data) ? suppliersRes.data.length : 0
       })
 
       setInsumos(Array.isArray(ingredientsRes.data) ? ingredientsRes.data : [])
@@ -733,3 +733,4 @@ export default function Insumos() {
     </div>
   )
 }
+
