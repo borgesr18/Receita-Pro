@@ -133,11 +133,11 @@ export default function Insumos() {
 
       if (editingItem) {
         const response = await api.put(`/ingredients/${editingItem.id}`, dataToSend)
-        setInsumos(insumos.map(item => item.id === editingItem.id ? response.data : item))
+        setInsumos(insumos.map(item => item.id === editingItem.id ? response.data as Ingredient : item))
         showSuccess('Insumo atualizado com sucesso!')
       } else {
         const response = await api.post('/ingredients', dataToSend)
-        setInsumos([...insumos, response.data])
+        setInsumos([...insumos, response.data as Ingredient])
         showSuccess('Insumo criado com sucesso!')
       }
       
@@ -733,4 +733,3 @@ export default function Insumos() {
     </div>
   )
 }
-
