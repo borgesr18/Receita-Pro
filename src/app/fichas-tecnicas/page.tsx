@@ -1078,7 +1078,7 @@ export default function FichasTecnicas() {
                         </p>
                       </div>
                     ) : (
-                      <div className="max-h-[400px] overflow-y-auto pr-2 space-y-4">
+                      <div className="h-[400px] overflow-y-auto pr-2 space-y-4" style={{ overflowY: 'auto', display: 'block' }}>
                         {formData.ingredients.map((ingredient, index) => (
                           <div key={ingredient.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -1216,4 +1216,3 @@ export default function FichasTecnicas() {
     </div>
   )
 }
-
