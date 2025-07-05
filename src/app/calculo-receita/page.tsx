@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Calculator, 
   Scale, 
-  DollarSign,
   RotateCcw,
   Copy,
   Search,
@@ -15,7 +14,6 @@ import {
   Filter,
   Grid3X3,
   List,
-  Star,
   Clock,
   Thermometer
 } from 'lucide-react'
@@ -616,7 +614,7 @@ export default function CalculoReceita() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {calculatedIngredients.map((ing, index) => (
+                        {calculatedIngredients.map((ing) => (
                           <tr key={ing.id} className="hover:bg-green-50/50 transition-colors duration-300">
                             <td className="px-4 py-3">
                               <div className="font-semibold text-gray-900">{ing.name}</div>
