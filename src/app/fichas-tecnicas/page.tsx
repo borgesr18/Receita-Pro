@@ -148,7 +148,7 @@ export default function FichasTecnicas() {
         'integral', 'refinada', 'especial', 'tipo 1', 'tipo 2'
       ]
 
-      const name = ingredient.name.toLowerCase()
+      const name = ingredient.name?.toLowerCase() || ''
       const isFlour = flourTerms.some(term => name.includes(term))
 
       if (isFlour) {
@@ -180,6 +180,12 @@ export default function FichasTecnicas() {
       unitId 
     })
 
+    // Validação de entrada
+    if (!quantity || quantity <= 0 || !ingredientId || !unitId) {
+      console.log('⚠️ Dados inválidos para conversão:', { quantity, ingredientId, unitId })
+      return 0
+    }
+
     try {
       // Buscar dados completos do ingrediente
       const ingredientRes = await api.get(`/api/ingredients/${ingredientId}`)
@@ -194,15 +200,15 @@ export default function FichasTecnicas() {
       const unit = Array.isArray(unitRes.data) ? unitRes.data.find((u: any) => u.id === unitId) : null
 
       console.log('📊 Dados do ingrediente:', {
-        name: ingredient.name,
-        conversionFactor: ingredient.conversionFactor,
-        baseUnit: ingredient.baseUnit
+        name: ingredient?.name || 'Desconhecido',
+        conversionFactor: ingredient?.conversionFactor || 'Não definido',
+        baseUnit: ingredient?.baseUnit || 'Não definido'
       })
       
       console.log('📊 Dados da unidade:', {
-        name: unit?.name,
-        symbol: unit?.symbol,
-        type: unit?.type
+        name: unit?.name || 'Desconhecida',
+        symbol: unit?.symbol || 'Não definido',
+        type: unit?.type || 'Não definido'
       })
 
       if (!unit) {
@@ -226,7 +232,7 @@ export default function FichasTecnicas() {
       
       // Se é unidade (ovos, latas, etc.) e tem fator de conversão
       if ((unit.name?.toLowerCase().includes('unidade') || unit.symbol?.toLowerCase() === 'un') && 
-          ingredient.conversionFactor) {
+          ingredient?.conversionFactor && ingredient.conversionFactor > 0) {
         const result = quantity * ingredient.conversionFactor
         console.log('✅ Convertido usando fator específico:', {
           quantidade: quantity,
@@ -237,7 +243,7 @@ export default function FichasTecnicas() {
       }
       
       // Fallback: usar fator de conversão se disponível
-      if (ingredient.conversionFactor && ingredient.conversionFactor > 0) {
+      if (ingredient?.conversionFactor && ingredient.conversionFactor > 0) {
         const result = quantity * ingredient.conversionFactor
         console.log('✅ Convertido usando fator de conversão:', result)
         return result
@@ -257,8 +263,18 @@ export default function FichasTecnicas() {
     console.log('🧮 Iniciando cálculo de porcentagens...')
     console.log('📊 Ingredientes da receita:', updatedIngredients.length)
 
+    // Validar ingredientes
+    const validIngredients = updatedIngredients.filter(ing => 
+      ing.ingredientId && ing.unitId && ing.quantity > 0
+    )
+
+    if (validIngredients.length === 0) {
+      console.log('⚠️ Nenhum ingrediente válido para cálculo')
+      return updatedIngredients
+    }
+
     // Encontra ingrediente base
-    const baseResult = findBaseIngredient(updatedIngredients)
+    const baseResult = findBaseIngredient(validIngredients)
     
     if (!baseResult) {
       console.log('❌ Nenhum ingrediente base encontrado')
@@ -288,7 +304,8 @@ export default function FichasTecnicas() {
       // Calcular porcentagens para todos os ingredientes
       const updatedWithPercentages = await Promise.all(
         updatedIngredients.map(async (ing, index) => {
-          if (ing.quantity <= 0) {
+          // Verificar se o ingrediente tem dados válidos
+          if (!ing.ingredientId || !ing.unitId || ing.quantity <= 0) {
             return { ...ing, percentage: 0 }
           }
 
@@ -453,8 +470,14 @@ export default function FichasTecnicas() {
   const updateIngredient = async (index: number, field: string, value: any) => {
     console.log('🔄 Atualizando ingrediente:', { index, field, value })
     
+    // Garantir que o valor seja válido
+    let validValue = value
+    if (field === 'quantity') {
+      validValue = value === '' || isNaN(Number(value)) ? 0 : Number(value)
+    }
+    
     const updatedIngredients = formData.ingredients.map((ing, i) => 
-      i === index ? { ...ing, [field]: value } : ing
+      i === index ? { ...ing, [field]: validValue } : ing
     )
     
     if (field === 'quantity' || field === 'ingredientId' || field === 'unitId') {
@@ -1078,83 +1101,85 @@ export default function FichasTecnicas() {
                         </p>
                       </div>
                     ) : (
-                      <div className="h-[400px] overflow-y-auto pr-2 space-y-4" style={{ overflowY: 'auto', display: 'block' }}>
-                        {formData.ingredients.map((ingredient, index) => (
-                          <div key={ingredient.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  Ingrediente
-                                </label>
-                                <select
-                                  value={ingredient.ingredientId}
-                                  onChange={(e) => updateIngredient(index, 'ingredientId', e.target.value)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                                >
-                                  <option value="">Selecione...</option>
-                                  {ingredients.map(ing => (
-                                    <option key={ing.id} value={ing.id}>{ing.name}</option>
-                                  ))}
-                                </select>
-                              </div>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  Quantidade
-                                </label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={ingredient.quantity}
-                                  onChange={(e) => updateIngredient(index, 'quantity', Number(e.target.value))}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  Unidade
-                                </label>
-                                <select
-                                  value={ingredient.unitId}
-                                  onChange={(e) => updateIngredient(index, 'unitId', e.target.value)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                                >
-                                  <option value="">Selecione...</option>
-                                  {units.map(unit => (
-                                    <option key={unit.id} value={unit.id}>{unit.name}</option>
-                                  ))}
-                                </select>
-                              </div>
-
-                              <div className="flex items-center gap-3">
-                                <div className="flex-1">
+                      <div style={{ height: '400px', overflowY: 'scroll', border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '0.5rem' }}>
+                        <div className="space-y-4">
+                          {formData.ingredients.map((ingredient, index) => (
+                            <div key={ingredient.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                                <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Porcentagem
+                                    Ingrediente
                                   </label>
-                                  <div className="flex items-center gap-2">
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      value={ingredient.percentage}
-                                      onChange={(e) => updateIngredient(index, 'percentage', Number(e.target.value))}
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                                    />
-                                    <span className="text-blue-600 font-medium">%</span>
-                                  </div>
+                                  <select
+                                    value={ingredient.ingredientId}
+                                    onChange={(e) => updateIngredient(index, 'ingredientId', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                  >
+                                    <option value="">Selecione...</option>
+                                    {ingredients.map(ing => (
+                                      <option key={ing.id} value={ing.id}>{ing.name}</option>
+                                    ))}
+                                  </select>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => removeIngredient(index)}
-                                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white p-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Quantidade
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={ingredient.quantity}
+                                    onChange={(e) => updateIngredient(index, 'quantity', Number(e.target.value))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Unidade
+                                  </label>
+                                  <select
+                                    value={ingredient.unitId}
+                                    onChange={(e) => updateIngredient(index, 'unitId', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                  >
+                                    <option value="">Selecione...</option>
+                                    {units.map(unit => (
+                                      <option key={unit.id} value={unit.id}>{unit.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                  <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                      Porcentagem
+                                    </label>
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        value={ingredient.percentage}
+                                        onChange={(e) => updateIngredient(index, 'percentage', Number(e.target.value))}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                      />
+                                      <span className="text-blue-600 font-medium">%</span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeIngredient(index)}
+                                    className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white p-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1216,3 +1241,4 @@ export default function FichasTecnicas() {
     </div>
   )
 }
+
