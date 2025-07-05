@@ -4,863 +4,684 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Plus, 
   Edit, 
-  Trash2,
+  Trash2, 
+  Save,
+  X,
+  Users,
   Package,
   Scale,
   Tag,
-  Truck,
-  Eye,
-  X
+  Settings,
+  Search,
+  Filter
 } from 'lucide-react'
 import { api } from '@/lib/api'
-import { useToast } from '@/contexts/ToastContext'
+import { useToast } from '@/hooks/useToast'
 
-interface Category {
+interface ConfigurationItem {
   id: string
   name: string
-  description: string
-  createdAt?: string
-  updatedAt?: string
-}
-
-interface Unit {
-  id: string
-  name: string
-  symbol: string
+  description?: string
   abbreviation?: string
   type?: string
-  baseUnit?: string
   conversionFactor?: number
+  baseUnit?: string
+  email?: string
+  role?: string
+  active?: boolean
   createdAt?: string
   updatedAt?: string
-}
-
-interface Supplier {
-  id: string
-  name: string
-  contact: string
-  phone: string
-  email: string
-  address: string
-  createdAt?: string
-  updatedAt?: string
-}
-
-interface UnitType {
-  value: string
-  label: string
 }
 
 export default function Configuracoes() {
   const [activeTab, setActiveTab] = useState('categorias-receitas')
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const { showSuccess, showError } = useToast()
-
-  // Estado para modal de visualização
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
-  const [viewingItem, setViewingItem] = useState<any>(null)
-
-  // Estados para cada tipo de dados
-  const [categoriasReceitas, setCategoriasReceitas] = useState<Category[]>([])
-  const [categoriasInsumos, setCategoriasInsumos] = useState<Category[]>([])
-  const [unidadesMedida, setUnidadesMedida] = useState<Unit[]>([])
-  const [fornecedores, setFornecedores] = useState<Supplier[]>([])
-
-  // Estado para tipos de unidades (carregado dinamicamente)
-  const [unitTypes, setUnitTypes] = useState<UnitType[]>([])
-
-  // Estado do formulário
-  const [editingItem, setEditingItem] = useState<any>(null)
-  const [formData, setFormData] = useState({
+  const [loading, setLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [editingItem, setEditingItem] = useState<ConfigurationItem | null>(null)
+  
+  // Estados para dados reais das APIs
+  const [categoriasReceitas, setCategoriasReceitas] = useState<ConfigurationItem[]>([])
+  const [categoriasInsumos, setCategoriasInsumos] = useState<ConfigurationItem[]>([])
+  const [unidadesMedida, setUnidadesMedida] = useState<ConfigurationItem[]>([])
+  const [fornecedores, setFornecedores] = useState<ConfigurationItem[]>([])
+  const [unitTypes, setUnitTypes] = useState<{value: string, label: string}[]>([])
+  
+  const [formData, setFormData] = useState<ConfigurationItem>({
+    id: '',
     name: '',
     description: '',
-    symbol: '',
-    type: 'WEIGHT',
-    baseUnit: '',
+    abbreviation: '',
+    type: '',
     conversionFactor: 1,
-    contact: '',
-    phone: '',
+    baseUnit: '',
     email: '',
-    address: ''
+    role: '',
+    active: true
   })
 
+  const { showSuccess, showError } = useToast()
+
   const tabs = [
-    { id: 'categorias-receitas', label: 'Categorias de Receitas', icon: Tag },
-    { id: 'categorias-insumos', label: 'Categorias de Insumos', icon: Package },
-    { id: 'unidades-medida', label: 'Unidades de Medida', icon: Scale },
-    { id: 'fornecedores', label: 'Fornecedores', icon: Truck }
+    { id: 'categorias-receitas', label: 'Categorias de Receitas', icon: Tag, color: 'from-blue-500 to-indigo-600' },
+    { id: 'categorias-insumos', label: 'Categorias de Insumos', icon: Package, color: 'from-green-500 to-emerald-600' },
+    { id: 'unidades-medida', label: 'Unidades de Medida', icon: Scale, color: 'from-purple-500 to-violet-600' },
+    { id: 'fornecedores', label: 'Fornecedores', icon: Users, color: 'from-orange-500 to-red-600' }
   ]
 
-  // Carregar tipos de unidades dinamicamente do banco
+  // Carregar tipos de unidades
   const loadUnitTypes = useCallback(async () => {
     try {
-      console.log('🔄 Carregando tipos de unidades do banco...')
       const response = await api.get('/api/enums/unit-types')
-      const types = Array.isArray(response.data) ? response.data : []
-      setUnitTypes(types)
-      
-      // Definir o primeiro tipo como padrão se existir
-      if (types.length > 0) {
-        setFormData(prev => ({ ...prev, type: types[0].value }))
-      }
-      
-      console.log('✅ Tipos de unidades carregados:', types)
+      setUnitTypes(Array.isArray(response.data) ? response.data : [])
     } catch (error) {
-      console.error('❌ Erro ao carregar tipos de unidades:', error)
-      // Fallback para valores padrão em caso de erro
-      const fallbackTypes = [
-        { value: 'WEIGHT', label: 'Peso' },
-        { value: 'VOLUME', label: 'Volume' },
-        { value: 'LENGTH', label: 'Comprimento' }
-      ]
-      setUnitTypes(fallbackTypes)
-      showError('Erro ao carregar tipos de unidades, usando valores padrão')
+      console.error('Erro ao carregar tipos de unidades:', error)
     }
-  }, [showError])
+  }, [])
 
-  // Carregar dados com useCallback para evitar warning
+  // Carregar dados das configurações
   const loadData = useCallback(async () => {
     try {
       setLoading(true)
       console.log('🔄 Carregando dados das configurações...')
       
-      const [categoriasReceitasRes, categoriasInsumosRes, unidadesMedidaRes, fornecedoresRes] = await Promise.all([
+      const [recipeCategoriesRes, ingredientCategoriesRes, measurementUnitsRes, suppliersRes] = await Promise.all([
         api.get('/api/recipe-categories'),
         api.get('/api/ingredient-categories'),
         api.get('/api/measurement-units'),
         api.get('/api/suppliers')
       ])
 
-      const categoriasReceitasData = Array.isArray(categoriasReceitasRes.data) ? categoriasReceitasRes.data : []
-      const categoriasInsumosData = Array.isArray(categoriasInsumosRes.data) ? categoriasInsumosRes.data : []
-      const unidadesMedidaData = Array.isArray(unidadesMedidaRes.data) ? unidadesMedidaRes.data : []
-      const fornecedoresData = Array.isArray(fornecedoresRes.data) ? fornecedoresRes.data : []
-
-      setCategoriasReceitas(categoriasReceitasData)
-      setCategoriasInsumos(categoriasInsumosData)
-      setUnidadesMedida(unidadesMedidaData)
-      setFornecedores(fornecedoresData)
+      setCategoriasReceitas(Array.isArray(recipeCategoriesRes.data) ? recipeCategoriesRes.data : [])
+      setCategoriasInsumos(Array.isArray(ingredientCategoriesRes.data) ? ingredientCategoriesRes.data : [])
+      setUnidadesMedida(Array.isArray(measurementUnitsRes.data) ? measurementUnitsRes.data : [])
+      setFornecedores(Array.isArray(suppliersRes.data) ? suppliersRes.data : [])
 
       console.log('✅ Dados carregados:', {
-        categoriasReceitas: categoriasReceitasData.length,
-        categoriasInsumos: categoriasInsumosData.length,
-        unidadesMedida: unidadesMedidaData.length,
-        fornecedores: fornecedoresData.length
+        recipeCategories: recipeCategoriesRes.data?.length || 0,
+        ingredientCategories: ingredientCategoriesRes.data?.length || 0,
+        measurementUnits: measurementUnitsRes.data?.length || 0,
+        suppliers: suppliersRes.data?.length || 0
       })
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error)
-      showError('Erro ao carregar dados')
+      showError('Erro ao carregar dados das configurações')
     } finally {
       setLoading(false)
     }
   }, [showError])
 
   useEffect(() => {
-    // Carregar tipos de unidades primeiro, depois os dados
-    loadUnitTypes().then(() => {
-      loadData()
-    })
-  }, [loadUnitTypes, loadData])
+    loadData()
+    loadUnitTypes()
+  }, [loadData, loadUnitTypes])
 
-  const handleView = (item: any) => {
-    setViewingItem(item)
-    setIsViewModalOpen(true)
+  const getCurrentData = (): ConfigurationItem[] => {
+    const data = (() => {
+      switch (activeTab) {
+        case 'categorias-receitas': return categoriasReceitas
+        case 'categorias-insumos': return categoriasInsumos
+        case 'unidades-medida': return unidadesMedida
+        case 'fornecedores': return fornecedores
+        default: return []
+      }
+    })()
+    
+    // Filtrar por termo de busca
+    if (searchTerm) {
+      return data.filter(item => 
+        item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+    
+    return data
+  }
+
+  const getCurrentSetter = () => {
+    switch (activeTab) {
+      case 'categorias-receitas': return setCategoriasReceitas
+      case 'categorias-insumos': return setCategoriasInsumos
+      case 'unidades-medida': return setUnidadesMedida
+      case 'fornecedores': return setFornecedores
+      default: return () => {}
+    }
+  }
+
+  const getApiEndpoint = () => {
+    switch (activeTab) {
+      case 'categorias-receitas': return '/api/recipe-categories'
+      case 'categorias-insumos': return '/api/ingredient-categories'
+      case 'unidades-medida': return '/api/measurement-units'
+      case 'fornecedores': return '/api/suppliers'
+      default: return ''
+    }
   }
 
   const handleAdd = () => {
     setEditingItem(null)
-    const defaultType = unitTypes.length > 0 ? unitTypes[0].value : 'WEIGHT'
     setFormData({
+      id: '',
       name: '',
       description: '',
-      symbol: '',
-      type: defaultType,
-      baseUnit: '',
+      abbreviation: '',
+      type: '',
       conversionFactor: 1,
-      contact: '',
-      phone: '',
+      baseUnit: '',
       email: '',
-      address: ''
+      role: '',
+      active: true
     })
     setIsModalOpen(true)
   }
 
-  const handleEdit = (item: any) => {
+  const handleEdit = (item: ConfigurationItem) => {
     setEditingItem(item)
-    setFormData({
-      name: item.name || '',
-      description: item.description || '',
-      symbol: item.symbol || item.abbreviation || '',
-      type: item.type || (unitTypes.length > 0 ? unitTypes[0].value : 'WEIGHT'),
-      baseUnit: item.baseUnit || '',
-      conversionFactor: item.conversionFactor || 1,
-      contact: item.contact || '',
-      phone: item.phone || '',
-      email: item.email || '',
-      address: item.address || ''
-    })
+    setFormData({ ...item })
     setIsModalOpen(true)
   }
 
   const handleSave = async () => {
     try {
-      console.log('📤 Enviando dados:', formData)
+      setLoading(true)
+      const endpoint = getApiEndpoint()
+      
+      // Preparar dados específicos para cada tipo
+      const dataToSend = (() => {
+        switch (activeTab) {
+          case 'unidades-medida':
+            return {
+              name: formData.name,
+              abbreviation: formData.abbreviation,
+              type: formData.type,
+              baseUnit: formData.baseUnit,
+              conversionFactor: formData.conversionFactor || 1
+            }
+          case 'fornecedores':
+            return {
+              name: formData.name,
+              contact: formData.description || '',
+              phone: '',
+              email: formData.email || '',
+              address: ''
+            }
+          default:
+            return {
+              name: formData.name,
+              description: formData.description || ''
+            }
+        }
+      })()
 
-      // Validação básica
-      if (!formData.name.trim()) {
-        showError('Nome é obrigatório')
-        return
+      console.log('📤 Enviando dados:', dataToSend)
+
+      let response
+      if (editingItem) {
+        response = await api.put(`${endpoint}/${editingItem.id}`, dataToSend)
+      } else {
+        response = await api.post(endpoint, dataToSend)
       }
 
-      let response: any
-      let endpoint = ''
-      let dataToSend: any = {}
-
-      // Preparar dados baseado na aba ativa
-      switch (activeTab) {
-        case 'categorias-receitas':
-          endpoint = '/api/recipe-categories'
-          dataToSend = {
-            name: formData.name,
-            description: formData.description
-          }
-          break
-        case 'categorias-insumos':
-          endpoint = '/api/ingredient-categories'
-          dataToSend = {
-            name: formData.name,
-            description: formData.description
-          }
-          break
-        case 'unidades-medida':
-          endpoint = '/api/measurement-units'
-          if (!formData.symbol.trim()) {
-            showError('Símbolo é obrigatório')
-            return
-          }
-          // CORREÇÃO: Enviar campos corretos para unidades de medida
-          dataToSend = {
-            name: formData.name,
-            abbreviation: formData.symbol,
-            type: formData.type,
-            baseUnit: formData.baseUnit || null,
-            conversionFactor: parseFloat(formData.conversionFactor.toString()) || 1.0
-          }
-          console.log('📤 Dados específicos para unidade de medida:', dataToSend)
-          break
-        case 'fornecedores':
-          endpoint = '/api/suppliers'
-          dataToSend = {
-            name: formData.name,
-            contact: formData.contact,
-            phone: formData.phone,
-            email: formData.email,
-            address: formData.address
-          }
-          break
-      }
+      const currentSetter = getCurrentSetter()
+      const currentData = getCurrentData()
 
       if (editingItem) {
-        // Editar item existente
-        response = await api.put(`${endpoint}/${editingItem.id}`, dataToSend)
-        
-        // Atualizar estado local
-        switch (activeTab) {
-          case 'categorias-receitas':
-            const updatedCategoriasReceitas = categoriasReceitas.map(item => 
-              item.id === editingItem.id ? response.data as Category : item
-            )
-            setCategoriasReceitas(updatedCategoriasReceitas)
-            break
-          case 'categorias-insumos':
-            const updatedCategoriasInsumos = categoriasInsumos.map(item => 
-              item.id === editingItem.id ? response.data as Category : item
-            )
-            setCategoriasInsumos(updatedCategoriasInsumos)
-            break
-          case 'unidades-medida':
-            const updatedUnidades = unidadesMedida.map(item => 
-              item.id === editingItem.id ? response.data as Unit : item
-            )
-            setUnidadesMedida(updatedUnidades)
-            break
-          case 'fornecedores':
-            const updatedFornecedores = fornecedores.map(item => 
-              item.id === editingItem.id ? response.data as Supplier : item
-            )
-            setFornecedores(updatedFornecedores)
-            break
-        }
+        currentSetter(currentData.map(item => 
+          item.id === editingItem.id ? response.data : item
+        ))
         showSuccess('Item atualizado com sucesso!')
       } else {
-        // Criar novo item
-        response = await api.post(endpoint, dataToSend)
-        
-        // Adicionar ao estado local
-        switch (activeTab) {
-          case 'categorias-receitas':
-            setCategoriasReceitas([...categoriasReceitas, response.data as Category])
-            break
-          case 'categorias-insumos':
-            setCategoriasInsumos([...categoriasInsumos, response.data as Category])
-            break
-          case 'unidades-medida':
-            setUnidadesMedida([...unidadesMedida, response.data as Unit])
-            break
-          case 'fornecedores':
-            setFornecedores([...fornecedores, response.data as Supplier])
-            break
-        }
+        currentSetter([...currentData, response.data])
         showSuccess('Item criado com sucesso!')
       }
 
       setIsModalOpen(false)
-      setEditingItem(null)
-    } catch (error) {
+      setFormData({
+        id: '',
+        name: '',
+        description: '',
+        abbreviation: '',
+        type: '',
+        conversionFactor: 1,
+        baseUnit: '',
+        email: '',
+        role: '',
+        active: true
+      })
+    } catch (error: any) {
       console.error('❌ Erro ao salvar:', error)
-      showError('Erro ao salvar item')
+      if (error.response?.status === 409) {
+        showError('Já existe um item com esse nome')
+      } else {
+        showError('Erro ao salvar item')
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este item?')) return
+  const handleDelete = async (item: ConfigurationItem) => {
+    if (!confirm(`Tem certeza que deseja excluir "${item.name}"?`)) return
 
     try {
-      let endpoint = ''
-      
-      switch (activeTab) {
-        case 'categorias-receitas':
-          endpoint = '/api/recipe-categories'
-          break
-        case 'categorias-insumos':
-          endpoint = '/api/ingredient-categories'
-          break
-        case 'unidades-medida':
-          endpoint = '/api/measurement-units'
-          break
-        case 'fornecedores':
-          endpoint = '/api/suppliers'
-          break
-      }
+      setLoading(true)
+      const endpoint = getApiEndpoint()
+      await api.delete(`${endpoint}/${item.id}`)
 
-      await api.delete(`${endpoint}/${id}`)
-      
-      // Remover do estado local
-      switch (activeTab) {
-        case 'categorias-receitas':
-          const filteredCategoriasReceitas = categoriasReceitas.filter(item => item.id !== id)
-          setCategoriasReceitas(filteredCategoriasReceitas)
-          break
-        case 'categorias-insumos':
-          const filteredCategoriasInsumos = categoriasInsumos.filter(item => item.id !== id)
-          setCategoriasInsumos(filteredCategoriasInsumos)
-          break
-        case 'unidades-medida':
-          const filteredUnidades = unidadesMedida.filter(item => item.id !== id)
-          setUnidadesMedida(filteredUnidades)
-          break
-        case 'fornecedores':
-          const filteredFornecedores = fornecedores.filter(item => item.id !== id)
-          setFornecedores(filteredFornecedores)
-          break
-      }
+      const currentSetter = getCurrentSetter()
+      const currentData = getCurrentData()
+      currentSetter(currentData.filter(i => i.id !== item.id))
       
       showSuccess('Item excluído com sucesso!')
     } catch (error) {
       console.error('❌ Erro ao excluir:', error)
       showError('Erro ao excluir item')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const getCurrentData = () => {
+  const renderFormFields = () => {
     switch (activeTab) {
-      case 'categorias-receitas':
-        return categoriasReceitas
-      case 'categorias-insumos':
-        return categoriasInsumos
       case 'unidades-medida':
-        return unidadesMedida
-      case 'fornecedores':
-        return fornecedores
-      default:
-        return []
-    }
-  }
-
-  const getModalTitle = () => {
-    const action = editingItem ? 'Editar' : 'Adicionar'
-    switch (activeTab) {
-      case 'categorias-receitas':
-        return `${action} Categoria de Receita`
-      case 'categorias-insumos':
-        return `${action} Categoria de Insumo`
-      case 'unidades-medida':
-        return `${action} Unidade de Medida`
-      case 'fornecedores':
-        return `${action} Fornecedor`
-      default:
-        return `${action} Item`
-    }
-  }
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '-'
-    return new Date(dateString).toLocaleDateString('pt-BR')
-  }
-
-  const getTypeLabel = (type: string) => {
-    const unitType = unitTypes.find(ut => ut.value === type)
-    return unitType ? unitType.label : type
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Configurações</h1>
-        <p className="text-gray-600 mt-1">Gerencie categorias, unidades de medida e fornecedores do sistema</p>
-      </div>
-
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          {tabs.map((tab) => {
-            const Icon = tab.icon
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Icon
-                  className={`-ml-0.5 mr-2 h-5 w-5 ${
-                    activeTab === tab.id ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
-                  }`}
-                />
-                {tab.label}
-              </button>
-            )
-          })}
-        </nav>
-      </div>
-
-      {/* Content */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">
-              {tabs.find(tab => tab.id === activeTab)?.label}
-            </h3>
-            <button
-              onClick={handleAdd}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <Plus className="-ml-1 mr-2 h-4 w-4" />
-              Adicionar
-            </button>
-          </div>
-
-          {/* Table */}
-          <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-            <table className="min-w-full divide-y divide-gray-300">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Nome
-                  </th>
-                  {activeTab === 'unidades-medida' && (
-                    <>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Símbolo
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Tipo
-                      </th>
-                    </>
-                  )}
-                  {activeTab === 'fornecedores' && (
-                    <>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Contato
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Telefone
-                      </th>
-                    </>
-                  )}
-                  {(activeTab === 'categorias-receitas' || activeTab === 'categorias-insumos') && (
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Descrição
-                    </th>
-                  )}
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {getCurrentData().length === 0 ? (
-                  <tr>
-                    <td colSpan={activeTab === 'unidades-medida' || activeTab === 'fornecedores' ? 4 : 3} className="px-6 py-4 text-center text-gray-500">
-                      Nenhum item cadastrado
-                    </td>
-                  </tr>
-                ) : (
-                  getCurrentData().map((item: any) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {item.name}
-                      </td>
-                      {activeTab === 'unidades-medida' && (
-                        <>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.symbol || item.abbreviation}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {getTypeLabel(item.type)}
-                          </td>
-                        </>
-                      )}
-                      {activeTab === 'fornecedores' && (
-                        <>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.contact}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.phone}
-                          </td>
-                        </>
-                      )}
-                      {(activeTab === 'categorias-receitas' || activeTab === 'categorias-insumos') && (
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {item.description}
-                        </td>
-                      )}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleView(item)}
-                            className="text-green-600 hover:text-green-900"
-                            title="Visualizar"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleEdit(item)}
-                            className="text-blue-600 hover:text-blue-900"
-                            title="Editar"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Excluir"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {/* Modal de Adição/Edição */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium text-gray-900">
-                {getModalTitle()}
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
+        return (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome *
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nome da Unidade
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nome"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+                  placeholder="Ex: Quilograma"
+                  required
                 />
               </div>
-
-              {(activeTab === 'categorias-receitas' || activeTab === 'categorias-insumos') && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Descrição
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Descrição"
-                    rows={3}
-                  />
-                </div>
-              )}
-
-              {activeTab === 'unidades-medida' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Símbolo *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.symbol}
-                      onChange={(e) => setFormData({ ...formData, symbol: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Símbolo (ex: kg, L, un)"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tipo
-                    </label>
-                    <select
-                      value={formData.type}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {unitTypes.map((type) => (
-                        <option key={type.value} value={type.value}>
-                          {type.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Fator de Conversão
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.conversionFactor}
-                      onChange={(e) => setFormData({ ...formData, conversionFactor: parseFloat(e.target.value) || 1 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="1.0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Unidade Base (opcional)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.baseUnit}
-                      onChange={(e) => setFormData({ ...formData, baseUnit: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Unidade base para conversão"
-                    />
-                  </div>
-                </>
-              )}
-
-              {activeTab === 'fornecedores' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Contato
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.contact}
-                      onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Nome do contato"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Telefone
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Telefone"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Email"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Endereço
-                    </label>
-                    <textarea
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Endereço completo"
-                      rows={3}
-                    />
-                  </div>
-                </>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Abreviação
+                </label>
+                <input
+                  type="text"
+                  value={formData.abbreviation}
+                  onChange={(e) => setFormData({ ...formData, abbreviation: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+                  placeholder="Ex: kg"
+                  required
+                />
+              </div>
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo
+                </label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+                  required
+                >
+                  <option value="">Selecione um tipo</option>
+                  {unitTypes.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fator de Conversão
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  value={formData.conversionFactor}
+                  onChange={(e) => setFormData({ ...formData, conversionFactor: parseFloat(e.target.value) || 1 })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+                  placeholder="1.0"
+                />
+              </div>
+            </div>
+          </>
+        )
+      
+      case 'fornecedores':
+        return (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nome do Fornecedor
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300"
+                placeholder="Ex: Atacadão"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contato
+                </label>
+                <input
+                  type="text"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300"
+                  placeholder="Nome do contato"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300"
+                  placeholder="contato@fornecedor.com"
+                />
+              </div>
+            </div>
+          </>
+        )
+      
+      default:
+        return (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nome
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className={`w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-${activeTab === 'categorias-receitas' ? 'blue' : 'green'}-500 focus:border-transparent transition-all duration-300`}
+                placeholder="Nome da categoria"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Descrição
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className={`w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-${activeTab === 'categorias-receitas' ? 'blue' : 'green'}-500 focus:border-transparent transition-all duration-300`}
+                placeholder="Descrição da categoria"
+                rows={3}
+              />
+            </div>
+          </>
+        )
+    }
+  }
 
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                Salvar
-              </button>
+  const renderTableHeaders = () => {
+    switch (activeTab) {
+      case 'unidades-medida':
+        return (
+          <>
+            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Nome</th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Abreviação</th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Tipo</th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Fator</th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Ações</th>
+          </>
+        )
+      case 'fornecedores':
+        return (
+          <>
+            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Nome</th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Contato</th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Email</th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Ações</th>
+          </>
+        )
+      default:
+        return (
+          <>
+            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Nome</th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Descrição</th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Ações</th>
+          </>
+        )
+    }
+  }
+
+  const renderTableRow = (item: ConfigurationItem) => {
+    switch (activeTab) {
+      case 'unidades-medida':
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.abbreviation}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.type}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.conversionFactor}</td>
+          </>
+        )
+      case 'fornecedores':
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.description || '-'}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.email || '-'}</td>
+          </>
+        )
+      default:
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
+            <td className="px-6 py-4 text-sm text-gray-600">{item.description || '-'}</td>
+          </>
+        )
+    }
+  }
+
+  const currentTab = tabs.find(tab => tab.id === activeTab)
+  const currentData = getCurrentData()
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className={`bg-gradient-to-r ${currentTab?.color || 'from-blue-500 to-indigo-600'} rounded-3xl p-8 text-white shadow-2xl`}>
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                <Settings size={32} />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">Configurações</h1>
+                <p className="text-white/90 mt-1">Gerencie categorias, unidades e fornecedores</p>
+              </div>
             </div>
           </div>
         </div>
-      )}
 
-      {/* Modal de Visualização */}
-      {isViewModalOpen && viewingItem && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium text-gray-900">
-                Visualizar Item
-              </h3>
-              <button
-                onClick={() => setIsViewModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
+        {/* Tabs */}
+        <div className="mb-8">
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-2 shadow-lg border border-white/20">
+            <nav className="flex space-x-2">
+              {tabs.map((tab) => {
+                const Icon = tab.icon
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center space-x-3 px-6 py-3 rounded-xl font-medium text-sm transition-all duration-300 ${
+                      activeTab === tab.id
+                        ? `bg-gradient-to-r ${tab.color} text-white shadow-lg transform scale-105`
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                    }`}
+                  >
+                    <Icon size={18} />
+                    <span>{tab.label}</span>
+                  </button>
+                )
+              })}
+            </nav>
+          </div>
+        </div>
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Nome</label>
-                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.name}</p>
+        {/* Content */}
+        <div className="bg-white/70 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+          {/* Header da seção */}
+          <div className={`bg-gradient-to-r ${currentTab?.color || 'from-blue-500 to-indigo-600'} p-6`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                {currentTab && <currentTab.icon size={24} className="text-white" />}
+                <h3 className="text-xl font-bold text-white">
+                  {currentTab?.label}
+                </h3>
               </div>
-
-              {(activeTab === 'categorias-receitas' || activeTab === 'categorias-insumos') && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Descrição</label>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.description}</p>
-                </div>
-              )}
-
-              {activeTab === 'unidades-medida' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Símbolo</label>
-                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.symbol || viewingItem.abbreviation}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Tipo</label>
-                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{getTypeLabel(viewingItem.type)}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Fator de Conversão</label>
-                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.conversionFactor}</p>
-                  </div>
-                  {viewingItem.baseUnit && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Unidade Base</label>
-                      <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.baseUnit}</p>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {activeTab === 'fornecedores' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Contato</label>
-                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.contact}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Telefone</label>
-                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.phone}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Email</label>
-                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.email}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Endereço</label>
-                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{viewingItem.address}</p>
-                  </div>
-                </>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Criado em</label>
-                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{formatDate(viewingItem.createdAt)}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Atualizado em</label>
-                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">{formatDate(viewingItem.updatedAt)}</p>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3 mt-6">
               <button
-                onClick={() => {
-                  setIsViewModalOpen(false)
-                  handleEdit(viewingItem)
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onClick={handleAdd}
+                disabled={loading}
+                className="flex items-center space-x-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl transition-all duration-300 hover:scale-105 disabled:opacity-50"
               >
-                Editar
-              </button>
-              <button
-                onClick={() => setIsViewModalOpen(false)}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
-              >
-                Fechar
+                <Plus size={18} />
+                <span>Adicionar</span>
               </button>
             </div>
           </div>
+
+          {/* Filtros */}
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center space-x-4">
+              <div className="relative flex-1 max-w-md">
+                <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar..."
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                />
+              </div>
+              <div className="text-sm text-gray-600">
+                {currentData.length} {currentData.length === 1 ? 'item' : 'itens'}
+              </div>
+            </div>
+          </div>
+
+          {/* Tabela */}
+          <div className="overflow-x-auto">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-gray-600">Carregando...</span>
+              </div>
+            ) : currentData.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-gray-400 mb-4">
+                  {currentTab && <currentTab.icon size={48} className="mx-auto mb-4" />}
+                </div>
+                <p className="text-gray-600 text-lg">
+                  {searchTerm ? 'Nenhum item encontrado' : 'Nenhum item cadastrado'}
+                </p>
+                <p className="text-gray-400 mt-2">
+                  {searchTerm ? 'Tente ajustar sua busca' : 'Clique em "Adicionar" para começar'}
+                </p>
+              </div>
+            ) : (
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className={`bg-gradient-to-r ${currentTab?.color || 'from-blue-500 to-indigo-600'}`}>
+                  <tr>
+                    {renderTableHeaders()}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {currentData.map((item, index) => (
+                    <tr key={item.id} className={`hover:bg-gray-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                      {renderTableRow(item)}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleEdit(item)}
+                            className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-all duration-200"
+                            title="Editar"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item)}
+                            className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-all duration-200"
+                            title="Excluir"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
-      )}
+
+        {/* Modal */}
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              {/* Header do Modal */}
+              <div className={`bg-gradient-to-r ${currentTab?.color || 'from-blue-500 to-indigo-600'} p-6 rounded-t-3xl`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    {currentTab && <currentTab.icon size={24} className="text-white" />}
+                    <h3 className="text-xl font-bold text-white">
+                      {editingItem ? 'Editar' : 'Adicionar'} {currentTab?.label.slice(0, -1)}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="text-white/80 hover:text-white p-2 rounded-lg hover:bg-white/20 transition-all duration-200"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Conteúdo do Modal */}
+              <div className="p-6 space-y-6">
+                {renderFormFields()}
+              </div>
+
+              {/* Footer do Modal */}
+              <div className="p-6 border-t border-gray-200 flex items-center justify-end space-x-4">
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-300"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={loading || !formData.name}
+                  className={`flex items-center space-x-2 bg-gradient-to-r ${currentTab?.color || 'from-blue-500 to-indigo-600'} text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <Save size={18} />
+                  <span>{loading ? 'Salvando...' : 'Salvar'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
+
 
