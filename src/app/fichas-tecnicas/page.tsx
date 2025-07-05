@@ -93,7 +93,14 @@ export default function FichasTecnicas() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('info')
+  const [viewingRecipe, setViewingRecipe] = useState<Recipe | null>(null)
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+
+  const handleView = (recipe: Recipe) => {
+    setViewingRecipe(recipe)
+    setIsViewModalOpen(true)
+  }
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [baseIngredientIndex, setBaseIngredientIndex] = useState<number | null>(null)
@@ -592,6 +599,12 @@ export default function FichasTecnicas() {
                   </div>
                   <div className="flex gap-2">
                     <button
+                      onClick={() => handleView(recipe)}
+                      className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all duration-300 hover:scale-110"
+                    >
+                      <BookOpen className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => handleEdit(recipe)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-300 hover:scale-110"
                     >
@@ -617,6 +630,10 @@ export default function FichasTecnicas() {
                     <Clock className="w-4 h-4" />
                     <span>{recipe.prepTime + recipe.cookTime}min</span>
                   </div>
+                  <div className="flex items-center gap-1">
+                    <ChefHat className="w-4 h-4" />
+                    <span>{recipe.difficulty}</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -631,6 +648,7 @@ export default function FichasTecnicas() {
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Categoria</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Porções</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Tempo</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Dificuldade</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Ações</th>
                   </tr>
                 </thead>
@@ -653,8 +671,15 @@ export default function FichasTecnicas() {
                       </td>
                       <td className="px-6 py-4 text-gray-600">{recipe.servings}</td>
                       <td className="px-6 py-4 text-gray-600">{recipe.prepTime + recipe.cookTime}min</td>
+                      <td className="px-6 py-4 text-gray-600">{recipe.difficulty}</td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
+                          <button
+                            onClick={() => handleView(recipe)}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all duration-300"
+                          >
+                            <BookOpen className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => handleEdit(recipe)}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-300"
@@ -688,7 +713,153 @@ export default function FichasTecnicas() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Modal de Visualização */}
+      {isViewModalOpen && viewingRecipe && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            {/* Header do Modal */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <BookOpen className="w-6 h-6 text-white" />
+                <h2 className="text-xl font-bold text-white">
+                  {viewingRecipe.name}
+                </h2>
+              </div>
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors duration-300"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto p-6 max-h-[calc(90vh-80px)]">
+              {/* Informações Gerais */}
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-blue-600" />
+                  Informações Gerais
+                </h3>
+                
+                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Categoria</p>
+                      <p className="font-medium text-gray-900">
+                        {categories.find(c => c.id === viewingRecipe.categoryId)?.name || 'Não especificada'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Dificuldade</p>
+                      <p className="font-medium text-gray-900">{viewingRecipe.difficulty}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Porções</p>
+                      <p className="font-medium text-gray-900">{viewingRecipe.servings}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Tempo de Preparo</p>
+                      <p className="font-medium text-gray-900">{viewingRecipe.prepTime} min</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Tempo de Cozimento</p>
+                      <p className="font-medium text-gray-900">{viewingRecipe.cookTime} min</p>
+                    </div>
+                  </div>
+                  
+                  {viewingRecipe.description && (
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Descrição</p>
+                      <p className="text-gray-700">{viewingRecipe.description}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Ingredientes */}
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Utensils className="w-5 h-5 text-blue-600" />
+                  Ingredientes
+                </h3>
+                
+                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                  {viewingRecipe.ingredients && viewingRecipe.ingredients.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Ingrediente</th>
+                            <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Quantidade</th>
+                            <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Unidade</th>
+                            <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Porcentagem</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {viewingRecipe.ingredients.map((ing) => {
+                            const ingredientName = ingredients.find(i => i.id === ing.ingredientId)?.name || 'Ingrediente não encontrado';
+                            const unitName = units.find(u => u.id === ing.unitId)?.name || 'Unidade não encontrada';
+                            
+                            return (
+                              <tr key={ing.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-gray-900">
+                                  {ingredientName}
+                                </td>
+                                <td className="px-4 py-3 text-gray-900">{ing.quantity}</td>
+                                <td className="px-4 py-3 text-gray-900">
+                                  {unitName}
+                                </td>
+                                <td className="px-4 py-3 text-gray-900">
+                                  {ing.percentage}%
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">Nenhum ingrediente cadastrado</p>
+                  )}
+                </div>
+              </div>
+              
+              {/* Instruções */}
+              {viewingRecipe.instructions && (
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <ChefHat className="w-5 h-5 text-blue-600" />
+                    Modo de Preparo
+                  </h3>
+                  
+                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                    <p className="text-gray-700 whitespace-pre-line">{viewingRecipe.instructions}</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Observações */}
+              {viewingRecipe.observations && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-blue-600" />
+                    Observações
+                  </h3>
+                  
+                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                    <p className="text-gray-700 whitespace-pre-line">{viewingRecipe.observations}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
@@ -907,7 +1078,7 @@ export default function FichasTecnicas() {
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-4">
+                      <div className="max-h-[400px] overflow-y-auto pr-2 space-y-4">
                         {formData.ingredients.map((ingredient, index) => (
                           <div key={ingredient.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -1045,5 +1216,4 @@ export default function FichasTecnicas() {
     </div>
   )
 }
-
 
