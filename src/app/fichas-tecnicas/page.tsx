@@ -84,6 +84,9 @@ interface Category {
   name: string
 }
 
+// Constante para o peso padrão de um ovo (em gramas)
+const DEFAULT_EGG_WEIGHT = 50;
+
 export default function FichasTecnicas() {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -117,6 +120,16 @@ export default function FichasTecnicas() {
     observations: '',
     ingredients: [] as RecipeIngredient[]
   })
+
+  // Função para verificar se um ingrediente é ovo
+  const isEgg = (ingredientName: string): boolean => {
+    if (!ingredientName) return false;
+    
+    const eggTerms = ['ovo', 'ovos', 'egg', 'eggs', 'huevo', 'huevos'];
+    const lowerName = ingredientName.toLowerCase();
+    
+    return eggTerms.some(term => lowerName.includes(term));
+  }
 
   // Função para encontrar ingrediente base (farinha)
   const findBaseIngredient = (ingredientsList: typeof formData.ingredients) => {
@@ -230,7 +243,24 @@ export default function FichasTecnicas() {
         return result
       }
       
-      // Se é unidade (ovos, latas, etc.) e tem fator de conversão
+      // Tratamento especial para ovos
+      if ((unit.name?.toLowerCase().includes('unidade') || unit.symbol?.toLowerCase() === 'un') && 
+          isEgg(ingredient.name)) {
+        // Usar fator de conversão do banco se disponível, senão usar valor padrão
+        const eggWeight = ingredient?.conversionFactor && ingredient.conversionFactor > 0 
+          ? ingredient.conversionFactor 
+          : DEFAULT_EGG_WEIGHT;
+        
+        const result = quantity * eggWeight;
+        console.log('🥚 Convertido ovos para gramas:', {
+          quantidade: quantity,
+          pesoUnitario: eggWeight,
+          resultado: result
+        });
+        return result;
+      }
+      
+      // Se é unidade (latas, etc.) e tem fator de conversão
       if ((unit.name?.toLowerCase().includes('unidade') || unit.symbol?.toLowerCase() === 'un') && 
           ingredient?.conversionFactor && ingredient.conversionFactor > 0) {
         const result = quantity * ingredient.conversionFactor
@@ -315,6 +345,10 @@ export default function FichasTecnicas() {
             return { ...ing, percentage: 100 }
           }
 
+          // Buscar informações do ingrediente para verificar se é ovo
+          const ingredientInfo = ingredients.find(i => i.id === ing.ingredientId);
+          const isEggIngredient = ingredientInfo ? isEgg(ingredientInfo.name) : false;
+
           // Converter ingrediente atual para gramas
           const gramsQuantity = await convertToGrams(
             ing.quantity,
@@ -325,12 +359,13 @@ export default function FichasTecnicas() {
           // Calcular porcentagem baseada na farinha
           const percentage = (gramsQuantity / baseGrams) * 100
 
-          console.log('📊 Calculando porcentagem:', {
-            ingrediente: ing.ingredientId,
+          console.log(`📊 Calculando porcentagem ${isEggIngredient ? '🥚' : ''}:`, {
+            ingrediente: ingredientInfo?.name || ing.ingredientId,
             quantidade: ing.quantity,
             gramas: gramsQuantity,
             baseGrams: baseGrams,
-            porcentagem: percentage.toFixed(2)
+            porcentagem: percentage.toFixed(2),
+            isOvo: isEggIngredient
           })
 
           return {
