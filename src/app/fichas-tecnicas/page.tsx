@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Plus, 
   Edit, 
@@ -96,7 +96,6 @@ export default function FichasTecnicas() {
   const [viewingRecipe, setViewingRecipe] = useState<Recipe | null>(null)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const ingredientsContainerRef = useRef<HTMLDivElement>(null)
 
   const handleView = (recipe: Recipe) => {
     setViewingRecipe(recipe)
@@ -118,14 +117,6 @@ export default function FichasTecnicas() {
     observations: '',
     ingredients: [] as RecipeIngredient[]
   })
-
-  // Função para lidar com o evento de rolagem
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (ingredientsContainerRef.current) {
-      e.stopPropagation();
-      ingredientsContainerRef.current.scrollTop += e.deltaY;
-    }
-  };
 
   // Função para encontrar ingrediente base (farinha)
   const findBaseIngredient = (ingredientsList: typeof formData.ingredients) => {
@@ -167,7 +158,7 @@ export default function FichasTecnicas() {
     }
 
     // Fallback: primeiro ingrediente com quantidade > 0
-    const firstValidIngredient = ingredientsList.find((ing) => {
+    const firstValidIngredient = ingredientsList.find(ing => {
       return ing.quantity > 0
     })
 
@@ -318,6 +309,12 @@ export default function FichasTecnicas() {
             return { ...ing, percentage: 0 }
           }
 
+          // Se for o ingrediente base, definir como 100%
+          if (index === baseIndex) {
+            console.log('🌾 Ingrediente base definido como 100%')
+            return { ...ing, percentage: 100 }
+          }
+
           // Converter ingrediente atual para gramas
           const gramsQuantity = await convertToGrams(
             ing.quantity,
@@ -326,12 +323,13 @@ export default function FichasTecnicas() {
           )
 
           // Calcular porcentagem baseada na farinha
-          const percentage = index === baseIndex ? 100 : (gramsQuantity / baseGrams) * 100
+          const percentage = (gramsQuantity / baseGrams) * 100
 
           console.log('📊 Calculando porcentagem:', {
             ingrediente: ing.ingredientId,
             quantidade: ing.quantity,
             gramas: gramsQuantity,
+            baseGrams: baseGrams,
             porcentagem: percentage.toFixed(2)
           })
 
@@ -894,7 +892,7 @@ export default function FichasTecnicas() {
       {/* Modal de Edição */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header do Modal */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -911,46 +909,47 @@ export default function FichasTecnicas() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
-              {/* Tabs */}
-              <div className="border-b border-gray-200 bg-gray-50">
-                <div className="flex">
-                  <button
-                    onClick={() => setActiveTab('info')}
-                    className={`flex items-center gap-2 px-6 py-4 font-medium transition-all duration-300 ${
-                      activeTab === 'info'
-                        ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <BookOpen className="w-4 h-4" />
-                    Informações Gerais
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('ingredients')}
-                    className={`flex items-center gap-2 px-6 py-4 font-medium transition-all duration-300 ${
-                      activeTab === 'ingredients'
-                        ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Utensils className="w-4 h-4" />
-                    Ingredientes
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('instructions')}
-                    className={`flex items-center gap-2 px-6 py-4 font-medium transition-all duration-300 ${
-                      activeTab === 'instructions'
-                        ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <ChefHat className="w-4 h-4" />
-                    Instruções
-                  </button>
-                </div>
+            {/* Tabs */}
+            <div className="border-b border-gray-200 bg-gray-50">
+              <div className="flex">
+                <button
+                  onClick={() => setActiveTab('info')}
+                  className={`flex items-center gap-2 px-6 py-4 font-medium transition-all duration-300 ${
+                    activeTab === 'info'
+                      ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <BookOpen className="w-4 h-4" />
+                  Informações Gerais
+                </button>
+                <button
+                  onClick={() => setActiveTab('ingredients')}
+                  className={`flex items-center gap-2 px-6 py-4 font-medium transition-all duration-300 ${
+                    activeTab === 'ingredients'
+                      ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <Utensils className="w-4 h-4" />
+                  Ingredientes
+                </button>
+                <button
+                  onClick={() => setActiveTab('instructions')}
+                  className={`flex items-center gap-2 px-6 py-4 font-medium transition-all duration-300 ${
+                    activeTab === 'instructions'
+                      ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <ChefHat className="w-4 h-4" />
+                  Instruções
+                </button>
               </div>
+            </div>
 
+            {/* Conteúdo com rolagem */}
+            <div className="flex-1 overflow-y-auto">
               <form onSubmit={handleSubmit} className="p-6">
                 {/* Tab: Informações Gerais */}
                 {activeTab === 'info' && (
@@ -1110,96 +1109,83 @@ export default function FichasTecnicas() {
                         </p>
                       </div>
                     ) : (
-                      <div 
-                        ref={ingredientsContainerRef}
-                        onWheel={handleWheel}
-                        style={{
-                          height: '400px',
-                          overflowY: 'scroll',
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '0.75rem',
-                          padding: '0.5rem',
-                          position: 'relative'
-                        }}
-                      >
-                        <div className="space-y-4">
-                          {formData.ingredients.map((ingredient, index) => (
-                            <div key={ingredient.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Ingrediente
-                                  </label>
-                                  <select
-                                    value={ingredient.ingredientId}
-                                    onChange={(e) => updateIngredient(index, 'ingredientId', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                                  >
-                                    <option value="">Selecione...</option>
-                                    {ingredients.map(ing => (
-                                      <option key={ing.id} value={ing.id}>{ing.name}</option>
-                                    ))}
-                                  </select>
-                                </div>
+                      <div className="space-y-4">
+                        {formData.ingredients.map((ingredient, index) => (
+                          <div key={ingredient.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Ingrediente
+                                </label>
+                                <select
+                                  value={ingredient.ingredientId}
+                                  onChange={(e) => updateIngredient(index, 'ingredientId', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                >
+                                  <option value="">Selecione...</option>
+                                  {ingredients.map(ing => (
+                                    <option key={ing.id} value={ing.id}>{ing.name}</option>
+                                  ))}
+                                </select>
+                              </div>
 
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Quantidade
-                                  </label>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    value={ingredient.quantity}
-                                    onChange={(e) => updateIngredient(index, 'quantity', Number(e.target.value))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                                  />
-                                </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Quantidade
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={ingredient.quantity}
+                                  onChange={(e) => updateIngredient(index, 'quantity', Number(e.target.value))}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                />
+                              </div>
 
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Unidade
-                                  </label>
-                                  <select
-                                    value={ingredient.unitId}
-                                    onChange={(e) => updateIngredient(index, 'unitId', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                                  >
-                                    <option value="">Selecione...</option>
-                                    {units.map(unit => (
-                                      <option key={unit.id} value={unit.id}>{unit.name}</option>
-                                    ))}
-                                  </select>
-                                </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Unidade
+                                </label>
+                                <select
+                                  value={ingredient.unitId}
+                                  onChange={(e) => updateIngredient(index, 'unitId', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                >
+                                  <option value="">Selecione...</option>
+                                  {units.map(unit => (
+                                    <option key={unit.id} value={unit.id}>{unit.name}</option>
+                                  ))}
+                                </select>
+                              </div>
 
-                                <div className="flex items-center gap-3">
-                                  <div className="flex-1">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                      Porcentagem
-                                    </label>
-                                    <div className="flex items-center gap-2">
-                                      <input
-                                        type="number"
-                                        step="0.01"
-                                        value={ingredient.percentage}
-                                        onChange={(e) => updateIngredient(index, 'percentage', Number(e.target.value))}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                                      />
-                                      <span className="text-blue-600 font-medium">%</span>
-                                    </div>
+                              <div className="flex items-center gap-3">
+                                <div className="flex-1">
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Porcentagem
+                                  </label>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={ingredient.percentage}
+                                      onChange={(e) => updateIngredient(index, 'percentage', Number(e.target.value))}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                    />
+                                    <span className="text-blue-600 font-medium">%</span>
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => removeIngredient(index)}
-                                    className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white p-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
                                 </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeIngredient(index)}
+                                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white p-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -1235,25 +1221,26 @@ export default function FichasTecnicas() {
                     </div>
                   </div>
                 )}
-
-                {/* Botões do Modal */}
-                <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-300 font-medium"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 font-medium"
-                  >
-                    <Save className="w-4 h-4" />
-                    {editingId ? 'Atualizar' : 'Salvar'}
-                  </button>
-                </div>
               </form>
+            </div>
+
+            {/* Botões do Modal - Fixos na parte inferior */}
+            <div className="border-t border-gray-200 bg-gray-50 px-6 py-4 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-300 font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                onClick={handleSubmit}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 font-medium"
+              >
+                <Save className="w-4 h-4" />
+                {editingId ? 'Atualizar' : 'Salvar'}
+              </button>
             </div>
           </div>
         </div>
