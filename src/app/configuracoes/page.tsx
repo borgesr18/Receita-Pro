@@ -23,7 +23,6 @@ interface ConfigurationItem {
   description?: string
   abbreviation?: string
   type?: string
-  conversionFactor?: number
   baseUnit?: string
   email?: string
   role?: string
@@ -52,7 +51,6 @@ export default function Configuracoes() {
     description: '',
     abbreviation: '',
     type: '',
-    conversionFactor: 1,
     baseUnit: '',
     email: '',
     role: '',
@@ -165,7 +163,6 @@ export default function Configuracoes() {
       description: '',
       abbreviation: '',
       type: '',
-      conversionFactor: 1,
       baseUnit: '',
       email: '',
       role: '',
@@ -193,8 +190,7 @@ export default function Configuracoes() {
               name: formData.name,
               abbreviation: formData.abbreviation,
               type: formData.type,
-              baseUnit: formData.baseUnit,
-              conversionFactor: formData.conversionFactor || 1
+              baseUnit: formData.baseUnit
             }
           case 'fornecedores':
             return {
@@ -241,7 +237,6 @@ export default function Configuracoes() {
         description: '',
         abbreviation: '',
         type: '',
-        conversionFactor: 1,
         baseUnit: '',
         email: '',
         role: '',
@@ -330,21 +325,7 @@ export default function Configuracoes() {
                       {type.label}
                     </option>
                   ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fator de Conversão
-                </label>
-                <input
-                  type="number"
-                  step="0.001"
-                  value={formData.conversionFactor}
-                  onChange={(e) => setFormData({ ...formData, conversionFactor: parseFloat(e.target.value) || 1 })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
-                  placeholder="1.0"
-                />
-              </div>
+                </select>              </div>
             </div>
           </>
         )
@@ -435,7 +416,6 @@ export default function Configuracoes() {
             <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Nome</th>
             <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Abreviação</th>
             <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Tipo</th>
-            <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Fator</th>
             <th className="px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider">Ações</th>
           </>
         )
@@ -467,7 +447,6 @@ export default function Configuracoes() {
             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.abbreviation}</td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.type}</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.conversionFactor}</td>
           </>
         )
       case 'fornecedores':
