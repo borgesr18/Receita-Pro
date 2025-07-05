@@ -12,8 +12,7 @@ import {
   Scale,
   Tag,
   Settings,
-  Search,
-  Filter
+  Search
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/contexts/ToastContext'
@@ -98,10 +97,10 @@ export default function Configuracoes() {
       setFornecedores(Array.isArray(suppliersRes.data) ? suppliersRes.data : [])
 
       console.log('✅ Dados carregados:', {
-        recipeCategories: recipeCategoriesRes.data?.length || 0,
-        ingredientCategories: ingredientCategoriesRes.data?.length || 0,
-        measurementUnits: measurementUnitsRes.data?.length || 0,
-        suppliers: suppliersRes.data?.length || 0
+        recipeCategories: Array.isArray(recipeCategoriesRes.data) ? recipeCategoriesRes.data.length : 0,
+        ingredientCategories: Array.isArray(ingredientCategoriesRes.data) ? ingredientCategoriesRes.data.length : 0,
+        measurementUnits: Array.isArray(measurementUnitsRes.data) ? measurementUnitsRes.data.length : 0,
+        suppliers: Array.isArray(suppliersRes.data) ? suppliersRes.data.length : 0
       })
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error)
@@ -683,5 +682,4 @@ export default function Configuracoes() {
     </div>
   )
 }
-
 
