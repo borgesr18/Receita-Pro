@@ -16,7 +16,7 @@ import {
   Filter
 } from 'lucide-react'
 import { api } from '@/lib/api'
-import { useToast } from '@/hooks/useToast'
+import { useToast } from '@/contexts/ToastContext'
 
 interface ConfigurationItem {
   id: string
