@@ -175,7 +175,7 @@ export default function FichasTecnicas() {
 
     try {
       // Buscar dados completos do ingrediente
-      const ingredientRes = await api.get(`/ingredients/${ingredientId}`)
+      const ingredientRes = await api.get(`/api/ingredients/${ingredientId}`)
       const ingredient = ingredientRes.data as {
         name: string;
         conversionFactor?: number;
@@ -183,7 +183,7 @@ export default function FichasTecnicas() {
       }
       
       // Buscar dados da unidade
-      const unitRes = await api.get(`/measurement-units`)
+      const unitRes = await api.get(`/api/measurement-units`)
       const unit = Array.isArray(unitRes.data) ? unitRes.data.find((u: any) => u.id === unitId) : null
 
       console.log('📊 Dados do ingrediente:', {
@@ -325,10 +325,10 @@ export default function FichasTecnicas() {
       console.log('🔄 Carregando dados...')
       
       const [recipesRes, categoriesRes, ingredientsRes, unitsRes] = await Promise.all([
-        api.get('/recipes'),
-        api.get('/recipe-categories'),
-        api.get('/ingredients'),
-        api.get('/measurement-units')
+        api.get('/api/recipes'),
+        api.get('/api/recipe-categories'),
+        api.get('/api/ingredients'),
+        api.get('/api/measurement-units')
       ])
 
       console.log('✅ Dados carregados:', {
@@ -383,9 +383,9 @@ export default function FichasTecnicas() {
       }
 
       if (editingId) {
-        await api.put(`/recipes/${editingId}`, payload)
+        await api.put(`/api/recipes/${editingId}`, payload)
       } else {
-        await api.post('/recipes', payload)
+        await api.post('/api/recipes', payload)
       }
 
       await loadData()
@@ -420,7 +420,7 @@ export default function FichasTecnicas() {
   const handleDelete = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir esta receita?')) {
       try {
-        await api.delete(`/recipes/${id}`)
+        await api.delete(`/api/recipes/${id}`)
         await loadData()
       } catch (error) {
         console.error('Erro ao excluir receita:', error)
