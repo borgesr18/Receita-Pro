@@ -176,7 +176,11 @@ export default function FichasTecnicas() {
     try {
       // Buscar dados completos do ingrediente
       const ingredientRes = await api.get(`/ingredients/${ingredientId}`)
-      const ingredient = ingredientRes.data
+      const ingredient = ingredientRes.data as {
+        name: string;
+        conversionFactor?: number;
+        baseUnit?: string;
+      }
       
       // Buscar dados da unidade
       const unitRes = await api.get(`/measurement-units`)
@@ -1041,3 +1045,5 @@ export default function FichasTecnicas() {
     </div>
   )
 }
+
+
