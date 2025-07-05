@@ -17,10 +17,9 @@ import {
   Clock,
   Users,
   Star,
-  TrendingUp,
   Package
 } from 'lucide-react'
-import api from '@/lib/api'
+import { api } from '@/lib/api'
 
 interface Recipe {
   id: string
@@ -152,7 +151,7 @@ export default function FichasTecnicas() {
     }
 
     // Fallback: primeiro ingrediente com quantidade > 0
-    const firstValidIngredient = ingredientsList.find((ing, index) => {
+    const firstValidIngredient = ingredientsList.find((ing) => {
       return ing.quantity > 0
     })
 
