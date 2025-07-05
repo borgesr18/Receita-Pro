@@ -101,6 +101,7 @@ export default function FichasTecnicas() {
     ovenTemperature: 0,
     instructions: '',
     technicalNotes: '',
+    baseIngredientIndex: -1, // Índice do ingrediente base (farinha)
     ingredients: [] as Array<{
       ingredientId: string
       quantity: number
@@ -109,6 +110,89 @@ export default function FichasTecnicas() {
       order: number
     }>
   })
+
+  // Função para identificar se um ingrediente é farinha
+  const isFlourIngredient = (ingredient: Ingredient) => {
+    if (!ingredient) return false
+    
+    // Lista de termos que indicam farinha
+    const flourTerms = [
+      'farinha',
+      'flour', 
+      'farine',
+      'harina',
+      'wheat',
+      'trigo',
+      'integral',
+      'refinada',
+      'especial',
+      'tipo 1',
+      'tipo 2'
+    ]
+    
+    // Verifica tipo do ingrediente
+    if (ingredient.ingredientType?.toLowerCase() === 'farinha') {
+      console.log('🌾 Farinha identificada por tipo:', ingredient.name)
+      return true
+    }
+    
+    // Verifica nome do ingrediente
+    const name = ingredient.name.toLowerCase()
+    const hasFlourTerm = flourTerms.some(term => name.includes(term))
+    
+    if (hasFlourTerm) {
+      console.log('🌾 Farinha identificada por nome:', ingredient.name)
+      return true
+    }
+    
+    return false
+  }
+
+  // Função para encontrar ingrediente base automaticamente
+  const findBaseIngredient = (ingredientsList: typeof formData.ingredients) => {
+    console.log('🔍 Procurando ingrediente base...')
+    console.log('📊 Lista de ingredientes:', ingredientsList.length)
+    console.log('📊 Ingredientes disponíveis:', ingredients.length)
+    
+    // Se há um ingrediente base definido manualmente, usa ele
+    if (formData.baseIngredientIndex >= 0 && formData.baseIngredientIndex < ingredientsList.length) {
+      const baseIng = ingredientsList[formData.baseIngredientIndex]
+      const ingredient = ingredients.find(i => i.id === baseIng.ingredientId)
+      console.log('👤 Ingrediente base definido manualmente:', ingredient?.name)
+      return { ingredient: baseIng, data: ingredient, index: formData.baseIngredientIndex }
+    }
+    
+    // Procura farinha automaticamente
+    for (let i = 0; i < ingredientsList.length; i++) {
+      const ing = ingredientsList[i]
+      const ingredient = ingredients.find(item => item.id === ing.ingredientId)
+      
+      console.log(`🔍 Verificando ingrediente ${i + 1}:`, {
+        id: ing.ingredientId,
+        name: ingredient?.name,
+        type: ingredient?.ingredientType,
+        quantity: ing.quantity
+      })
+      
+      if (ingredient && isFlourIngredient(ingredient) && ing.quantity > 0) {
+        console.log('🌾 Farinha encontrada automaticamente:', ingredient.name)
+        return { ingredient: ing, data: ingredient, index: i }
+      }
+    }
+    
+    // Fallback: usa o primeiro ingrediente com quantidade > 0
+    for (let i = 0; i < ingredientsList.length; i++) {
+      const ing = ingredientsList[i]
+      if (ing.quantity > 0) {
+        const ingredient = ingredients.find(item => item.id === ing.ingredientId)
+        console.log('⚠️ Usando primeiro ingrediente como base:', ingredient?.name)
+        return { ingredient: ing, data: ingredient, index: i }
+      }
+    }
+    
+    console.log('❌ Nenhum ingrediente base encontrado')
+    return null
+  }
 
   // Função para converter quantidade para gramas
   const convertToGrams = (quantity: number, ingredient: Ingredient, unit: Unit) => {
@@ -147,65 +231,48 @@ export default function FichasTecnicas() {
     console.log('📊 Unidades disponíveis:', units.length)
     console.log('📊 Ingredientes da receita:', updatedIngredients.length)
 
-    const flourIngredient = updatedIngredients.find(ing => {
-      const ingredient = ingredients.find(i => i.id === ing.ingredientId)
-      console.log('🔍 Verificando ingrediente:', { 
-        id: ing.ingredientId, 
-        name: ingredient?.name, 
-        type: ingredient?.ingredientType 
-      })
-      
-      const isFlour = ingredient?.ingredientType === 'Farinha' || 
-                     ingredient?.name.toLowerCase().includes('farinha')
-      
-      if (isFlour) {
-        console.log('🌾 Farinha encontrada:', ingredient?.name)
-      }
-      
-      return isFlour
-    })
-
-    if (!flourIngredient) {
-      console.log('❌ Nenhuma farinha encontrada')
+    // Encontra ingrediente base
+    const baseResult = findBaseIngredient(updatedIngredients)
+    
+    if (!baseResult) {
+      console.log('❌ Nenhum ingrediente base encontrado')
       return updatedIngredients
     }
 
-    if (flourIngredient.quantity === 0) {
-      console.log('❌ Quantidade de farinha é zero')
+    const { ingredient: baseIngredient, data: baseIngredientData, index: baseIndex } = baseResult
+
+    if (!baseIngredientData) {
+      console.log('❌ Dados do ingrediente base não encontrados')
       return updatedIngredients
     }
 
-    const flourIngredientData = ingredients.find(i => i.id === flourIngredient.ingredientId)
-    if (!flourIngredientData) {
-      console.log('❌ Dados da farinha não encontrados')
-      return updatedIngredients
-    }
-
-    let flourUnit = units.find(u => u.id === flourIngredient.unitId)
-    if (!flourUnit && flourIngredientData.unit) {
-      flourUnit = units.find(u => u.id === flourIngredientData.unit?.id)
+    // Buscar unidade do ingrediente base
+    let baseUnit = units.find(u => u.id === baseIngredient.unitId)
+    if (!baseUnit && baseIngredientData.unit) {
+      baseUnit = units.find(u => u.id === baseIngredientData.unit?.id)
     }
     
-    if (!flourUnit) {
-      console.log('❌ Unidade da farinha não encontrada')
+    if (!baseUnit) {
+      console.log('❌ Unidade do ingrediente base não encontrada')
       return updatedIngredients
     }
 
-    console.log('🌾 Farinha selecionada:', {
-      name: flourIngredientData.name,
-      quantity: flourIngredient.quantity,
-      unit: flourUnit.name
+    console.log('🌾 Ingrediente base selecionado:', {
+      name: baseIngredientData.name,
+      quantity: baseIngredient.quantity,
+      unit: baseUnit.name,
+      index: baseIndex
     })
 
-    const flourQuantityInGrams = convertToGrams(flourIngredient.quantity, flourIngredientData, flourUnit)
-    console.log('🌾 Quantidade da farinha em gramas:', flourQuantityInGrams)
+    const baseQuantityInGrams = convertToGrams(baseIngredient.quantity, baseIngredientData, baseUnit)
+    console.log('🌾 Quantidade do ingrediente base em gramas:', baseQuantityInGrams)
 
-    if (flourQuantityInGrams <= 0) {
-      console.log('❌ Quantidade da farinha em gramas é inválida')
+    if (baseQuantityInGrams <= 0) {
+      console.log('❌ Quantidade do ingrediente base em gramas é inválida')
       return updatedIngredients
     }
 
-    const recalculatedIngredients = updatedIngredients.map(ing => {
+    const recalculatedIngredients = updatedIngredients.map((ing, index) => {
       const ingredient = ingredients.find(i => i.id === ing.ingredientId)
       let unit = units.find(u => u.id === ing.unitId)
       
@@ -221,20 +288,22 @@ export default function FichasTecnicas() {
         return ing
       }
 
-      if (ingredient.ingredientType === 'Farinha' || ingredient.name.toLowerCase().includes('farinha')) {
-        console.log('🌾 Definindo farinha como 100%:', ingredient.name)
+      // Se é o ingrediente base, sempre 100%
+      if (index === baseIndex) {
+        console.log('🌾 Definindo ingrediente base como 100%:', ingredient.name)
         return { ...ing, percentage: 100 }
       }
 
+      // Calcula porcentagem baseada no ingrediente base
       const quantityInGrams = convertToGrams(ing.quantity, ingredient, unit)
-      const percentage = (quantityInGrams / flourQuantityInGrams) * 100
+      const percentage = (quantityInGrams / baseQuantityInGrams) * 100
 
       console.log('📊 Calculando porcentagem:', {
         ingredient: ingredient.name,
         quantity: ing.quantity,
         unit: unit.name,
         quantityInGrams,
-        flourQuantityInGrams,
+        baseQuantityInGrams,
         percentage: Math.round(percentage * 100) / 100
       })
 
@@ -295,6 +364,7 @@ export default function FichasTecnicas() {
       ovenTemperature: 0,
       instructions: '',
       technicalNotes: '',
+      baseIngredientIndex: -1,
       ingredients: []
     })
     setEditingItem(null)
@@ -343,6 +413,7 @@ export default function FichasTecnicas() {
       ovenTemperature: item.ovenTemperature,
       instructions: item.instructions || '',
       technicalNotes: item.technicalNotes || '',
+      baseIngredientIndex: -1, // Será detectado automaticamente
       ingredients: item.ingredients?.map(ing => ({
         ingredientId: ing.ingredientId,
         quantity: ing.quantity,
@@ -811,6 +882,52 @@ export default function FichasTecnicas() {
                         Adicionar
                       </button>
                     </div>
+
+                    {/* Seletor de Ingrediente Base */}
+                    {formData.ingredients.length > 0 && (
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-200">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="p-2 bg-blue-600 rounded-lg">
+                            <Star className="w-4 h-4 text-white" />
+                          </div>
+                          <h4 className="font-semibold text-blue-900">Ingrediente Base (100%)</h4>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-blue-700 mb-2">
+                              Selecionar ingrediente base manualmente (opcional)
+                            </label>
+                            <select
+                              value={formData.baseIngredientIndex}
+                              onChange={(e) => {
+                                const newIndex = Number(e.target.value)
+                                setFormData(prev => ({ ...prev, baseIngredientIndex: newIndex }))
+                                // Recalcular porcentagens
+                                const recalculated = calculatePercentages(formData.ingredients)
+                                setFormData(prev => ({ ...prev, ingredients: recalculated }))
+                              }}
+                              className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                            >
+                              <option value={-1}>Detecção automática</option>
+                              {formData.ingredients.map((ing, index) => {
+                                const ingredient = ingredients.find(i => i.id === ing.ingredientId)
+                                return (
+                                  <option key={index} value={index}>
+                                    {ingredient?.name || `Ingrediente ${index + 1}`}
+                                  </option>
+                                )
+                              })}
+                            </select>
+                          </div>
+                          <div className="flex items-end">
+                            <div className="text-sm text-blue-700">
+                              <p className="font-medium">💡 Dica:</p>
+                              <p>O sistema detecta automaticamente farinhas. Use a seleção manual apenas se necessário.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="space-y-4">
                       {formData.ingredients.map((ingredient, index) => (
