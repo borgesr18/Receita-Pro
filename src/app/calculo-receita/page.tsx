@@ -4,13 +4,10 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Calculator, 
   Scale, 
-  Percent, 
-  FileText, 
   DollarSign,
   RotateCcw,
   Copy,
-  Search,
-  Filter
+  Search
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/contexts/ToastContext'
