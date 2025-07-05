@@ -89,4 +89,3 @@ export const precoCalculadoSchema = z.object({
   lucro: z.coerce.number().min(0, 'Lucro deve ser maior ou igual a zero'),
   precoFinal: z.coerce.number().min(0, 'Preço final deve ser maior que zero')
 })
-
