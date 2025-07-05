@@ -742,7 +742,7 @@ export default function FichasTecnicas() {
 
                   {formData.ingredients.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
-                      Nenhum ingrediente adicionado. Clique em "Adicionar" para começar.
+                      Nenhum ingrediente adicionado. Clique em &quot;Adicionar&quot; para começar.
                     </div>
                   )}
                 </div>
@@ -875,4 +875,5 @@ export default function FichasTecnicas() {
     </div>
   )
 }
+
 
