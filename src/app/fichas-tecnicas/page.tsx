@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { 
   Plus, 
   Edit, 
@@ -96,6 +96,7 @@ export default function FichasTecnicas() {
   const [viewingRecipe, setViewingRecipe] = useState<Recipe | null>(null)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const ingredientsContainerRef = useRef<HTMLDivElement>(null)
 
   const handleView = (recipe: Recipe) => {
     setViewingRecipe(recipe)
@@ -117,6 +118,14 @@ export default function FichasTecnicas() {
     observations: '',
     ingredients: [] as RecipeIngredient[]
   })
+
+  // Função para lidar com o evento de rolagem
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (ingredientsContainerRef.current) {
+      e.stopPropagation();
+      ingredientsContainerRef.current.scrollTop += e.deltaY;
+    }
+  };
 
   // Função para encontrar ingrediente base (farinha)
   const findBaseIngredient = (ingredientsList: typeof formData.ingredients) => {
@@ -1101,7 +1110,18 @@ export default function FichasTecnicas() {
                         </p>
                       </div>
                     ) : (
-                      <div style={{ height: '400px', overflowY: 'scroll', border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '0.5rem' }}>
+                      <div 
+                        ref={ingredientsContainerRef}
+                        onWheel={handleWheel}
+                        style={{
+                          height: '400px',
+                          overflowY: 'scroll',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '0.75rem',
+                          padding: '0.5rem',
+                          position: 'relative'
+                        }}
+                      >
                         <div className="space-y-4">
                           {formData.ingredients.map((ingredient, index) => (
                             <div key={ingredient.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
