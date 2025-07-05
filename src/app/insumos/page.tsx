@@ -1,51 +1,30 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  X,
-  Search,
-  Clock,
-  Thermometer,
-  Eye
-} from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Search, Plus, Edit, Trash2, X, Save, Package, TrendingUp, AlertTriangle, Eye } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/contexts/ToastContext'
 
-interface Recipe {
+interface Ingredient {
   id: string
   name: string
-  description?: string
   categoryId: string
-  productId?: string
-  preparationTime: number
-  ovenTemperature: number
-  instructions?: string
-  technicalNotes?: string
-  createdAt?: string
-  updatedAt?: string
-  category?: { name: string }
-  product?: { name: string }
-  ingredients?: RecipeIngredient[]
-}
-
-interface RecipeIngredient {
-  id: string
-  ingredientId: string
-  quantity: number
-  percentage: number
   unitId: string
-  order?: number
-  ingredient?: { 
-    name: string
-    pricePerUnit: number
-    conversionFactor?: number
-    baseUnit?: string
-    ingredientType?: string
-  }
-  unit?: { name: string; symbol?: string }
+  minimumStock: number
+  pricePerUnit: number
+  supplierId: string
+  currentStock: number
+  ingredientType: string
+  storageCondition: string
+  purchaseDate?: string
+  expirationDate?: string
+  conversionFactor?: number
+  baseUnit?: string
+  category?: { name: string }
+  unit?: { name: string; abbreviation: string }
+  supplier?: { name: string }
+  createdAt: string
+  updatedAt: string
 }
 
 interface Category {
@@ -53,134 +32,85 @@ interface Category {
   name: string
 }
 
-interface Ingredient {
-  id: string
-  name: string
-  pricePerUnit: number
-  conversionFactor?: number
-  baseUnit?: string
-  ingredientType?: string
-  unit?: { id: string; name: string; symbol?: string }
-}
-
 interface Unit {
   id: string
   name: string
-  symbol?: string
+  abbreviation: string
 }
 
-export default function FichasTecnicas() {
-  const [recipes, setRecipes] = useState<Recipe[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [ingredients, setIngredients] = useState<Ingredient[]>([])
-  const [units, setUnits] = useState<Unit[]>([])
-  const [loading, setLoading] = useState(true)
+interface Supplier {
+  id: string
+  name: string
+}
+
+interface IngredientType {
+  value: string
+  label: string
+}
+
+export default function Insumos() {
+  const { showSuccess, showError } = useToast()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<Recipe | null>(null)
-  const [viewingItem, setViewingItem] = useState<Recipe | null>(null)
+  const [viewingItem, setViewingItem] = useState<Ingredient | null>(null)
+  const [insumos, setInsumos] = useState<Ingredient[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [units, setUnits] = useState<Unit[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [ingredientTypes, setIngredientTypes] = useState<IngredientType[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterCategory, setFilterCategory] = useState('')
-  const [activeTab, setActiveTab] = useState('info')
-  
-  const { showSuccess, showError } = useToast()
-
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const [editingItem, setEditingItem] = useState<Ingredient | null>(null)
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
     categoryId: '',
-    preparationTime: 0,
-    ovenTemperature: 0,
-    instructions: '',
-    technicalNotes: '',
-    ingredients: [] as Array<{
-      ingredientId: string
-      quantity: number
-      percentage: number
-      unitId: string
-      order: number
-    }>
+    unitId: '',
+    minimumStock: 0,
+    pricePerUnit: 0,
+    supplierId: '',
+    currentStock: 0,
+    ingredientType: 'Ingredientes_Adicionais',
+    storageCondition: 'Ambiente_Seco',
+    purchaseDate: '',
+    expirationDate: '',
+    conversionFactor: '',
+    baseUnit: 'g'
   })
 
-  // Função para converter quantidade para gramas
-  const convertToGrams = (quantity: number, ingredient: Ingredient, unit: Unit) => {
-    // Se já está em gramas, retorna direto
-    if (unit.name.toLowerCase().includes('grama') || unit.symbol?.toLowerCase() === 'g') {
-      return quantity
-    }
-    
-    // Se é kg, converte para gramas
-    if (unit.name.toLowerCase().includes('kg') || unit.symbol?.toLowerCase() === 'kg') {
-      return quantity * 1000
-    }
-    
-    // Se tem fator de conversão específico do ingrediente, usa ele
-    if (ingredient.conversionFactor) {
-      return quantity * ingredient.conversionFactor
-    }
-    
-    // Fallback: assume que é gramas
-    return quantity
-  }
-
-  // Função para calcular porcentagens automaticamente
-  const calculatePercentages = (updatedIngredients: typeof formData.ingredients) => {
-    const flourIngredient = updatedIngredients.find(ing => {
-      const ingredient = ingredients.find(i => i.id === ing.ingredientId)
-      return ingredient?.ingredientType === 'Farinha' || 
-             ingredient?.name.toLowerCase().includes('farinha')
-    })
-
-    if (!flourIngredient || flourIngredient.quantity === 0) {
-      return updatedIngredients
-    }
-
-    const flourIngredientData = ingredients.find(i => i.id === flourIngredient.ingredientId)
-    const flourUnit = units.find(u => u.id === flourIngredientData?.unit?.id || '')
-    
-    if (!flourIngredientData || !flourUnit) {
-      return updatedIngredients
-    }
-
-    const flourQuantityInGrams = convertToGrams(flourIngredient.quantity, flourIngredientData, flourUnit)
-
-    return updatedIngredients.map(ing => {
-      const ingredient = ingredients.find(i => i.id === ing.ingredientId)
-      const unit = units.find(u => u.id === ingredient?.unit?.id || '')
-      
-      if (!ingredient || !unit) return ing
-
-      // Se é farinha, sempre 100%
-      if (ingredient.ingredientType === 'Farinha' || ingredient.name.toLowerCase().includes('farinha')) {
-        return { ...ing, percentage: 100 }
-      }
-
-      // Calcula porcentagem baseada na farinha
-      const quantityInGrams = convertToGrams(ing.quantity, ingredient, unit)
-      const percentage = flourQuantityInGrams > 0 ? (quantityInGrams / flourQuantityInGrams) * 100 : 0
-
-      return { ...ing, percentage: Math.round(percentage * 100) / 100 }
-    })
-  }
-
-  // Carregar dados com useCallback
   const loadData = useCallback(async () => {
     try {
-      setLoading(true)
-      const [recipesRes, categoriesRes, ingredientsRes, unitsRes] = await Promise.all([
-        api.get('/api/recipes'),
-        api.get('/api/recipe-categories'),
+      console.log('🔄 Carregando dados dos insumos...')
+      
+      const [ingredientsRes, categoriesRes, unitsRes, suppliersRes, ingredientTypesRes] = await Promise.all([
         api.get('/api/ingredients'),
-        api.get('/api/measurement-units')
+        api.get('/api/ingredient-categories'),
+        api.get('/api/measurement-units'),
+        api.get('/api/suppliers'),
+        api.get('/api/enums/ingredient-types')
       ])
 
-      setRecipes(Array.isArray(recipesRes.data) ? recipesRes.data : [])
+      console.log('📊 Dados carregados:', {
+        ingredients: Array.isArray(ingredientsRes.data) ? ingredientsRes.data.length : 0,
+        categories: Array.isArray(categoriesRes.data) ? categoriesRes.data.length : 0,
+        units: Array.isArray(unitsRes.data) ? unitsRes.data.length : 0,
+        suppliers: Array.isArray(suppliersRes.data) ? suppliersRes.data.length : 0,
+        ingredientTypes: Array.isArray(ingredientTypesRes.data) ? ingredientTypesRes.data.length : 0
+      })
+
+      setInsumos(Array.isArray(ingredientsRes.data) ? ingredientsRes.data : [])
       setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : [])
-      setIngredients(Array.isArray(ingredientsRes.data) ? ingredientsRes.data : [])
       setUnits(Array.isArray(unitsRes.data) ? unitsRes.data : [])
+      setSuppliers(Array.isArray(suppliersRes.data) ? suppliersRes.data : [])
+      setIngredientTypes(Array.isArray(ingredientTypesRes.data) ? ingredientTypesRes.data : [])
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error)
       showError('Erro ao carregar dados')
+      setInsumos([])
+      setCategories([])
+      setUnits([])
+      setSuppliers([])
+      setIngredientTypes([])
     } finally {
       setLoading(false)
     }
@@ -190,131 +120,128 @@ export default function FichasTecnicas() {
     loadData()
   }, [loadData])
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      categoryId: '',
-      preparationTime: 0,
-      ovenTemperature: 0,
-      instructions: '',
-      technicalNotes: '',
-      ingredients: []
-    })
-    setEditingItem(null)
-    setActiveTab('info')
-  }
-
   const handleSave = async () => {
     try {
-      if (!formData.name.trim()) {
-        showError('Nome é obrigatório')
+      console.log('💾 Salvando insumo:', formData)
+      
+      if (!formData.name || !formData.categoryId || !formData.unitId) {
+        showError('Nome, categoria e unidade são obrigatórios')
         return
       }
 
       const dataToSend = {
-        ...formData,
-        ingredients: formData.ingredients.map((ing, index) => ({
-          ...ing,
-          order: index + 1
-        }))
+        name: formData.name.trim(),
+        categoryId: formData.categoryId,
+        unitId: formData.unitId,
+        minimumStock: parseFloat(formData.minimumStock.toString()) || 0,
+        pricePerUnit: parseFloat(formData.pricePerUnit.toString()) || 0,
+        supplierId: formData.supplierId || null,
+        currentStock: parseFloat(formData.currentStock.toString()) || 0,
+        ingredientType: formData.ingredientType || 'Ingredientes_Adicionais',
+        storageCondition: formData.storageCondition || 'Ambiente_Seco',
+        purchaseDate: formData.purchaseDate || null,
+        expirationDate: formData.expirationDate || null,
+        conversionFactor: formData.conversionFactor ? parseFloat(formData.conversionFactor.toString()) : null,
+        baseUnit: formData.baseUnit || null
       }
+
+      console.log('📤 Dados preparados para envio:', dataToSend)
 
       if (editingItem) {
-        await api.put(`/api/recipes/${editingItem.id}`, dataToSend)
-        showSuccess('Receita atualizada com sucesso!')
+        const response = await api.put(`/api/ingredients/${editingItem.id}`, dataToSend)
+        setInsumos(insumos.map(item => item.id === editingItem.id ? response.data as Ingredient : item))
+        showSuccess('Insumo atualizado com sucesso!')
       } else {
-        await api.post('/api/recipes', dataToSend)
-        showSuccess('Receita criada com sucesso!')
+        const response = await api.post('/api/ingredients', dataToSend)
+        setInsumos([...insumos, response.data as Ingredient])
+        showSuccess('Insumo criado com sucesso!')
       }
-
+      
       setIsModalOpen(false)
+      setEditingItem(null)
       resetForm()
-      loadData()
     } catch (error) {
-      console.error('❌ Erro ao salvar:', error)
-      showError('Erro ao salvar receita')
+      console.error('❌ Erro ao salvar insumo:', error)
+      showError('Erro ao salvar insumo')
     }
   }
 
-  const handleEdit = (item: Recipe) => {
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      categoryId: '',
+      unitId: '',
+      minimumStock: 0,
+      pricePerUnit: 0,
+      supplierId: '',
+      currentStock: 0,
+      ingredientType: 'Ingredientes_Adicionais',
+      storageCondition: 'Ambiente_Seco',
+      purchaseDate: '',
+      expirationDate: '',
+      conversionFactor: '',
+      baseUnit: 'g'
+    })
+  }
+
+  const handleEdit = (item: Ingredient) => {
     setEditingItem(item)
     setFormData({
       name: item.name,
-      description: item.description || '',
       categoryId: item.categoryId,
-      preparationTime: item.preparationTime,
-      ovenTemperature: item.ovenTemperature,
-      instructions: item.instructions || '',
-      technicalNotes: item.technicalNotes || '',
-      ingredients: item.ingredients?.map(ing => ({
-        ingredientId: ing.ingredientId,
-        quantity: ing.quantity,
-        percentage: ing.percentage,
-        unitId: ing.unitId,
-        order: ing.order || 0
-      })) || []
+      unitId: item.unitId,
+      minimumStock: item.minimumStock,
+      pricePerUnit: item.pricePerUnit,
+      supplierId: item.supplierId || '',
+      currentStock: item.currentStock,
+      ingredientType: item.ingredientType || 'Ingredientes_Adicionais',
+      storageCondition: item.storageCondition || 'Ambiente_Seco',
+      purchaseDate: item.purchaseDate || '',
+      expirationDate: item.expirationDate || '',
+      conversionFactor: item.conversionFactor?.toString() || '',
+      baseUnit: item.baseUnit || 'g'
     })
     setIsModalOpen(true)
   }
 
-  const handleView = (item: Recipe) => {
+  const handleView = (item: Ingredient) => {
     setViewingItem(item)
     setIsViewModalOpen(true)
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta receita?')) {
+    if (confirm('Tem certeza que deseja excluir este insumo?')) {
       try {
-        await api.delete(`/api/recipes/${id}`)
-        showSuccess('Receita excluída com sucesso!')
-        loadData()
+        await api.delete(`/api/ingredients/${id}`)
+        setInsumos(insumos.filter(item => item.id !== id))
+        showSuccess('Insumo excluído com sucesso!')
       } catch (error) {
-        console.error('❌ Erro ao excluir:', error)
-        showError('Erro ao excluir receita')
+        console.error('❌ Erro ao excluir insumo:', error)
+        showError('Erro ao excluir insumo')
       }
     }
   }
 
-  const addIngredient = () => {
-    const newIngredient = {
-      ingredientId: '',
-      quantity: 0,
-      percentage: 0,
-      unitId: '',
-      order: formData.ingredients.length + 1
-    }
-    setFormData(prev => ({
-      ...prev,
-      ingredients: [...prev.ingredients, newIngredient]
-    }))
-  }
-
-  const updateIngredient = (index: number, field: string, value: any) => {
-    const updatedIngredients = formData.ingredients.map((ing, i) => 
-      i === index ? { ...ing, [field]: value } : ing
-    )
-    
-    // Recalcular porcentagens automaticamente quando quantidade mudar
-    if (field === 'quantity' || field === 'ingredientId') {
-      const recalculatedIngredients = calculatePercentages(updatedIngredients)
-      setFormData(prev => ({ ...prev, ingredients: recalculatedIngredients }))
-    } else {
-      setFormData(prev => ({ ...prev, ingredients: updatedIngredients }))
-    }
-  }
-
-  const removeIngredient = (index: number) => {
-    const updatedIngredients = formData.ingredients.filter((_, i) => i !== index)
-    const recalculatedIngredients = calculatePercentages(updatedIngredients)
-    setFormData(prev => ({ ...prev, ingredients: recalculatedIngredients }))
-  }
-
-  const filteredRecipes = recipes.filter(recipe => {
-    const matchesSearch = recipe.name.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = !filterCategory || recipe.categoryId === filterCategory
+  const filteredInsumos = insumos.filter(insumo => {
+    if (!insumo || !insumo.name) return false
+    const matchesSearch = insumo.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesCategory = !selectedCategory || insumo.categoryId === selectedCategory
     return matchesSearch && matchesCategory
   })
+
+  const totalInsumos = insumos.length
+  const lowStockInsumos = insumos.filter(insumo => 
+    insumo && 
+    typeof insumo.currentStock === 'number' && 
+    typeof insumo.minimumStock === 'number' && 
+    insumo.currentStock <= insumo.minimumStock
+  ).length
+  const totalValue = insumos.reduce((sum, insumo) => {
+    if (!insumo || typeof insumo.currentStock !== 'number' || typeof insumo.pricePerUnit !== 'number') {
+      return sum
+    }
+    return sum + (insumo.currentStock * insumo.pricePerUnit)
+  }, 0)
 
   if (loading) {
     return (
@@ -326,449 +253,562 @@ export default function FichasTecnicas() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Fichas Técnicas</h1>
-          <p className="text-gray-600 mt-1">Gerencie suas receitas e fichas técnicas</p>
-        </div>
-        <button
-          onClick={() => {
-            resetForm()
-            setIsModalOpen(true)
-          }}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Nova Ficha Técnica
-        </button>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Insumos</h1>
+        <p className="text-gray-600">Gerencie seus ingredientes e matérias-primas</p>
       </div>
 
-      {/* Filtros */}
-      <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
-        <div className="flex gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Package className="h-6 w-6 text-blue-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Total de Insumos</p>
+              <p className="text-2xl font-bold text-gray-900">{totalInsumos}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-red-100 rounded-lg">
+              <AlertTriangle className="h-6 w-6 text-red-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Estoque Baixo</p>
+              <p className="text-2xl font-bold text-gray-900">{lowStockInsumos}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <TrendingUp className="h-6 w-6 text-green-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Valor Total</p>
+              <p className="text-2xl font-bold text-gray-900">R$ {totalValue.toFixed(2)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <input
                 type="text"
-                placeholder="Buscar receitas..."
+                placeholder="Buscar insumos..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          
+          <div className="sm:w-48">
+            <select
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+              <option value="">Todas as categorias</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={() => {
+              setEditingItem(null)
+              resetForm()
+              setIsModalOpen(true)
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
           >
-            <option value="">Todas as categorias</option>
-            {categories.map(category => (
-              <option key={category.id} value={category.id}>{category.name}</option>
-            ))}
-          </select>
+            <Plus className="h-4 w-4" />
+            Adicionar Insumo
+          </button>
         </div>
       </div>
 
-      {/* Lista de Receitas */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tempo</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temperatura</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ingredientes</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Nome
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Categoria
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Unidade
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Estoque Atual
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Estoque Mínimo
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Preço/Unidade
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Ações
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredRecipes.map((recipe) => (
-                <tr key={recipe.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-medium text-gray-900">{recipe.name}</div>
-                    {recipe.description && (
-                      <div className="text-sm text-gray-500">{recipe.description}</div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {recipe.category?.name || 'Sem categoria'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      {recipe.preparationTime} min
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="flex items-center gap-1">
-                      <Thermometer className="w-4 h-4 text-gray-400" />
-                      {recipe.ovenTemperature}°C
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {recipe.ingredients?.length || 0} ingredientes
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleView(recipe)}
-                        className="text-blue-600 hover:text-blue-900 p-1 rounded"
-                        title="Visualizar"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleEdit(recipe)}
-                        className="text-indigo-600 hover:text-indigo-900 p-1 rounded"
-                        title="Editar"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(recipe.id)}
-                        className="text-red-600 hover:text-red-900 p-1 rounded"
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+              {filteredInsumos.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                    Nenhum insumo encontrado
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredInsumos.map((insumo) => (
+                  <tr key={insumo.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{insumo.name}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{insumo.category?.name || 'N/A'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{insumo.unit?.name || 'N/A'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`text-sm font-medium ${
+                        insumo.currentStock <= insumo.minimumStock ? 'text-red-600' : 'text-gray-900'
+                      }`}>
+                        {insumo.currentStock}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{insumo.minimumStock}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">R$ {insumo.pricePerUnit.toFixed(2)}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleView(insumo)}
+                          className="text-green-600 hover:text-green-900"
+                          title="Visualizar"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(insumo)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Editar"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(insumo.id)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Modal de Criação/Edição */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">
-                  {editingItem ? 'Editar Ficha Técnica' : 'Nova Ficha Técnica'}
-                </h2>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="border-b">
-              <nav className="flex space-x-8 px-6">
-                <button
-                  onClick={() => setActiveTab('info')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'info'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Informações Gerais
-                </button>
-                <button
-                  onClick={() => setActiveTab('ingredients')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'ingredients'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Ingredientes
-                </button>
-                <button
-                  onClick={() => setActiveTab('instructions')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'instructions'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Instruções
-                </button>
-              </nav>
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {editingItem ? 'Editar Insumo' : 'Adicionar Insumo'}
+              </h2>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
             </div>
 
             <div className="p-6">
-              {/* Tab: Informações Gerais */}
-              {activeTab === 'info' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Nome da Receita</label>
-                      <input
-                        type="text"
-                        value={formData.name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Ex: Pão Francês Tradicional"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                      <select
-                        value={formData.categoryId}
-                        onChange={(e) => setFormData(prev => ({ ...prev, categoryId: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">Selecione uma categoria</option>
-                        {categories.map(category => (
-                          <option key={category.id} value={category.id}>{category.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Descrição da receita..."
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Tempo de Preparo (min)</label>
-                      <input
-                        type="number"
-                        value={formData.preparationTime}
-                        onChange={(e) => setFormData(prev => ({ ...prev, preparationTime: Number(e.target.value) }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        min="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Temperatura do Forno (°C)</label>
-                      <input
-                        type="number"
-                        value={formData.ovenTemperature}
-                        onChange={(e) => setFormData(prev => ({ ...prev, ovenTemperature: Number(e.target.value) }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        min="0"
-                      />
-                    </div>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nome *
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Nome do insumo"
+                  />
                 </div>
-              )}
 
-              {/* Tab: Ingredientes */}
-              {activeTab === 'ingredients' && (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium">Ingredientes</h3>
-                    <button
-                      onClick={addIngredient}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Adicionar
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {formData.ingredients.map((ingredient, index) => (
-                      <div key={index} className="grid grid-cols-12 gap-2 items-end p-3 bg-gray-50 rounded-lg">
-                        <div className="col-span-4">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Ingrediente</label>
-                          <select
-                            value={ingredient.ingredientId}
-                            onChange={(e) => updateIngredient(index, 'ingredientId', e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="">Selecione...</option>
-                            {ingredients.map(ing => (
-                              <option key={ing.id} value={ing.id}>{ing.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="col-span-2">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Quantidade</label>
-                          <input
-                            type="number"
-                            value={ingredient.quantity}
-                            onChange={(e) => updateIngredient(index, 'quantity', Number(e.target.value))}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                            step="0.01"
-                            min="0"
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Unidade</label>
-                          <select
-                            value={ingredient.unitId}
-                            onChange={(e) => updateIngredient(index, 'unitId', e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="">Selecione...</option>
-                            {units.map(unit => (
-                              <option key={unit.id} value={unit.id}>{unit.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="col-span-2">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Porcentagem</label>
-                          <input
-                            type="number"
-                            value={ingredient.percentage}
-                            readOnly
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-100"
-                            step="0.01"
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <button
-                            onClick={() => removeIngredient(index)}
-                            className="w-full bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-sm"
-                          >
-                            <Trash2 className="w-4 h-4 mx-auto" />
-                          </button>
-                        </div>
-                      </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Categoria *
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.categoryId}
+                    onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                  >
+                    <option value="">Selecione uma categoria</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
                     ))}
-                  </div>
-
-                  {formData.ingredients.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      Nenhum ingrediente adicionado. Clique em "Adicionar" para começar.
-                    </div>
-                  )}
+                  </select>
                 </div>
-              )}
 
-              {/* Tab: Instruções */}
-              {activeTab === 'instructions' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Modo de Preparo</label>
-                    <textarea
-                      value={formData.instructions}
-                      onChange={(e) => setFormData(prev => ({ ...prev, instructions: e.target.value }))}
-                      rows={8}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Descreva o passo a passo do preparo..."
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Observações Técnicas</label>
-                    <textarea
-                      value={formData.technicalNotes}
-                      onChange={(e) => setFormData(prev => ({ ...prev, technicalNotes: e.target.value }))}
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Dicas técnicas, cuidados especiais, variações..."
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Unidade *
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.unitId}
+                    onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
+                  >
+                    <option value="">Selecione uma unidade</option>
+                    {units.map((unit) => (
+                      <option key={unit.id} value={unit.id}>
+                        {unit.name} ({unit.abbreviation})
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fornecedor
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.supplierId}
+                    onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
+                  >
+                    <option value="">Selecione um fornecedor</option>
+                    {suppliers.map((supplier) => (
+                      <option key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Estoque Atual
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.currentStock}
+                    onChange={(e) => setFormData({ ...formData, currentStock: parseFloat(e.target.value) || 0 })}
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Estoque Mínimo
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.minimumStock}
+                    onChange={(e) => setFormData({ ...formData, minimumStock: parseFloat(e.target.value) || 0 })}
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Preço por Unidade
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.pricePerUnit}
+                    onChange={(e) => setFormData({ ...formData, pricePerUnit: parseFloat(e.target.value) || 0 })}
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tipo de Ingrediente
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.ingredientType}
+                    onChange={(e) => setFormData({ ...formData, ingredientType: e.target.value })}
+                  >
+                    <option value="">Selecione um tipo</option>
+                    {ingredientTypes.map(type => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Condição de Armazenamento
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.storageCondition}
+                    onChange={(e) => setFormData({ ...formData, storageCondition: e.target.value })}
+                  >
+                    <option value="Ambiente_Seco">Ambiente Seco</option>
+                    <option value="Refrigerado">Refrigerado</option>
+                    <option value="Congelado">Congelado</option>
+                    <option value="Ambiente_Controlado">Ambiente Controlado</option>
+                    <option value="Uso_Imediato">Uso Imediato</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Data de Compra
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.purchaseDate}
+                    onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Data de Validade
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.expirationDate}
+                    onChange={(e) => setFormData({ ...formData, expirationDate: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fator de Conversão
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.conversionFactor}
+                    onChange={(e) => setFormData({ ...formData, conversionFactor: e.target.value })}
+                    placeholder="Ex: 50 (1 ovo = 50g)"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Quantos gramas/ml equivale a 1 unidade deste insumo
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Unidade Base
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.baseUnit}
+                    onChange={(e) => setFormData({ ...formData, baseUnit: e.target.value })}
+                  >
+                    <option value="g">Gramas (g)</option>
+                    <option value="ml">Mililitros (ml)</option>
+                    <option value="kg">Quilogramas (kg)</option>
+                    <option value="l">Litros (l)</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Unidade usada nos cálculos das receitas
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {/* Footer do Modal */}
-            <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
               >
-                {editingItem ? 'Atualizar' : 'Salvar'}
+                <Save className="h-4 w-4" />
+                Salvar
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal de Visualização */}
       {isViewModalOpen && viewingItem && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">{viewingItem.name}</h2>
-                <button
-                  onClick={() => setIsViewModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Detalhes do Insumo</h2>
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
             </div>
 
             <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h3 className="font-medium text-gray-900 mb-2">Informações Gerais</h3>
-                  <div className="space-y-2 text-sm">
-                    <div><span className="font-medium">Categoria:</span> {viewingItem.category?.name || 'Sem categoria'}</div>
-                    <div><span className="font-medium">Tempo de Preparo:</span> {viewingItem.preparationTime} min</div>
-                    <div><span className="font-medium">Temperatura:</span> {viewingItem.ovenTemperature}°C</div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Informações Básicas</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Nome:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.name}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Categoria:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.category?.name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Unidade:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.unit?.name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Fornecedor:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.supplier?.name || 'N/A'}</p>
+                    </div>
                   </div>
                 </div>
+
                 <div>
-                  <h3 className="font-medium text-gray-900 mb-2">Descrição</h3>
-                  <p className="text-sm text-gray-600">{viewingItem.description || 'Sem descrição'}</p>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Estoque e Preços</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Estoque Atual:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.currentStock}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Estoque Mínimo:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.minimumStock}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Preço por Unidade:</span>
+                      <p className="text-sm text-gray-900">R$ {viewingItem.pricePerUnit.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Valor Total:</span>
+                      <p className="text-sm text-gray-900">R$ {(viewingItem.currentStock * viewingItem.pricePerUnit).toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Detalhes Técnicos</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Tipo:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.ingredientType || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Armazenamento:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.storageCondition || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Data de Compra:</span>
+                      <p className="text-sm text-gray-900">
+                        {viewingItem.purchaseDate ? new Date(viewingItem.purchaseDate).toLocaleDateString('pt-BR') : 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Data de Validade:</span>
+                      <p className="text-sm text-gray-900">
+                        {viewingItem.expirationDate ? new Date(viewingItem.expirationDate).toLocaleDateString('pt-BR') : 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Fator de Conversão:</span>
+                      <p className="text-sm text-gray-900">
+                        {viewingItem.conversionFactor ? `${viewingItem.conversionFactor} ${viewingItem.baseUnit || 'g'}` : 'Não definido'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Unidade Base:</span>
+                      <p className="text-sm text-gray-900">{viewingItem.baseUnit || 'Não definida'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Informações do Sistema</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Criado em:</span>
+                      <p className="text-sm text-gray-900">
+                        {new Date(viewingItem.createdAt).toLocaleDateString('pt-BR')} às {new Date(viewingItem.createdAt).toLocaleTimeString('pt-BR')}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Atualizado em:</span>
+                      <p className="text-sm text-gray-900">
+                        {new Date(viewingItem.updatedAt).toLocaleDateString('pt-BR')} às {new Date(viewingItem.updatedAt).toLocaleTimeString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
+            </div>
 
-              {viewingItem.ingredients && viewingItem.ingredients.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="font-medium text-gray-900 mb-3">Ingredientes</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-3 py-2 text-left">Ingrediente</th>
-                          <th className="px-3 py-2 text-right">Quantidade</th>
-                          <th className="px-3 py-2 text-right">Unidade</th>
-                          <th className="px-3 py-2 text-right">Porcentagem</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {viewingItem.ingredients.map((ing, index) => (
-                          <tr key={index}>
-                            <td className="px-3 py-2">{ing.ingredient?.name || 'Ingrediente não encontrado'}</td>
-                            <td className="px-3 py-2 text-right">{ing.quantity}</td>
-                            <td className="px-3 py-2 text-right">{ing.unit?.name || 'Unidade não encontrada'}</td>
-                            <td className="px-3 py-2 text-right">{ing.percentage.toFixed(2)}%</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {viewingItem.instructions && (
-                <div className="mb-6">
-                  <h3 className="font-medium text-gray-900 mb-2">Modo de Preparo</h3>
-                  <div className="text-sm text-gray-600 whitespace-pre-wrap">{viewingItem.instructions}</div>
-                </div>
-              )}
-
-              {viewingItem.technicalNotes && (
-                <div>
-                  <h3 className="font-medium text-gray-900 mb-2">Observações Técnicas</h3>
-                  <div className="text-sm text-gray-600 whitespace-pre-wrap">{viewingItem.technicalNotes}</div>
-                </div>
-              )}
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setIsViewModalOpen(false)
+                  handleEdit(viewingItem)
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Editar
+              </button>
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>
@@ -776,6 +816,7 @@ export default function FichasTecnicas() {
     </div>
   )
 }
+
 
 
 
