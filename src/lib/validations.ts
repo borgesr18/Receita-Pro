@@ -7,11 +7,20 @@ export const ingredientSchema = z.object({
   pricePerUnit: z.coerce.number().min(0, 'Preço deve ser maior ou igual a zero'),
   supplierId: z.string().optional(),
   purchaseDate: z.string().optional(),
-  ingredientType: z.enum(['FLOUR', 'FAT', 'YEAST', 'SUGAR', 'DAIRY', 'EGG', 'LIQUID', 'ADDITIVE', 'SPICE', 'OTHER']),
+  ingredientType: z.enum([
+    'Açúcares', 'Aditivos_Industriais', 'Adoçantes', 'Agentes_de_Crescimento',
+    'Coberturas', 'Derivados', 'Enriquecedores', 'Farinha', 'Fermentos',
+    'Finalizações', 'Gorduras', 'Ingredientes_Adicionais', 'Ingredientes_Secundários',
+    'Líquidos', 'Recheios', 'Sal', 'Temperos'
+  ]).default('Ingredientes_Adicionais'),
   expirationDate: z.string().optional(),
-  storageCondition: z.enum(['DRY', 'REFRIGERATED', 'FROZEN']).default('DRY'),
+  storageCondition: z.enum([
+    'Ambiente_Controlado', 'Ambiente_Seco', 'Congelado', 'Refrigerado', 'Uso_Imediato'
+  ]).default('Ambiente_Seco'),
   currentStock: z.coerce.number().min(0, 'Estoque atual deve ser maior ou igual a zero').default(0),
-  minimumStock: z.coerce.number().min(0, 'Estoque mínimo deve ser maior ou igual a zero').default(0)
+  minimumStock: z.coerce.number().min(0, 'Estoque mínimo deve ser maior ou igual a zero').default(0),
+  conversionFactor: z.coerce.number().optional(),
+  baseUnit: z.string().optional()
 })
 
 export const recipeSchema = z.object({
