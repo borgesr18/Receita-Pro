@@ -9,7 +9,14 @@ import {
   Search,
   Clock,
   Thermometer,
-  Eye
+  Eye,
+  ChefHat,
+  BookOpen,
+  Utensils,
+  Star,
+  Filter,
+  Grid3X3,
+  List
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/contexts/ToastContext'
@@ -82,6 +89,7 @@ export default function FichasTecnicas() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [activeTab, setActiveTab] = useState('info')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   
   const { showSuccess, showError } = useToast()
 
@@ -111,27 +119,23 @@ export default function FichasTecnicas() {
       conversionFactor: ingredient.conversionFactor 
     })
 
-    // Se já está em gramas, retorna direto
     if (unit.name.toLowerCase().includes('grama') || unit.symbol?.toLowerCase() === 'g') {
       console.log('✅ Já em gramas:', quantity)
       return quantity
     }
     
-    // Se é kg, converte para gramas
     if (unit.name.toLowerCase().includes('kg') || unit.symbol?.toLowerCase() === 'kg') {
       const result = quantity * 1000
       console.log('✅ Convertido de kg para gramas:', result)
       return result
     }
     
-    // Se tem fator de conversão específico do ingrediente, usa ele
     if (ingredient.conversionFactor) {
       const result = quantity * ingredient.conversionFactor
       console.log('✅ Convertido usando fator específico:', result)
       return result
     }
     
-    // Fallback: assume que é gramas
     console.log('⚠️ Fallback: assumindo gramas:', quantity)
     return quantity
   }
@@ -143,7 +147,6 @@ export default function FichasTecnicas() {
     console.log('📊 Unidades disponíveis:', units.length)
     console.log('📊 Ingredientes da receita:', updatedIngredients.length)
 
-    // Procurar ingrediente base (farinha)
     const flourIngredient = updatedIngredients.find(ing => {
       const ingredient = ingredients.find(i => i.id === ing.ingredientId)
       console.log('🔍 Verificando ingrediente:', { 
@@ -178,7 +181,6 @@ export default function FichasTecnicas() {
       return updatedIngredients
     }
 
-    // Buscar unidade da farinha
     let flourUnit = units.find(u => u.id === flourIngredient.unitId)
     if (!flourUnit && flourIngredientData.unit) {
       flourUnit = units.find(u => u.id === flourIngredientData.unit?.id)
@@ -219,13 +221,11 @@ export default function FichasTecnicas() {
         return ing
       }
 
-      // Se é farinha, sempre 100%
       if (ingredient.ingredientType === 'Farinha' || ingredient.name.toLowerCase().includes('farinha')) {
         console.log('🌾 Definindo farinha como 100%:', ingredient.name)
         return { ...ing, percentage: 100 }
       }
 
-      // Calcula porcentagem baseada na farinha
       const quantityInGrams = convertToGrams(ing.quantity, ingredient, unit)
       const percentage = (quantityInGrams / flourQuantityInGrams) * 100
 
@@ -393,7 +393,6 @@ export default function FichasTecnicas() {
       i === index ? { ...ing, [field]: value } : ing
     )
     
-    // Recalcular porcentagens automaticamente quando quantidade ou ingrediente mudar
     if (field === 'quantity' || field === 'ingredientId' || field === 'unitId') {
       console.log('🧮 Recalculando porcentagens...')
       const recalculatedIngredients = calculatePercentages(updatedIngredients)
@@ -417,463 +416,648 @@ export default function FichasTecnicas() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="relative">
+            <div className="w-20 h-20 border-4 border-blue-200 rounded-full animate-spin border-t-blue-600 mx-auto"></div>
+            <ChefHat className="w-8 h-8 text-blue-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+          </div>
+          <p className="mt-4 text-gray-600 font-medium">Carregando fichas técnicas...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Fichas Técnicas</h1>
-          <p className="text-gray-600 mt-1">Gerencie suas receitas e fichas técnicas</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div className="p-6 max-w-7xl mx-auto">
+        {/* Header Moderno */}
+        <div className="mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-lg">
+                <BookOpen className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                  Fichas Técnicas
+                </h1>
+                <p className="text-gray-600 mt-1 text-lg">Gerencie suas receitas com precisão profissional</p>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => {
+                resetForm()
+                setIsModalOpen(true)
+              }}
+              className="group bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+            >
+              <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+              <span className="font-semibold">Nova Ficha Técnica</span>
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => {
-            resetForm()
-            setIsModalOpen(true)
-          }}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Nova Ficha Técnica
-        </button>
-      </div>
 
-      {/* Filtros */}
-      <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+        {/* Filtros e Controles Modernos */}
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 mb-8">
+          <div className="flex flex-col lg:flex-row gap-4 items-center">
+            <div className="flex-1 relative">
+              <Search className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 placeholder="Buscar receitas..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-12 pr-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 placeholder-gray-500"
               />
             </div>
+            
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Filter className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="pl-10 pr-8 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 appearance-none cursor-pointer"
+                >
+                  <option value="">Todas as categorias</option>
+                  {categories.map(category => (
+                    <option key={category.id} value={category.id}>{category.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="flex bg-white/80 rounded-xl border border-gray-200 p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-lg transition-all duration-300 ${
+                    viewMode === 'grid' 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                  }`}
+                >
+                  <Grid3X3 className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded-lg transition-all duration-300 ${
+                    viewMode === 'list' 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                  }`}
+                >
+                  <List className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
           </div>
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Todas as categorias</option>
-            {categories.map(category => (
-              <option key={category.id} value={category.id}>{category.name}</option>
-            ))}
-          </select>
         </div>
-      </div>
 
-      {/* Lista de Receitas */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tempo</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temperatura</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ingredientes</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredRecipes.map((recipe) => (
-                <tr key={recipe.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-medium text-gray-900">{recipe.name}</div>
-                    {recipe.description && (
-                      <div className="text-sm text-gray-500">{recipe.description}</div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {recipe.category?.name || 'Sem categoria'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      {recipe.preparationTime} min
+        {/* Lista/Grid de Receitas */}
+        {viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredRecipes.map((recipe) => (
+              <div
+                key={recipe.id}
+                className="group bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2"
+              >
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-300">
+                        {recipe.name}
+                      </h3>
+                      {recipe.description && (
+                        <p className="text-gray-600 text-sm line-clamp-2">{recipe.description}</p>
+                      )}
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="flex items-center gap-1">
-                      <Thermometer className="w-4 h-4 text-gray-400" />
-                      {recipe.ovenTemperature}°C
+                    <div className="flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-2 py-1 rounded-lg text-xs font-semibold">
+                      <Star className="w-3 h-3" />
+                      <span>Pro</span>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {recipe.ingredients?.length || 0} ingredientes
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end gap-2">
+                  </div>
+
+                  <div className="flex items-center gap-4 mb-4 text-sm text-gray-600">
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-4 h-4 text-blue-500" />
+                      <span>{recipe.preparationTime} min</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Thermometer className="w-4 h-4 text-red-500" />
+                      <span>{recipe.ovenTemperature}°C</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Utensils className="w-4 h-4 text-green-500" />
+                      <span>{recipe.ingredients?.length || 0}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {recipe.category?.name || 'Sem categoria'}
+                    </span>
+                    
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleView(recipe)}
-                        className="text-blue-600 hover:text-blue-900 p-1 rounded"
+                        className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-300 hover:scale-110"
                         title="Visualizar"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleEdit(recipe)}
-                        className="text-indigo-600 hover:text-indigo-900 p-1 rounded"
+                        className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-all duration-300 hover:scale-110"
                         title="Editar"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(recipe.id)}
-                        className="text-red-600 hover:text-red-900 p-1 rounded"
+                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-all duration-300 hover:scale-110"
                         title="Excluir"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Modal de Criação/Edição */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">
-                  {editingItem ? 'Editar Ficha Técnica' : 'Nova Ficha Técnica'}
-                </h2>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="border-b">
-              <nav className="flex space-x-8 px-6">
-                <button
-                  onClick={() => setActiveTab('info')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'info'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Informações Gerais
-                </button>
-                <button
-                  onClick={() => setActiveTab('ingredients')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'ingredients'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Ingredientes
-                </button>
-                <button
-                  onClick={() => setActiveTab('instructions')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'instructions'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Instruções
-                </button>
-              </nav>
-            </div>
-
-            <div className="p-6">
-              {/* Tab: Informações Gerais */}
-              {activeTab === 'info' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Nome da Receita</label>
-                      <input
-                        type="text"
-                        value={formData.name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Ex: Pão Francês Tradicional"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                      <select
-                        value={formData.categoryId}
-                        onChange={(e) => setFormData(prev => ({ ...prev, categoryId: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">Selecione uma categoria</option>
-                        {categories.map(category => (
-                          <option key={category.id} value={category.id}>{category.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Descrição da receita..."
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Tempo de Preparo (min)</label>
-                      <input
-                        type="number"
-                        value={formData.preparationTime}
-                        onChange={(e) => setFormData(prev => ({ ...prev, preparationTime: Number(e.target.value) }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        min="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Temperatura do Forno (°C)</label>
-                      <input
-                        type="number"
-                        value={formData.ovenTemperature}
-                        onChange={(e) => setFormData(prev => ({ ...prev, ovenTemperature: Number(e.target.value) }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        min="0"
-                      />
-                    </div>
                   </div>
                 </div>
-              )}
-
-              {/* Tab: Ingredientes */}
-              {activeTab === 'ingredients' && (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium">Ingredientes</h3>
-                    <button
-                      onClick={addIngredient}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Adicionar
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {formData.ingredients.map((ingredient, index) => (
-                      <div key={index} className="grid grid-cols-12 gap-2 items-end p-3 bg-gray-50 rounded-lg">
-                        <div className="col-span-4">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Ingrediente</label>
-                          <select
-                            value={ingredient.ingredientId}
-                            onChange={(e) => updateIngredient(index, 'ingredientId', e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="">Selecione...</option>
-                            {ingredients.map(ing => (
-                              <option key={ing.id} value={ing.id}>{ing.name}</option>
-                            ))}
-                          </select>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Nome</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Categoria</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tempo</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Temperatura</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Ingredientes</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredRecipes.map((recipe) => (
+                    <tr key={recipe.id} className="hover:bg-blue-50/50 transition-colors duration-300">
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-gray-900">{recipe.name}</div>
+                        {recipe.description && (
+                          <div className="text-sm text-gray-500 mt-1">{recipe.description}</div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {recipe.category?.name || 'Sem categoria'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 text-sm text-gray-900">
+                          <Clock className="w-4 h-4 text-blue-500" />
+                          {recipe.preparationTime} min
                         </div>
-                        <div className="col-span-2">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Quantidade</label>
-                          <input
-                            type="number"
-                            value={ingredient.quantity}
-                            onChange={(e) => updateIngredient(index, 'quantity', Number(e.target.value))}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                            step="0.01"
-                            min="0"
-                          />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 text-sm text-gray-900">
+                          <Thermometer className="w-4 h-4 text-red-500" />
+                          {recipe.ovenTemperature}°C
                         </div>
-                        <div className="col-span-2">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Unidade</label>
-                          <select
-                            value={ingredient.unitId}
-                            onChange={(e) => updateIngredient(index, 'unitId', e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="">Selecione...</option>
-                            {units.map(unit => (
-                              <option key={unit.id} value={unit.id}>{unit.name}</option>
-                            ))}
-                          </select>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 text-sm text-gray-900">
+                          <Utensils className="w-4 h-4 text-green-500" />
+                          {recipe.ingredients?.length || 0} ingredientes
                         </div>
-                        <div className="col-span-2">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Porcentagem</label>
-                          <input
-                            type="number"
-                            value={ingredient.percentage}
-                            readOnly
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-100"
-                            step="0.01"
-                          />
-                        </div>
-                        <div className="col-span-2">
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => removeIngredient(index)}
-                            className="w-full bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-sm"
+                            onClick={() => handleView(recipe)}
+                            className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-300 hover:scale-110"
+                            title="Visualizar"
                           >
-                            <Trash2 className="w-4 h-4 mx-auto" />
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEdit(recipe)}
+                            className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-all duration-300 hover:scale-110"
+                            title="Editar"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(recipe.id)}
+                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-all duration-300 hover:scale-110"
+                            title="Excluir"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {formData.ingredients.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      Nenhum ingrediente adicionado. Clique em &quot;Adicionar&quot; para começar.
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Tab: Instruções */}
-              {activeTab === 'instructions' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Modo de Preparo</label>
-                    <textarea
-                      value={formData.instructions}
-                      onChange={(e) => setFormData(prev => ({ ...prev, instructions: e.target.value }))}
-                      rows={8}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Descreva o passo a passo do preparo..."
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Observações Técnicas</label>
-                    <textarea
-                      value={formData.technicalNotes}
-                      onChange={(e) => setFormData(prev => ({ ...prev, technicalNotes: e.target.value }))}
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Dicas técnicas, cuidados especiais, variações..."
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Footer do Modal */}
-            <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                {editingItem ? 'Atualizar' : 'Salvar'}
-              </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Modal de Visualização */}
-      {isViewModalOpen && viewingItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">{viewingItem.name}</h2>
+        {filteredRecipes.length === 0 && (
+          <div className="text-center py-16">
+            <div className="w-24 h-24 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <BookOpen className="w-12 h-12 text-blue-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Nenhuma receita encontrada</h3>
+            <p className="text-gray-600 mb-6">Comece criando sua primeira ficha técnica</p>
+            <button
+              onClick={() => {
+                resetForm()
+                setIsModalOpen(true)
+              }}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 mx-auto transition-all duration-300 shadow-lg hover:shadow-xl"
+            >
+              <Plus className="w-5 h-5" />
+              Nova Ficha Técnica
+            </button>
+          </div>
+        )}
+
+        {/* Modal de Criação/Edição Moderno */}
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white/20 rounded-xl">
+                      <ChefHat className="w-6 h-6 text-white" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white">
+                      {editingItem ? 'Editar Ficha Técnica' : 'Nova Ficha Técnica'}
+                    </h2>
+                  </div>
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-xl transition-all duration-300"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Tabs Modernos */}
+              <div className="border-b border-gray-200 bg-gray-50">
+                <nav className="flex space-x-8 px-6">
+                  {[
+                    { id: 'info', label: 'Informações Gerais', icon: BookOpen },
+                    { id: 'ingredients', label: 'Ingredientes', icon: Utensils },
+                    { id: 'instructions', label: 'Instruções', icon: ChefHat }
+                  ].map(({ id, label, icon: Icon }) => (
+                    <button
+                      key={id}
+                      onClick={() => setActiveTab(id)}
+                      className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-all duration-300 ${
+                        activeTab === id
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {label}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+
+              <div className="p-6 max-h-[60vh] overflow-y-auto">
+                {/* Tab: Informações Gerais */}
+                {activeTab === 'info' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Nome da Receita</label>
+                        <input
+                          type="text"
+                          value={formData.name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                          placeholder="Ex: Pão Francês Tradicional"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Categoria</label>
+                        <select
+                          value={formData.categoryId}
+                          onChange={(e) => setFormData(prev => ({ ...prev, categoryId: e.target.value }))}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                        >
+                          <option value="">Selecione uma categoria</option>
+                          {categories.map(category => (
+                            <option key={category.id} value={category.id}>{category.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Descrição</label>
+                      <textarea
+                        value={formData.description}
+                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                        rows={3}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                        placeholder="Descrição da receita..."
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Tempo de Preparo (min)</label>
+                        <input
+                          type="number"
+                          value={formData.preparationTime}
+                          onChange={(e) => setFormData(prev => ({ ...prev, preparationTime: Number(e.target.value) }))}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                          min="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Temperatura do Forno (°C)</label>
+                        <input
+                          type="number"
+                          value={formData.ovenTemperature}
+                          onChange={(e) => setFormData(prev => ({ ...prev, ovenTemperature: Number(e.target.value) }))}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                          min="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tab: Ingredientes */}
+                {activeTab === 'ingredients' && (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-semibold text-gray-900">Ingredientes</h3>
+                      <button
+                        onClick={addIngredient}
+                        className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Adicionar
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {formData.ingredients.map((ingredient, index) => (
+                        <div key={index} className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-4 border border-gray-200">
+                          <div className="grid grid-cols-12 gap-3 items-end">
+                            <div className="col-span-4">
+                              <label className="block text-xs font-semibold text-gray-700 mb-1">Ingrediente</label>
+                              <select
+                                value={ingredient.ingredientId}
+                                onChange={(e) => updateIngredient(index, 'ingredientId', e.target.value)}
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                              >
+                                <option value="">Selecione...</option>
+                                {ingredients.map(ing => (
+                                  <option key={ing.id} value={ing.id}>{ing.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="col-span-2">
+                              <label className="block text-xs font-semibold text-gray-700 mb-1">Quantidade</label>
+                              <input
+                                type="number"
+                                value={ingredient.quantity}
+                                onChange={(e) => updateIngredient(index, 'quantity', Number(e.target.value))}
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                step="0.01"
+                                min="0"
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <label className="block text-xs font-semibold text-gray-700 mb-1">Unidade</label>
+                              <select
+                                value={ingredient.unitId}
+                                onChange={(e) => updateIngredient(index, 'unitId', e.target.value)}
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                              >
+                                <option value="">Selecione...</option>
+                                {units.map(unit => (
+                                  <option key={unit.id} value={unit.id}>{unit.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="col-span-2">
+                              <label className="block text-xs font-semibold text-gray-700 mb-1">Porcentagem</label>
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  value={ingredient.percentage}
+                                  readOnly
+                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-900 font-semibold"
+                                  step="0.01"
+                                />
+                                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-blue-600 font-semibold">%</span>
+                              </div>
+                            </div>
+                            <div className="col-span-2">
+                              <button
+                                onClick={() => removeIngredient(index)}
+                                className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-3 py-2 rounded-lg text-sm transition-all duration-300 shadow-lg hover:shadow-xl"
+                              >
+                                <Trash2 className="w-4 h-4 mx-auto" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {formData.ingredients.length === 0 && (
+                      <div className="text-center py-12 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border-2 border-dashed border-gray-300">
+                        <Utensils className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Nenhum ingrediente adicionado</h3>
+                        <p className="text-gray-600 mb-4">Clique em &quot;Adicionar&quot; para começar.</p>
+                        <button
+                          onClick={addIngredient}
+                          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 mx-auto transition-all duration-300 shadow-lg hover:shadow-xl"
+                        >
+                          <Plus className="w-5 h-5" />
+                          Adicionar Ingrediente
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Tab: Instruções */}
+                {activeTab === 'instructions' && (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Modo de Preparo</label>
+                      <textarea
+                        value={formData.instructions}
+                        onChange={(e) => setFormData(prev => ({ ...prev, instructions: e.target.value }))}
+                        rows={8}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                        placeholder="Descreva o passo a passo do preparo..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Observações Técnicas</label>
+                      <textarea
+                        value={formData.technicalNotes}
+                        onChange={(e) => setFormData(prev => ({ ...prev, technicalNotes: e.target.value }))}
+                        rows={4}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                        placeholder="Dicas técnicas, cuidados especiais, variações..."
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer do Modal */}
+              <div className="p-6 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
                 <button
-                  onClick={() => setIsViewModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-6 py-3 text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-all duration-300 font-semibold"
                 >
-                  <X className="w-6 h-6" />
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl font-semibold"
+                >
+                  {editingItem ? 'Atualizar' : 'Salvar'}
                 </button>
               </div>
             </div>
+          </div>
+        )}
 
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                  <h3 className="font-medium text-gray-900 mb-2">Informações Gerais</h3>
-                  <div className="space-y-2 text-sm">
-                    <div><span className="font-medium">Categoria:</span> {viewingItem.category?.name || 'Sem categoria'}</div>
-                    <div><span className="font-medium">Tempo de Preparo:</span> {viewingItem.preparationTime} min</div>
-                    <div><span className="font-medium">Temperatura:</span> {viewingItem.ovenTemperature}°C</div>
+        {/* Modal de Visualização Moderno */}
+        {isViewModalOpen && viewingItem && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white/20 rounded-xl">
+                      <Eye className="w-6 h-6 text-white" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white">{viewingItem.name}</h2>
                   </div>
-                </div>
-                <div>
-                  <h3 className="font-medium text-gray-900 mb-2">Descrição</h3>
-                  <p className="text-sm text-gray-600">{viewingItem.description || 'Sem descrição'}</p>
+                  <button
+                    onClick={() => setIsViewModalOpen(false)}
+                    className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-xl transition-all duration-300"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
                 </div>
               </div>
 
-              {viewingItem.ingredients && viewingItem.ingredients.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="font-medium text-gray-900 mb-3">Ingredientes</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-3 py-2 text-left">Ingrediente</th>
-                          <th className="px-3 py-2 text-right">Quantidade</th>
-                          <th className="px-3 py-2 text-right">Unidade</th>
-                          <th className="px-3 py-2 text-right">Porcentagem</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {viewingItem.ingredients.map((ing, index) => (
-                          <tr key={index}>
-                            <td className="px-3 py-2">{ing.ingredient?.name || 'Ingrediente não encontrado'}</td>
-                            <td className="px-3 py-2 text-right">{ing.quantity}</td>
-                            <td className="px-3 py-2 text-right">{ing.unit?.name || 'Unidade não encontrada'}</td>
-                            <td className="px-3 py-2 text-right">{ing.percentage.toFixed(2)}%</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              <div className="p-6 max-h-[70vh] overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6">
+                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <BookOpen className="w-5 h-5 text-blue-600" />
+                      Informações Gerais
+                    </h3>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between">
+                        <span className="font-semibold text-gray-600">Categoria:</span>
+                        <span className="text-gray-900">{viewingItem.category?.name || 'Sem categoria'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-semibold text-gray-600">Tempo de Preparo:</span>
+                        <span className="text-gray-900">{viewingItem.preparationTime} min</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-semibold text-gray-600">Temperatura:</span>
+                        <span className="text-gray-900">{viewingItem.ovenTemperature}°C</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6">
+                    <h3 className="font-bold text-gray-900 mb-4">Descrição</h3>
+                    <p className="text-sm text-gray-600">{viewingItem.description || 'Sem descrição'}</p>
                   </div>
                 </div>
-              )}
 
-              {viewingItem.instructions && (
-                <div className="mb-6">
-                  <h3 className="font-medium text-gray-900 mb-2">Modo de Preparo</h3>
-                  <div className="text-sm text-gray-600 whitespace-pre-wrap">{viewingItem.instructions}</div>
-                </div>
-              )}
+                {viewingItem.ingredients && viewingItem.ingredients.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <Utensils className="w-5 h-5 text-green-600" />
+                      Ingredientes
+                    </h3>
+                    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                          <tr>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Ingrediente</th>
+                            <th className="px-4 py-3 text-right font-semibold text-gray-700">Quantidade</th>
+                            <th className="px-4 py-3 text-right font-semibold text-gray-700">Unidade</th>
+                            <th className="px-4 py-3 text-right font-semibold text-gray-700">Porcentagem</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {viewingItem.ingredients.map((ing, index) => (
+                            <tr key={index} className="hover:bg-gray-50 transition-colors duration-300">
+                              <td className="px-4 py-3 font-medium text-gray-900">{ing.ingredient?.name || 'Ingrediente não encontrado'}</td>
+                              <td className="px-4 py-3 text-right text-gray-900">{ing.quantity}</td>
+                              <td className="px-4 py-3 text-right text-gray-900">{ing.unit?.name || 'Unidade não encontrada'}</td>
+                              <td className="px-4 py-3 text-right">
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                                  {ing.percentage.toFixed(2)}%
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
-              {viewingItem.technicalNotes && (
-                <div>
-                  <h3 className="font-medium text-gray-900 mb-2">Observações Técnicas</h3>
-                  <div className="text-sm text-gray-600 whitespace-pre-wrap">{viewingItem.technicalNotes}</div>
-                </div>
-              )}
+                {viewingItem.instructions && (
+                  <div className="mb-6">
+                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <ChefHat className="w-5 h-5 text-purple-600" />
+                      Modo de Preparo
+                    </h3>
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6">
+                      <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{viewingItem.instructions}</div>
+                    </div>
+                  </div>
+                )}
+
+                {viewingItem.technicalNotes && (
+                  <div>
+                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <Star className="w-5 h-5 text-yellow-600" />
+                      Observações Técnicas
+                    </h3>
+                    <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl p-6">
+                      <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{viewingItem.technicalNotes}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
+
 
 
