@@ -226,11 +226,11 @@ export default function Configuracoes() {
 
       if (editingItem) {
         currentSetter(currentData.map(item => 
-          item.id === editingItem.id ? response.data : item
+          item.id === editingItem.id ? response.data as ConfigurationItem : item
         ))
         showSuccess('Item atualizado com sucesso!')
       } else {
-        currentSetter([...currentData, response.data])
+        currentSetter([...currentData, response.data as ConfigurationItem])
         showSuccess('Item criado com sucesso!')
       }
 
@@ -682,4 +682,5 @@ export default function Configuracoes() {
     </div>
   )
 }
+
 
