@@ -121,9 +121,13 @@ export default function CalculoReceita() {
         unit?.abbreviation?.toLowerCase() === 'un') {
       
       // Se tem fator de conversão específico do ingrediente, usa ele
-      if (ingredient?.conversionFactor) {
+      if (ingredient?.conversionFactor && ingredient.conversionFactor > 0) {
         const result = quantity * ingredient.conversionFactor
-        console.log('✅ Convertido usando fator específico do ingrediente:', result)
+        console.log('✅ Convertido usando fator específico do ingrediente:', {
+          quantidade: quantity,
+          fator: ingredient.conversionFactor,
+          resultado: result
+        })
         return result
       }
       
@@ -167,16 +171,23 @@ export default function CalculoReceita() {
         unit?.abbreviation?.toLowerCase() === 'un') {
       
       // Se tem fator de conversão específico do ingrediente, usa ele
-      if (ingredient?.conversionFactor) {
+      if (ingredient?.conversionFactor && ingredient.conversionFactor > 0) {
         const result = quantity / ingredient.conversionFactor
-        console.log('📊 Convertido para unidades usando fator específico:', result)
+        console.log('📊 Convertido para unidades usando fator específico:', {
+          quantidade: quantity,
+          fator: ingredient.conversionFactor,
+          resultado: result
+        })
         return Math.round(result * 100) / 100 // Arredonda para 2 casas decimais
       }
       
       // Fallback para ovos: 50g = 1 ovo
       if (ingredient?.name?.toLowerCase().includes('ovo')) {
         const result = quantity / 50
-        console.log('🥚 Convertido gramas para ovos (50g/ovo):', result)
+        console.log('🥚 Convertido gramas para ovos (50g/ovo):', {
+          gramas: quantity,
+          ovos: result
+        })
         return Math.round(result * 100) / 100 // Arredonda para 2 casas decimais
       }
     }
@@ -282,9 +293,23 @@ export default function CalculoReceita() {
   // Calcular totais
   const totalWeight = calculatedIngredients.reduce((sum, ing) => {
     // Converte tudo para gramas para somar
-    if (ing.calculatedUnit === 'unidades' && ing.name.toLowerCase().includes('ovo')) {
-      return sum + (ing.calculatedQuantity * 50) // 50g por ovo
+    if (ing.calculatedUnit === 'unidades') {
+      if (ing.name.toLowerCase().includes('ovo')) {
+        // 50g por ovo
+        return sum + (ing.calculatedQuantity * 50)
+      } else {
+        // Busca o ingrediente original para obter o fator de conversão
+        const originalIngredient = selectedRecipe?.ingredients?.find(i => 
+          i.ingredient?.name === ing.name
+        )?.ingredient
+        
+        if (originalIngredient?.conversionFactor && originalIngredient.conversionFactor > 0) {
+          return sum + (ing.calculatedQuantity * originalIngredient.conversionFactor)
+        }
+      }
     }
+    
+    // Para gramas e ml, usa direto
     return sum + ing.calculatedQuantity
   }, 0)
 
@@ -680,4 +705,3 @@ export default function CalculoReceita() {
     </div>
   )
 }
-
