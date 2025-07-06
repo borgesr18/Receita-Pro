@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { 
   Plus, 
   Edit, 
@@ -99,6 +99,14 @@ export default function FichasTecnicas() {
   const [viewingRecipe, setViewingRecipe] = useState<Recipe | null>(null)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const ingredientsContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (ingredientsContainerRef.current) {
+      e.stopPropagation();
+      ingredientsContainerRef.current.scrollTop += e.deltaY;
+    }
+  };
 
   const handleView = (recipe: Recipe) => {
     setViewingRecipe(recipe)
@@ -441,40 +449,61 @@ export default function FichasTecnicas() {
     e.preventDefault()
     
     try {
+      console.log('📤 Enviando dados para o servidor:', formData);
+      
+      // Garantir que os campos numéricos sejam enviados como números
       const payload = {
         ...formData,
-        servings: Number(formData.servings),
-        prepTime: Number(formData.prepTime),
-        cookTime: Number(formData.cookTime)
+        servings: Number(formData.servings) || 0,
+        prepTime: Number(formData.prepTime) || 0,
+        cookTime: Number(formData.cookTime) || 0,
+        ingredients: formData.ingredients.map(ing => ({
+          ...ing,
+          quantity: Number(ing.quantity) || 0,
+          percentage: Number(ing.percentage) || 0
+        }))
       }
+      
+      console.log('📤 Payload formatado:', payload);
 
       if (editingId) {
         await api.put(`/api/recipes/${editingId}`, payload)
+        console.log('✅ Receita atualizada com sucesso!');
       } else {
         await api.post('/api/recipes', payload)
+        console.log('✅ Nova receita criada com sucesso!');
       }
 
       await loadData()
       setIsModalOpen(false)
       resetForm()
     } catch (error) {
-      console.error('Erro ao salvar receita:', error)
+      console.error('❌ Erro ao salvar receita:', error)
+      alert('Erro ao salvar a receita. Verifique o console para mais detalhes.')
     }
   }
 
   const handleEdit = (item: Recipe) => {
+    console.log('🔄 Editando receita:', item);
+    
+    // Garantir que os campos numéricos sejam carregados como números
     setFormData({
-      name: item.name,
-      description: item.description,
-      categoryId: item.categoryId,
-      servings: item.servings,
-      prepTime: item.prepTime,
-      cookTime: item.cookTime,
-      difficulty: item.difficulty,
-      instructions: item.instructions,
-      observations: item.observations,
-      ingredients: item.ingredients || []
+      name: item.name || '',
+      description: item.description || '',
+      categoryId: item.categoryId || '',
+      servings: Number(item.servings) || 1,
+      prepTime: Number(item.prepTime) || 0,
+      cookTime: Number(item.cookTime) || 0,
+      difficulty: item.difficulty || 'Fácil',
+      instructions: item.instructions || '',
+      observations: item.observations || '',
+      ingredients: Array.isArray(item.ingredients) ? item.ingredients.map(ing => ({
+        ...ing,
+        quantity: Number(ing.quantity) || 0,
+        percentage: Number(ing.percentage) || 0
+      })) : []
     })
+    
     setEditingId(item.id)
     setIsModalOpen(true)
     
@@ -1144,83 +1173,96 @@ export default function FichasTecnicas() {
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        {formData.ingredients.map((ingredient, index) => (
-                          <div key={ingredient.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  Ingrediente
-                                </label>
-                                <select
-                                  value={ingredient.ingredientId}
-                                  onChange={(e) => updateIngredient(index, 'ingredientId', e.target.value)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                                >
-                                  <option value="">Selecione...</option>
-                                  {ingredients.map(ing => (
-                                    <option key={ing.id} value={ing.id}>{ing.name}</option>
-                                  ))}
-                                </select>
-                              </div>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  Quantidade
-                                </label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={ingredient.quantity}
-                                  onChange={(e) => updateIngredient(index, 'quantity', Number(e.target.value))}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  Unidade
-                                </label>
-                                <select
-                                  value={ingredient.unitId}
-                                  onChange={(e) => updateIngredient(index, 'unitId', e.target.value)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                                >
-                                  <option value="">Selecione...</option>
-                                  {units.map(unit => (
-                                    <option key={unit.id} value={unit.id}>{unit.name}</option>
-                                  ))}
-                                </select>
-                              </div>
-
-                              <div className="flex items-center gap-3">
-                                <div className="flex-1">
+                      <div 
+                        ref={ingredientsContainerRef}
+                        onWheel={handleWheel}
+                        style={{
+                          height: '400px',
+                          overflowY: 'scroll',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '0.75rem',
+                          padding: '0.5rem',
+                          position: 'relative'
+                        }}
+                      >
+                        <div className="space-y-4">
+                          {formData.ingredients.map((ingredient, index) => (
+                            <div key={ingredient.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                                <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Porcentagem
+                                    Ingrediente
                                   </label>
-                                  <div className="flex items-center gap-2">
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      value={ingredient.percentage}
-                                      onChange={(e) => updateIngredient(index, 'percentage', Number(e.target.value))}
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                                    />
-                                    <span className="text-blue-600 font-medium">%</span>
-                                  </div>
+                                  <select
+                                    value={ingredient.ingredientId}
+                                    onChange={(e) => updateIngredient(index, 'ingredientId', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                  >
+                                    <option value="">Selecione...</option>
+                                    {ingredients.map(ing => (
+                                      <option key={ing.id} value={ing.id}>{ing.name}</option>
+                                    ))}
+                                  </select>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => removeIngredient(index)}
-                                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white p-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Quantidade
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={ingredient.quantity}
+                                    onChange={(e) => updateIngredient(index, 'quantity', Number(e.target.value))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Unidade
+                                  </label>
+                                  <select
+                                    value={ingredient.unitId}
+                                    onChange={(e) => updateIngredient(index, 'unitId', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                  >
+                                    <option value="">Selecione...</option>
+                                    {units.map(unit => (
+                                      <option key={unit.id} value={unit.id}>{unit.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                  <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                      Porcentagem
+                                    </label>
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        value={ingredient.percentage}
+                                        onChange={(e) => updateIngredient(index, 'percentage', Number(e.target.value))}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                      />
+                                      <span className="text-blue-600 font-medium">%</span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeIngredient(index)}
+                                    className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white p-2 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1283,4 +1325,3 @@ export default function FichasTecnicas() {
     </div>
   )
 }
-
