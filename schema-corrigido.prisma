@@ -1,0 +1,341 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  ingredientCategories IngredientCategory[]
+  recipeCategories     RecipeCategory[]
+  measurementUnits     MeasurementUnit[]
+  suppliers            Supplier[]
+  ingredients          Ingredient[]
+  recipes              Recipe[]
+  products             Product[]
+  productCategories    ProductCategory[]
+  productions          Production[]
+  sales                Sale[]
+  salesChannels        SalesChannel[]
+  inventoryMovements   InventoryMovement[]
+
+  @@map("users")
+}
+
+model IngredientCategory {
+  id          String @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  ingredients Ingredient[]
+
+  @@unique([name, userId])
+  @@map("ingredient_categories")
+}
+
+model RecipeCategory {
+  id          String @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user    User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  recipes Recipe[]
+
+  @@unique([name, userId])
+  @@map("recipe_categories")
+}
+
+model MeasurementUnit {
+  id               String   @id @default(cuid())
+  name             String
+  abbreviation     String
+  type             UnitType
+  baseUnit         String?
+  conversionFactor Float    @default(1.0)
+  userId           String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  user               User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  ingredients        Ingredient[]
+  recipeIngredients  RecipeIngredient[]
+  inventoryMovements InventoryMovement[]
+
+  @@unique([name, userId])
+  @@unique([abbreviation, userId])
+  @@map("measurement_units")
+}
+
+model Supplier {
+  id          String @id @default(cuid())
+  name        String
+  contact     String?
+  phone       String?
+  email       String?
+  address     String?
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  ingredients Ingredient[]
+
+  @@unique([name, userId])
+  @@map("suppliers")
+}
+
+model Ingredient {
+  id               String            @id @default(cuid())
+  name             String
+  categoryId       String
+  unitId           String
+  pricePerUnit     Float
+  supplierId       String?
+  userId           String
+  purchaseDate     DateTime?
+  ingredientType   IngredientType
+  expirationDate   DateTime?
+  storageCondition StorageCondition
+  currentStock     Float             @default(0)
+  minimumStock     Float             @default(0)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  // Relations
+  category           IngredientCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  unit               MeasurementUnit     @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  supplier           Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  user               User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  recipeIngredients  RecipeIngredient[]
+  inventoryMovements InventoryMovement[]
+
+  @@unique([name, userId])
+  @@map("ingredients")
+}
+
+model Recipe {
+  id              String    @id @default(cuid())
+  name            String
+  description     String?
+  categoryId      String
+  productId       String?
+  preparationTime Int       @default(0)
+  ovenTemperature Int       @default(0)
+  instructions    String?
+  technicalNotes  String?
+  userId          String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  category    RecipeCategory     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  product     Product?           @relation(fields: [productId], references: [id], onDelete: SetNull)
+  user        User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  ingredients RecipeIngredient[]
+  productions Production[]
+
+  @@unique([name, userId])
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id           String @id @default(cuid())
+  recipeId     String
+  ingredientId String
+  quantity     Float
+  percentage   Float  @default(0)
+  unitId       String
+  order        Int    @default(0)
+
+  // Relations
+  recipe     Recipe          @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient Ingredient      @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+  unit       MeasurementUnit @relation(fields: [unitId], references: [id], onDelete: Restrict)
+
+  @@unique([recipeId, ingredientId])
+  @@map("recipe_ingredients")
+}
+
+model ProductCategory {
+  id          String @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  products Product[]
+
+  @@unique([name, userId])
+  @@map("product_categories")
+}
+
+model Product {
+  id            String @id @default(cuid())
+  name          String
+  categoryId    String
+  averageWeight Float
+  description   String?
+  userId        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  category    ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  recipes     Recipe[]
+  productions Production[]
+  sales       Sale[]
+
+  @@unique([name, userId])
+  @@map("products")
+}
+
+model Production {
+  id               String           @id @default(cuid())
+  recipeId         String
+  productId        String
+  batchNumber      String
+  quantityPlanned  Float
+  quantityProduced Float?
+  lossPercentage   Float            @default(0)
+  lossWeight       Float            @default(0)
+  productionDate   DateTime?
+  expirationDate   DateTime?
+  notes            String?
+  status           ProductionStatus @default(PLANNED)
+  userId           String
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relations
+  recipe  Recipe  @relation(fields: [recipeId], references: [id], onDelete: Restrict)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([batchNumber, userId])
+  @@map("productions")
+}
+
+model SalesChannel {
+  id          String @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user  User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sales Sale[]
+
+  @@unique([name, userId])
+  @@map("sales_channels")
+}
+
+model Sale {
+  id           String    @id @default(cuid())
+  productId    String
+  channelId    String
+  quantity     Float
+  weight       Float
+  unitPrice    Float
+  totalPrice   Float
+  profitMargin Float     @default(0)
+  saleDate     DateTime?
+  notes        String?
+  userId       String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  product Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  channel SalesChannel @relation(fields: [channelId], references: [id], onDelete: Restrict)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("sales")
+}
+
+model InventoryMovement {
+  id           String       @id @default(cuid())
+  ingredientId String
+  unitId       String
+  quantity     Float
+  type         MovementType
+  reason       String?
+  date         DateTime     @default(now())
+  userId       String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  ingredient Ingredient      @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+  unit       MeasurementUnit @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("inventory_movements")
+}
+
+// Enums
+enum UnitType {
+  WEIGHT    // Peso
+  VOLUME    // Volume  
+  LENGTH    // Comprimento
+}
+
+enum IngredientType {
+  FLOUR     // Farinha
+  FAT       // Gordura
+  YEAST     // Fermento
+  SUGAR     // Açúcar
+  DAIRY     // Laticínio
+  EGG       // Ovo
+  LIQUID    // Líquido
+  ADDITIVE  // Aditivo
+  SPICE     // Tempero
+  OTHER     // Outro
+}
+
+enum StorageCondition {
+  DRY          // Seco
+  REFRIGERATED // Refrigerado
+  FROZEN       // Congelado
+}
+
+enum ProductionStatus {
+  PLANNED      // Planejado
+  IN_PROGRESS  // Em Andamento
+  COMPLETED    // Concluído
+  CANCELLED    // Cancelado
+}
+
+enum MovementType {
+  IN  // Entrada
+  OUT // Saída
+}
+

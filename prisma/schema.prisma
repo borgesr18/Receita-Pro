@@ -1,0 +1,390 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                   String               @id @default(cuid())
+  email                String               @unique
+  name                 String
+  role                 UserRole             @default(VIEWER)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  ingredientCategories IngredientCategory[]
+  ingredients          Ingredient[]
+  measurementUnits     MeasurementUnit[]
+  precoCalculado       PrecoCalculado[]
+  productPrices        ProductPrice[]
+  productions          Production[]
+  products             Product[]
+  recipeCategories     RecipeCategory[]
+  recipes              Recipe[]
+  sales                Sale[]
+  salesChannels        SalesChannel[]
+  suppliers            Supplier[]
+
+  @@map("users")
+}
+
+model RecipeCategory {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  userId      String
+  products    Product[]
+  user        User      @relation(fields: [userId], references: [id])
+  recipes     Recipe[]
+
+  @@unique([name, userId])
+  @@map("recipe_categories")
+}
+
+model IngredientCategory {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  ingredients Ingredient[]
+
+  @@unique([name, userId])
+  @@map("ingredient_categories")
+}
+
+model MeasurementUnit {
+  id                    String                 @id @default(cuid())
+  name                  String
+  abbreviation          String
+  type                  UnitType
+  baseUnit              String?
+  conversionFactor      Float                  @default(1.0)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  userId                String
+  ingredients           Ingredient[]
+  user                  User                   @relation(fields: [userId], references: [id])
+  productionIngredients ProductionIngredient[]
+  recipeIngredients     RecipeIngredient[]
+
+  @@unique([name, userId])
+  @@unique([abbreviation, userId])
+  @@map("measurement_units")
+}
+
+model Supplier {
+  id          String       @id @default(cuid())
+  name        String
+  contact     String?
+  phone       String?
+  email       String?
+  address     String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  userId      String
+  ingredients Ingredient[]
+  user        User         @relation(fields: [userId], references: [id])
+
+  @@unique([name, userId])
+  @@map("suppliers")
+}
+
+model Ingredient {
+  id                    String                   @id @default(cuid())
+  name                  String
+  categoryId            String
+  unitId                String
+  pricePerUnit          Float
+  supplierId            String?
+  purchaseDate          DateTime?
+  ingredientType        IngredientType
+  expirationDate        DateTime?
+  storageCondition      StorageCondition         @default(Ambiente_Seco)
+  currentStock          Float                    @default(0)
+  minimumStock          Float                    @default(0)
+  conversionFactor      Float?                   // Fator específico do insumo (ex: 1 ovo = 50g)
+  baseUnit              String?                  // Unidade base para cálculos (ex: "g", "ml")
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  userId                String
+  priceHistory          IngredientPriceHistory[]
+  category              IngredientCategory       @relation(fields: [categoryId], references: [id])
+  supplier              Supplier?                @relation(fields: [supplierId], references: [id])
+  unit                  MeasurementUnit          @relation(fields: [unitId], references: [id])
+  user                  User                     @relation(fields: [userId], references: [id])
+  productionIngredients ProductionIngredient[]
+  recipeIngredients     RecipeIngredient[]
+  stockMovements        StockMovement[]
+
+  @@map("ingredients")
+}
+
+model IngredientPriceHistory {
+  id           String     @id @default(cuid())
+  ingredientId String
+  price        Float
+  date         DateTime   @default(now())
+  supplierId   String?
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@map("ingredient_price_history")
+}
+
+model Product {
+  id            String         @id @default(cuid())
+  name          String
+  categoryId    String
+  averageWeight Float
+  description   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  userId        String
+  prices        ProductPrice[]
+  productions   Production[]
+  category      RecipeCategory @relation(fields: [categoryId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+  recipes       Recipe[]
+  sales         Sale[]
+
+  @@map("products")
+}
+
+model SalesChannel {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  userId      String
+  prices      ProductPrice[]
+  sales       Sale[]
+  user        User           @relation(fields: [userId], references: [id])
+
+  @@unique([name, userId])
+  @@map("sales_channels")
+}
+
+model ProductPrice {
+  id           String       @id @default(cuid())
+  productId    String
+  channelId    String
+  price        Float
+  profitMargin Float
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  userId       String
+  channel      SalesChannel @relation(fields: [channelId], references: [id])
+  product      Product      @relation(fields: [productId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@unique([productId, channelId, userId])
+  @@map("product_prices")
+}
+
+model Recipe {
+  id              String             @id @default(cuid())
+  name            String
+  description     String?
+  categoryId      String
+  productId       String?
+  version         Int                @default(1)
+  preparationTime Int?
+  ovenTemperature Int?
+  instructions    String?
+  technicalNotes  String?
+  isActive        Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  userId          String
+  productions     Production[]
+  ingredients     RecipeIngredient[]
+  category        RecipeCategory     @relation(fields: [categoryId], references: [id])
+  product         Product?           @relation(fields: [productId], references: [id])
+  user            User               @relation(fields: [userId], references: [id])
+
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id           String          @id @default(cuid())
+  recipeId     String
+  ingredientId String
+  quantity     Float
+  percentage   Float
+  unitId       String
+  order        Int             @default(0)
+  ingredient   Ingredient      @relation(fields: [ingredientId], references: [id])
+  recipe       Recipe          @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  unit         MeasurementUnit @relation(fields: [unitId], references: [id])
+
+  @@unique([recipeId, ingredientId])
+  @@map("recipe_ingredients")
+}
+
+model Production {
+  id               String                 @id @default(cuid())
+  recipeId         String
+  productId        String
+  userId           String
+  batchNumber      String                 @unique
+  quantityPlanned  Float
+  quantityProduced Float?
+  lossPercentage   Float                  @default(0)
+  lossWeight       Float                  @default(0)
+  productionDate   DateTime               @default(now())
+  expirationDate   DateTime?
+  notes            String?
+  status           ProductionStatus       @default(Planejado)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  ingredients      ProductionIngredient[]
+  product          Product                @relation(fields: [productId], references: [id])
+  recipe           Recipe                 @relation(fields: [recipeId], references: [id])
+  user             User                   @relation(fields: [userId], references: [id])
+  stockEntry       StockEntry?
+
+  @@map("productions")
+}
+
+model ProductionIngredient {
+  id           String          @id @default(cuid())
+  productionId String
+  ingredientId String
+  unitId       String
+  quantityUsed Float
+  cost         Float
+  ingredient   Ingredient      @relation(fields: [ingredientId], references: [id])
+  production   Production      @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  unit         MeasurementUnit @relation(fields: [unitId], references: [id])
+
+  @@unique([productionId, ingredientId])
+  @@map("production_ingredients")
+}
+
+model StockEntry {
+  id             String     @id @default(cuid())
+  productionId   String     @unique
+  quantity       Float
+  weight         Float
+  batchNumber    String
+  entryDate      DateTime   @default(now())
+  expirationDate DateTime?
+  location       String?
+  production     Production @relation(fields: [productionId], references: [id])
+
+  @@map("stock_entries")
+}
+
+model StockMovement {
+  id           String       @id @default(cuid())
+  ingredientId String
+  type         MovementType
+  quantity     Float
+  reason       String
+  date         DateTime     @default(now())
+  reference    String?
+  ingredient   Ingredient   @relation(fields: [ingredientId], references: [id])
+
+  @@map("stock_movements")
+}
+
+model Sale {
+  id           String       @id @default(cuid())
+  productId    String
+  channelId    String
+  userId       String
+  quantity     Float
+  weight       Float
+  unitPrice    Float
+  totalPrice   Float
+  profitMargin Float
+  saleDate     DateTime     @default(now())
+  notes        String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  channel      SalesChannel @relation(fields: [channelId], references: [id])
+  product      Product      @relation(fields: [productId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@map("sales")
+}
+
+model PrecoCalculado {
+  id         String   @id @default(cuid())
+  userId     String
+  custo      Float
+  peso       Float
+  lucro      Float
+  precoFinal Float
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@map("preco_calculado")
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum UnitType {
+  Balde
+  Caixa
+  Dúzia
+  Lata
+  Pacote
+  Peso
+  Pote
+  Volume
+  Unidade
+  Saco
+}
+
+enum IngredientType {
+  Açúcares
+  Aditivos_Industriais
+  Adoçantes
+  Agentes_de_Crescimento
+  Coberturas
+  Derivados
+  Enriquecedores
+  Farinha
+  Fermentos
+  Finalizações
+  Gorduras
+  Ingredientes_Adicionais
+  Ingredientes_Secundários
+  Líquidos
+  Recheios
+  Sal
+  Temperos
+}
+
+enum StorageCondition {
+  Ambiente_Controlado
+  Ambiente_Seco
+  Congelado
+  Refrigerado
+  Uso_Imediato
+}
+
+enum ProductionStatus {
+  Planejado
+  Em_Andamento
+  Completo
+  Cencelado
+}
+
+enum MovementType {
+  Entrada
+  Saída
+}
