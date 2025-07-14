@@ -1,57 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { getUser } from '@/lib/auth'
+import { createClient } from '@supabase/supabase-js'
 
-export async function GET(request: NextRequest) {
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+export async function GET() {
   try {
-    const { user, error } = await getUser(request)
-    if (error || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('*')
+      .order('name')
+
+    if (error) {
+      console.error('Erro ao buscar fornecedores:', error)
+      return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    const suppliers = await prisma.supplier.findMany({
-      where: { userId: user.id },
-      orderBy: {
-        name: 'asc'
-      }
-    })
-
-    return NextResponse.json(suppliers)
+    return NextResponse.json(data || [])
   } catch (error) {
-    console.error('Error fetching suppliers:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch suppliers' },
-      { status: 500 }
-    )
+    console.error('Erro interno:', error)
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { user, error } = await getUser(request)
-    if (error || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const body = await request.json()
+    const { name, contact, phone, email, address } = body
+
+    const { data, error } = await supabase
+      .from('suppliers')
+      .insert({
+        name,
+        contact,
+        phone,
+        email,
+        address
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Erro ao criar fornecedor:', error)
+      return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    const body = await request.json()
-    
-    const supplier = await prisma.supplier.create({
-      data: {
-        name: body.name,
-        contact: body.contact || '',
-        phone: body.phone || '',
-        email: body.email || '',
-        address: body.address || '',
-        userId: user.id
-      }
-    })
-
-    return NextResponse.json(supplier, { status: 201 })
+    return NextResponse.json(data)
   } catch (error) {
-    console.error('Error creating supplier:', error)
-    return NextResponse.json(
-      { error: 'Failed to create supplier' },
-      { status: 500 }
-    )
+    console.error('Erro interno:', error)
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
   }
 }
