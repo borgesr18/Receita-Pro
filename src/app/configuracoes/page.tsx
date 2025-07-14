@@ -77,6 +77,11 @@ export default function Configuracoes() {
       setUnitTypes(Array.isArray(response.data) ? response.data : [])
     } catch (error) {
       console.error('Erro ao carregar tipos de unidades:', error)
+      setUnitTypes([
+        { value: 'weight', label: 'Peso' },
+        { value: 'volume', label: 'Volume' },
+        { value: 'unit', label: 'Unidade' }
+      ])
     }
   }, [])
 
@@ -86,23 +91,34 @@ export default function Configuracoes() {
       setLoading(true)
       console.log('🔄 Carregando dados das configurações...')
       
-      const [recipeCategoriesRes, ingredientCategoriesRes, measurementUnitsRes, suppliersRes] = await Promise.all([
-        api.get('/api/recipe-categories'),
-        api.get('/api/ingredient-categories'),
-        api.get('/api/measurement-units'),
-        api.get('/api/suppliers')
+      // Carregar dados com tratamento de erro individual
+      const loadWithFallback = async (endpoint: string, fallback: ConfigurationItem[] = []) => {
+        try {
+          const response = await api.get(endpoint)
+          return Array.isArray(response.data) ? response.data : fallback
+        } catch (error) {
+          console.warn(`Erro ao carregar ${endpoint}:`, error)
+          return fallback
+        }
+      }
+
+      const [recipeCategoriesData, ingredientCategoriesData, measurementUnitsData, suppliersData] = await Promise.all([
+        loadWithFallback('/api/recipe-categories'),
+        loadWithFallback('/api/ingredient-categories'),
+        loadWithFallback('/api/measurement-units'),
+        loadWithFallback('/api/suppliers')
       ])
 
-      setCategoriasReceitas(Array.isArray(recipeCategoriesRes.data) ? recipeCategoriesRes.data : [])
-      setCategoriasInsumos(Array.isArray(ingredientCategoriesRes.data) ? ingredientCategoriesRes.data : [])
-      setUnidadesMedida(Array.isArray(measurementUnitsRes.data) ? measurementUnitsRes.data : [])
-      setFornecedores(Array.isArray(suppliersRes.data) ? suppliersRes.data : [])
+      setCategoriasReceitas(recipeCategoriesData)
+      setCategoriasInsumos(ingredientCategoriesData)
+      setUnidadesMedida(measurementUnitsData)
+      setFornecedores(suppliersData)
 
       console.log('✅ Dados carregados:', {
-        recipeCategories: Array.isArray(recipeCategoriesRes.data) ? recipeCategoriesRes.data.length : 0,
-        ingredientCategories: Array.isArray(ingredientCategoriesRes.data) ? ingredientCategoriesRes.data.length : 0,
-        measurementUnits: Array.isArray(measurementUnitsRes.data) ? measurementUnitsRes.data.length : 0,
-        suppliers: Array.isArray(suppliersRes.data) ? suppliersRes.data.length : 0
+        recipeCategories: recipeCategoriesData.length,
+        ingredientCategories: ingredientCategoriesData.length,
+        measurementUnits: measurementUnitsData.length,
+        suppliers: suppliersData.length
       })
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error)
@@ -118,24 +134,37 @@ export default function Configuracoes() {
   }, [loadData, loadUnitTypes])
 
   const getCurrentData = (): ConfigurationItem[] => {
-    const data = (() => {
-      switch (activeTab) {
-        case 'categorias-receitas': return categoriasReceitas
-        case 'categorias-insumos': return categoriasInsumos
-        case 'unidades-medida': return unidadesMedida
-        case 'fornecedores': return fornecedores
-        default: return []
-      }
-    })()
+    let data: ConfigurationItem[] = []
+    
+    switch (activeTab) {
+      case 'categorias-receitas': 
+        data = categoriasReceitas || []
+        break
+      case 'categorias-insumos': 
+        data = categoriasInsumos || []
+        break
+      case 'unidades-medida': 
+        data = unidadesMedida || []
+        break
+      case 'fornecedores': 
+        data = fornecedores || []
+        break
+      default: 
+        data = []
+    }
     
     // Filtrar por termo de busca - verificar se item e propriedades existem
-    if (searchTerm && Array.isArray(data)) {
-      return data.filter(item => 
-        item && (
-          (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
-        )
-      )
+    if (searchTerm && Array.isArray(data) && data.length > 0) {
+      return data.filter(item => {
+        if (!item) return false
+        
+        const name = item.name || ''
+        const description = item.description || ''
+        const searchLower = searchTerm.toLowerCase()
+        
+        return name.toLowerCase().includes(searchLower) || 
+               description.toLowerCase().includes(searchLower)
+      })
     }
     
     return Array.isArray(data) ? data : []
@@ -180,38 +209,62 @@ export default function Configuracoes() {
   }
 
   const handleEdit = (item: ConfigurationItem) => {
+    if (!item) return
+    
     setEditingItem(item)
-    setFormData({ ...item })
+    setFormData({ 
+      ...item,
+      name: item.name || '',
+      description: item.description || '',
+      abbreviation: item.abbreviation || '',
+      type: item.type || '',
+      baseUnit: item.baseUnit || '',
+      email: item.email || '',
+      phone: item.phone || '',
+      address: item.address || '',
+      role: item.role || '',
+      active: item.active !== false
+    })
     setIsModalOpen(true)
   }
 
   const handleSave = async () => {
+    if (!formData.name?.trim()) {
+      showError('Nome é obrigatório')
+      return
+    }
+
     try {
       setLoading(true)
       const endpoint = getApiEndpoint()
+      
+      if (!endpoint) {
+        showError('Endpoint não encontrado')
+        return
+      }
       
       // Preparar dados específicos para cada tipo
       const dataToSend = (() => {
         switch (activeTab) {
           case 'unidades-medida':
             return {
-              name: formData.name,
-              abbreviation: formData.abbreviation,
-              type: formData.type,
-              baseUnit: formData.baseUnit
+              name: formData.name.trim(),
+              abbreviation: formData.abbreviation?.trim() || '',
+              type: formData.type || '',
+              baseUnit: formData.baseUnit || ''
             }
           case 'fornecedores':
             return {
-              name: formData.name,
-              contact: formData.description || '',
-              phone: formData.phone || '',
-              email: formData.email || '',
-              address: formData.address || ''
+              name: formData.name.trim(),
+              contact: formData.description?.trim() || '',
+              phone: formData.phone?.trim() || '',
+              email: formData.email?.trim() || '',
+              address: formData.address?.trim() || ''
             }
           default:
             return {
-              name: formData.name,
-              description: formData.description || ''
+              name: formData.name.trim(),
+              description: formData.description?.trim() || ''
             }
         }
       })()
@@ -219,7 +272,7 @@ export default function Configuracoes() {
       console.log('📤 Enviando dados:', dataToSend)
 
       let response
-      if (editingItem) {
+      if (editingItem?.id) {
         response = await api.put(`${endpoint}/${editingItem.id}`, dataToSend)
       } else {
         response = await api.post(endpoint, dataToSend)
@@ -228,9 +281,9 @@ export default function Configuracoes() {
       const currentSetter = getCurrentSetter()
       const currentData = getCurrentData()
 
-      if (editingItem) {
+      if (editingItem?.id) {
         currentSetter(currentData.map(item => 
-          item.id === editingItem.id ? response.data as ConfigurationItem : item
+          item?.id === editingItem.id ? (response.data as ConfigurationItem) : item
         ))
         showSuccess('Item atualizado com sucesso!')
       } else {
@@ -256,6 +309,8 @@ export default function Configuracoes() {
       console.error('❌ Erro ao salvar:', error)
       if (error.response?.status === 409) {
         showError('Já existe um item com esse nome')
+      } else if (error.response?.status === 405) {
+        showError('Método não permitido - verifique a API')
       } else {
         showError('Erro ao salvar item')
       }
@@ -265,21 +320,33 @@ export default function Configuracoes() {
   }
 
   const handleDelete = async (item: ConfigurationItem) => {
-    if (!confirm(`Tem certeza que deseja excluir "${item.name || 'este item'}"?`)) return
+    if (!item?.id || !item?.name) return
+    
+    if (!confirm(`Tem certeza que deseja excluir "${item.name}"?`)) return
 
     try {
       setLoading(true)
       const endpoint = getApiEndpoint()
+      
+      if (!endpoint) {
+        showError('Endpoint não encontrado')
+        return
+      }
+      
       await api.delete(`${endpoint}/${item.id}`)
 
       const currentSetter = getCurrentSetter()
       const currentData = getCurrentData()
-      currentSetter(currentData.filter(i => i.id !== item.id))
+      currentSetter(currentData.filter(i => i?.id !== item.id))
       
       showSuccess('Item excluído com sucesso!')
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erro ao excluir:', error)
-      showError('Erro ao excluir item')
+      if (error.response?.status === 405) {
+        showError('Método não permitido - verifique a API')
+      } else {
+        showError('Erro ao excluir item')
+      }
     } finally {
       setLoading(false)
     }
@@ -293,11 +360,11 @@ export default function Configuracoes() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nome da Unidade
+                  Nome da Unidade *
                 </label>
                 <input
                   type="text"
-                  value={formData.name}
+                  value={formData.name || ''}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
                   placeholder="Ex: Quilograma"
@@ -310,32 +377,29 @@ export default function Configuracoes() {
                 </label>
                 <input
                   type="text"
-                  value={formData.abbreviation}
+                  value={formData.abbreviation || ''}
                   onChange={(e) => setFormData({ ...formData, abbreviation: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
                   placeholder="Ex: kg"
-                  required
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo
-                </label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
-                  required
-                >
-                  <option value="">Selecione um tipo</option>
-                  {unitTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tipo
+              </label>
+              <select
+                value={formData.type || ''}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+              >
+                <option value="">Selecione um tipo</option>
+                {unitTypes.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </>
         )
@@ -345,11 +409,11 @@ export default function Configuracoes() {
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nome do Fornecedor
+                Nome do Fornecedor *
               </label>
               <input
                 type="text"
-                value={formData.name}
+                value={formData.name || ''}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300"
                 placeholder="Ex: Atacadão"
@@ -363,7 +427,7 @@ export default function Configuracoes() {
                 </label>
                 <input
                   type="text"
-                  value={formData.description}
+                  value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300"
                   placeholder="Nome do contato"
@@ -375,7 +439,7 @@ export default function Configuracoes() {
                 </label>
                 <input
                   type="tel"
-                  value={formData.phone}
+                  value={formData.phone || ''}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300"
                   placeholder="(11) 99999-9999"
@@ -389,7 +453,7 @@ export default function Configuracoes() {
                 </label>
                 <input
                   type="email"
-                  value={formData.email}
+                  value={formData.email || ''}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300"
                   placeholder="contato@fornecedor.com"
@@ -401,7 +465,7 @@ export default function Configuracoes() {
                 </label>
                 <input
                   type="text"
-                  value={formData.address}
+                  value={formData.address || ''}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300"
                   placeholder="Rua, número, bairro, cidade"
@@ -416,11 +480,11 @@ export default function Configuracoes() {
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nome
+                Nome *
               </label>
               <input
                 type="text"
-                value={formData.name}
+                value={formData.name || ''}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className={`w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-${activeTab === 'categorias-receitas' ? 'blue' : 'green'}-500 focus:border-transparent transition-all duration-300`}
                 placeholder="Nome da categoria"
@@ -432,7 +496,7 @@ export default function Configuracoes() {
                 Descrição
               </label>
               <textarea
-                value={formData.description}
+                value={formData.description || ''}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className={`w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-${activeTab === 'categorias-receitas' ? 'blue' : 'green'}-500 focus:border-transparent transition-all duration-300`}
                 placeholder="Descrição da categoria"
@@ -478,6 +542,8 @@ export default function Configuracoes() {
   }
 
   const renderTableRow = (item: ConfigurationItem) => {
+    if (!item) return null
+    
     switch (activeTab) {
       case 'unidades-medida':
         return (
@@ -621,29 +687,33 @@ export default function Configuracoes() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {currentData.map((item, index) => (
-                    <tr key={item.id} className={`hover:bg-gray-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                      {renderTableRow(item)}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handleEdit(item)}
-                            className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-all duration-200"
-                            title="Editar"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item)}
-                            className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-all duration-200"
-                            title="Excluir"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {currentData.map((item, index) => {
+                    if (!item) return null
+                    
+                    return (
+                      <tr key={item.id || index} className={`hover:bg-gray-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                        {renderTableRow(item)}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleEdit(item)}
+                              className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-all duration-200"
+                              title="Editar"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(item)}
+                              className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-all duration-200"
+                              title="Excluir"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             )}
@@ -687,7 +757,7 @@ export default function Configuracoes() {
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={loading || !formData.name}
+                  disabled={loading || !formData.name?.trim()}
                   className={`flex items-center space-x-2 bg-gradient-to-r ${currentTab?.color || 'from-blue-500 to-indigo-600'} text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   <Save size={18} />
@@ -700,5 +770,7 @@ export default function Configuracoes() {
       </div>
     </div>
   )
+}
+
 }
 
