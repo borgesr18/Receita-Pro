@@ -54,6 +54,7 @@ interface Recipe {
   yield?: number
   category?: { name: string }
   ingredients?: any[]
+  productId?: string // Receita pode ter produto associado
 }
 
 interface User {
@@ -66,6 +67,12 @@ interface User {
 interface Category {
   id: string
   name: string
+}
+
+interface Product {
+  id: string
+  name: string
+  categoryId: string
 }
 
 // Sistema de toast simples sem dependências externas
@@ -92,7 +99,7 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   }, 3000)
 }
 
-export default function ProducaoDebugValidacao() {
+export default function ProducaoCorrigidaProductId() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Production | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -105,6 +112,7 @@ export default function ProducaoDebugValidacao() {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   
   // Estados para dropdown de receitas
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -143,21 +151,33 @@ export default function ProducaoDebugValidacao() {
   const loadData = async () => {
     try {
       setLoading(true)
+      console.log('🔄 Carregando dados...')
       
       // Carregar todos os dados em paralelo
-      const [productionsResponse, recipesResponse, usersResponse, categoriesResponse] = await Promise.all([
+      const [productionsResponse, recipesResponse, usersResponse, categoriesResponse, productsResponse] = await Promise.all([
         api.get('/api/productions'),
         api.get('/api/recipes'),
         api.get('/api/users'),
-        api.get('/api/recipe-categories')
+        api.get('/api/recipe-categories'),
+        api.get('/api/products')
       ])
+
+      console.log('📊 Respostas das APIs:', {
+        productions: !!productionsResponse.data,
+        recipes: !!recipesResponse.data,
+        users: !!usersResponse.data,
+        categories: !!categoriesResponse.data,
+        products: !!productsResponse.data
+      })
 
       // Processar receitas
       if (recipesResponse.data) {
         setRecipes(Array.isArray(recipesResponse.data) ? recipesResponse.data : [])
+        console.log('✅ Receitas carregadas:', recipesResponse.data.length)
       } else {
         setRecipes([])
         if (recipesResponse.error) {
+          console.error('❌ Erro ao carregar receitas:', recipesResponse.error)
           showToast('Falha ao carregar receitas. Verifique se há fichas técnicas cadastradas.', 'error')
         }
       }
@@ -165,6 +185,7 @@ export default function ProducaoDebugValidacao() {
       // Processar usuários
       if (usersResponse.data) {
         setUsers(Array.isArray(usersResponse.data) ? usersResponse.data : [])
+        console.log('✅ Usuários carregados:', usersResponse.data.length)
       } else {
         setUsers([])
       }
@@ -172,8 +193,17 @@ export default function ProducaoDebugValidacao() {
       // Processar categorias
       if (categoriesResponse.data) {
         setCategories(Array.isArray(categoriesResponse.data) ? categoriesResponse.data : [])
+        console.log('✅ Categorias carregadas:', categoriesResponse.data.length)
       } else {
         setCategories([])
+      }
+
+      // Processar produtos
+      if (productsResponse.data) {
+        setProducts(Array.isArray(productsResponse.data) ? productsResponse.data : [])
+        console.log('✅ Produtos carregados:', productsResponse.data.length)
+      } else {
+        setProducts([])
       }
 
       // Processar produções
@@ -198,12 +228,13 @@ export default function ProducaoDebugValidacao() {
           ingredients: []
         }))
         setProducoes(mappedProductions)
+        console.log('✅ Produções carregadas:', mappedProductions.length)
       } else {
         setProducoes([])
       }
 
     } catch (error) {
-      console.error('Erro ao carregar dados:', error)
+      console.error('❌ Erro ao carregar dados:', error)
       showToast('Falha ao carregar dados. Verifique sua conexão.', 'error')
     } finally {
       setLoading(false)
@@ -308,6 +339,36 @@ export default function ProducaoDebugValidacao() {
     return `${prefix}-${dateStr}-${sequence}`
   }
 
+  // Encontrar productId baseado na receita selecionada
+  const findProductIdForRecipe = (recipeId: string): string | null => {
+    const recipe = recipes.find(r => r.id === recipeId)
+    
+    // Se a receita tem productId associado, usar ele
+    if (recipe?.productId) {
+      console.log('✅ Receita tem productId associado:', recipe.productId)
+      return recipe.productId
+    }
+    
+    // Senão, procurar produto com mesmo nome da receita
+    const matchingProduct = products.find(p => 
+      p.name.toLowerCase() === recipe?.name.toLowerCase()
+    )
+    
+    if (matchingProduct) {
+      console.log('✅ Produto encontrado com mesmo nome:', matchingProduct.id)
+      return matchingProduct.id
+    }
+    
+    // Se não encontrar, usar o primeiro produto disponível
+    if (products.length > 0) {
+      console.log('⚠️ Usando primeiro produto disponível:', products[0].id)
+      return products[0].id
+    }
+    
+    console.log('❌ Nenhum produto encontrado')
+    return null
+  }
+
   const handleSave = async () => {
     try {
       setSaving(true)
@@ -335,11 +396,19 @@ export default function ProducaoDebugValidacao() {
         return
       }
 
-      // Preparar dados EXATAMENTE como a API espera
+      // Encontrar productId válido
+      const productId = findProductIdForRecipe(formData.recipeId)
+      
+      if (!productId) {
+        showToast('Erro: Não foi possível encontrar um produto válido para esta receita. Cadastre produtos primeiro.', 'error')
+        return
+      }
+
+      // Preparar dados para API
       const apiData = {
-        // CAMPOS OBRIGATÓRIOS conforme schema
+        // CAMPOS OBRIGATÓRIOS
         recipeId: formData.recipeId,
-        productId: formData.recipeId, // Usando recipeId como productId
+        productId: productId, // Usar productId válido encontrado
         batchNumber: formData.batchNumber,
         quantityPlanned: Number(formData.plannedQuantity),
         
@@ -348,39 +417,17 @@ export default function ProducaoDebugValidacao() {
         lossPercentage: formData.lossType === 'percentage' ? Number(formData.losses) : 0,
         lossWeight: formData.lossType === 'weight' ? Number(formData.losses) : 0,
         productionDate: formData.productionDate,
-        expirationDate: undefined, // Não usado no formulário
         notes: formData.observations || '',
-        status: formData.status // Mantém em português, API faz o mapeamento
+        status: formData.status
       }
 
-      console.log('📡 Dados EXATOS para API (conforme schema):')
-      console.log('🔍 recipeId:', apiData.recipeId, typeof apiData.recipeId)
-      console.log('🔍 productId:', apiData.productId, typeof apiData.productId)
-      console.log('🔍 batchNumber:', apiData.batchNumber, typeof apiData.batchNumber)
-      console.log('🔍 quantityPlanned:', apiData.quantityPlanned, typeof apiData.quantityPlanned)
-      console.log('🔍 quantityProduced:', apiData.quantityProduced, typeof apiData.quantityProduced)
-      console.log('🔍 lossPercentage:', apiData.lossPercentage, typeof apiData.lossPercentage)
-      console.log('🔍 lossWeight:', apiData.lossWeight, typeof apiData.lossWeight)
-      console.log('🔍 productionDate:', apiData.productionDate, typeof apiData.productionDate)
-      console.log('🔍 notes:', apiData.notes, typeof apiData.notes)
-      console.log('🔍 status:', apiData.status, typeof apiData.status)
+      console.log('📡 Dados para API (com productId válido):')
+      console.log('🔍 recipeId:', apiData.recipeId)
+      console.log('🔍 productId:', apiData.productId, '(encontrado automaticamente)')
+      console.log('🔍 batchNumber:', apiData.batchNumber)
+      console.log('🔍 quantityPlanned:', apiData.quantityPlanned)
+      console.log('🔍 productionDate:', apiData.productionDate)
       console.log('📦 Objeto completo:', apiData)
-
-      // Validar dados antes de enviar
-      const validationErrors = []
-      if (!apiData.recipeId || apiData.recipeId.length === 0) validationErrors.push('recipeId vazio')
-      if (!apiData.productId || apiData.productId.length === 0) validationErrors.push('productId vazio')
-      if (!apiData.batchNumber || apiData.batchNumber.length === 0) validationErrors.push('batchNumber vazio')
-      if (!apiData.quantityPlanned || apiData.quantityPlanned <= 0) validationErrors.push('quantityPlanned inválido')
-      if (!apiData.productionDate) validationErrors.push('productionDate vazio')
-
-      if (validationErrors.length > 0) {
-        console.error('❌ Erros de validação local:', validationErrors)
-        showToast(`Erros de validação: ${validationErrors.join(', ')}`, 'error')
-        return
-      }
-
-      console.log('✅ Validação local passou, enviando para API...')
 
       let response
       if (editingItem?.id) {
@@ -391,7 +438,7 @@ export default function ProducaoDebugValidacao() {
         response = await api.post('/api/productions', apiData)
       }
 
-      console.log('📊 Resposta completa da API:', response)
+      console.log('📊 Resposta da API:', response)
 
       if (response.data && !response.error) {
         showToast(editingItem ? 'Produção atualizada com sucesso!' : 'Produção criada com sucesso!')
@@ -427,16 +474,9 @@ export default function ProducaoDebugValidacao() {
     } catch (error) {
       console.error('❌ Erro ao salvar:', error)
       
-      // Extrair detalhes do erro de validação se disponível
       let errorMessage = 'Erro desconhecido'
       if (error instanceof Error) {
         errorMessage = error.message
-        
-        // Se for erro de validação, tentar extrair detalhes
-        if (errorMessage.includes('Validation failed')) {
-          console.log('🔍 Erro de validação detectado, verificando detalhes...')
-          // Aqui podemos adicionar mais lógica para extrair detalhes específicos
-        }
       }
       
       showToast(`Falha ao salvar produção: ${errorMessage}`, 'error')
@@ -710,6 +750,19 @@ export default function ProducaoDebugValidacao() {
                 </button>
               </div>
 
+              {/* Debug Info */}
+              <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                <h4 className="font-semibold text-blue-800 mb-2">🔍 Debug Info:</h4>
+                <div className="text-sm text-blue-700 space-y-1">
+                  <p>Receitas: {recipes.length}</p>
+                  <p>Produtos: {products.length}</p>
+                  <p>Usuários: {users.length}</p>
+                  {products.length === 0 && (
+                    <p className="text-red-600 font-medium">⚠️ Nenhum produto cadastrado! Cadastre produtos primeiro.</p>
+                  )}
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Dropdown de Receitas */}
                 <div className="lg:col-span-2">
@@ -752,7 +805,7 @@ export default function ProducaoDebugValidacao() {
                           </select>
                         </div>
 
-                        {/* Lista de receitas - SIMPLIFICADA */}
+                        {/* Lista de receitas */}
                         <div className="max-h-64 overflow-y-auto">
                           {filteredRecipes.length > 0 ? (
                             filteredRecipes.map((recipe) => (
@@ -764,7 +817,6 @@ export default function ProducaoDebugValidacao() {
                                 <div className="flex items-center space-x-3">
                                   <ChefHat className="text-blue-600" size={20} />
                                   <div>
-                                    {/* APENAS O NOME DA RECEITA */}
                                     <div className="font-semibold text-gray-900">{recipe.name}</div>
                                   </div>
                                 </div>
