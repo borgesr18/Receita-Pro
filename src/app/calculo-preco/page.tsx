@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { 
   Calculator, 
   Scale, 
@@ -84,6 +84,8 @@ export default function CalculoPreco() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 })
+  const buttonRef = useRef<HTMLButtonElement>(null)
   
   // DADOS DA RECEITA ORIGINAL (para cálculo proporcional)
   const [originalRecipeData, setOriginalRecipeData] = useState<{
@@ -116,6 +118,32 @@ export default function CalculoPreco() {
   const [errors, setErrors] = useState<{[key: string]: string}>({})
 
   const { showSuccess, showError } = useToast()
+
+  // Calcular posição do dropdown
+  const updateDropdownPosition = useCallback(() => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.left + window.scrollX,
+        width: rect.width
+      })
+    }
+  }, [])
+
+  // Atualizar posição quando dropdown abre
+  useEffect(() => {
+    if (isDropdownOpen) {
+      updateDropdownPosition()
+      window.addEventListener('scroll', updateDropdownPosition)
+      window.addEventListener('resize', updateDropdownPosition)
+      
+      return () => {
+        window.removeEventListener('scroll', updateDropdownPosition)
+        window.removeEventListener('resize', updateDropdownPosition)
+      }
+    }
+  }, [isDropdownOpen, updateDropdownPosition])
 
   // Função para converter qualquer unidade para gramas/ml
   const convertToGrams = useCallback((quantity: number, ingredient: any, unit: any): number => {
@@ -600,9 +628,10 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
               </div>
             </div>
 
-            {/* Dropdown de Receitas com Z-INDEX ALTO */}
-            <div className="relative z-50">
+            {/* Dropdown de Receitas */}
+            <div className="relative">
               <button
+                ref={buttonRef}
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="w-full bg-white/80 backdrop-blur-sm border border-white/50 rounded-2xl p-4 flex items-center justify-between hover:bg-white/90 transition-all duration-300 shadow-lg"
               >
@@ -615,8 +644,17 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                 <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
+              {/* Portal Dropdown - SEMPRE POR CIMA */}
               {isDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-lg border border-white/50 rounded-2xl shadow-2xl z-[99999] max-h-96 overflow-hidden">
+                <div 
+                  className="fixed bg-white/95 backdrop-blur-lg border border-white/50 rounded-2xl shadow-2xl max-h-96 overflow-hidden"
+                  style={{ 
+                    top: dropdownPosition.top,
+                    left: dropdownPosition.left,
+                    width: dropdownPosition.width,
+                    zIndex: 999999
+                  }}
+                >
                   {/* Filtros */}
                   <div className="p-4 border-b border-gray-200/50">
                     <div className="space-y-3">
@@ -1191,6 +1229,15 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
               </div>
             </div>
           </div>
+        )}
+
+        {/* Overlay para fechar dropdown */}
+        {isDropdownOpen && (
+          <div 
+            className="fixed inset-0 bg-transparent"
+            style={{ zIndex: 999998 }}
+            onClick={() => setIsDropdownOpen(false)}
+          />
         )}
       </div>
     </div>
