@@ -585,7 +585,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
 
         {/* Cards de Configuração */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Seleção de Receita com Dropdown - Z-INDEX MÁXIMO */}
+          {/* Seleção de Receita com Dropdown - Z-INDEX MÁXIMO ABSOLUTO */}
           <div className="bg-white/20 backdrop-blur-lg rounded-3xl border border-white/30 p-8 shadow-2xl relative">
             <div className="flex items-center gap-4 mb-6">
               <div className="relative">
