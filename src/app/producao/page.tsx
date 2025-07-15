@@ -21,9 +21,12 @@ import {
   Utensils,
   ChevronDown,
   User,
-  Building
+  Building,
+  Shield,
+  Key,
+  Database
 } from 'lucide-react'
-import { api } from '@/lib/api'
+import { api, supabase } from '@/lib/api'
 
 interface Production {
   id?: string
@@ -92,7 +95,7 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   }, 3000)
 }
 
-export default function ProducaoDebug() {
+export default function ProducaoAuthDebug() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Production | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -105,6 +108,17 @@ export default function ProducaoDebug() {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  
+  // Estados para debug de autenticação
+  const [authDebug, setAuthDebug] = useState({
+    hasSupabase: false,
+    hasSession: false,
+    hasUser: false,
+    hasToken: false,
+    userEmail: '',
+    tokenPreview: '',
+    lastError: ''
+  })
   
   // Estados para dropdown de receitas
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -135,6 +149,58 @@ export default function ProducaoDebug() {
     { value: 'cancelada', label: 'Cancelada', color: 'bg-red-100 text-red-800' }
   ]
 
+  // Verificar autenticação
+  const checkAuth = async () => {
+    try {
+      console.log('🔐 Verificando autenticação...')
+      
+      const debug = {
+        hasSupabase: !!supabase,
+        hasSession: false,
+        hasUser: false,
+        hasToken: false,
+        userEmail: '',
+        tokenPreview: '',
+        lastError: ''
+      }
+      
+      if (!supabase) {
+        debug.lastError = 'Cliente Supabase não inicializado'
+        setAuthDebug(debug)
+        return false
+      }
+      
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      if (error) {
+        debug.lastError = `Erro ao obter sessão: ${error.message}`
+        setAuthDebug(debug)
+        return false
+      }
+      
+      if (session) {
+        debug.hasSession = true
+        debug.hasUser = !!session.user
+        debug.hasToken = !!session.access_token
+        debug.userEmail = session.user?.email || ''
+        debug.tokenPreview = session.access_token ? session.access_token.substring(0, 20) + '...' : ''
+      } else {
+        debug.lastError = 'Nenhuma sessão ativa encontrada'
+      }
+      
+      setAuthDebug(debug)
+      return !!session
+      
+    } catch (error) {
+      console.error('❌ Erro ao verificar autenticação:', error)
+      setAuthDebug(prev => ({
+        ...prev,
+        lastError: `Erro: ${error instanceof Error ? error.message : 'Desconhecido'}`
+      }))
+      return false
+    }
+  }
+
   // Carregar dados iniciais
   useEffect(() => {
     loadData()
@@ -144,6 +210,17 @@ export default function ProducaoDebug() {
     try {
       setLoading(true)
       console.log('🔄 Iniciando carregamento de dados...')
+      
+      // Primeiro verificar autenticação
+      const isAuthenticated = await checkAuth()
+      console.log('🔐 Status de autenticação:', isAuthenticated)
+      
+      if (!isAuthenticated) {
+        console.log('❌ Usuário não autenticado, parando carregamento')
+        showToast('Usuário não autenticado. Faça login novamente.', 'error')
+        setLoading(false)
+        return
+      }
       
       // Testar diferentes endpoints para receitas
       console.log('🧪 Testando endpoints de receitas...')
@@ -161,50 +238,56 @@ export default function ProducaoDebug() {
         try {
           console.log(`📡 Testando ${endpoint}...`)
           const response = await api.get(endpoint)
-          console.log(`✅ ${endpoint}:`, {
-            ok: response.ok,
-            status: response.status,
-            hasData: !!response.data
+          console.log(`📊 ${endpoint} resposta:`, {
+            hasData: !!response.data,
+            hasError: !!response.error,
+            dataType: typeof response.data,
+            isArray: Array.isArray(response.data),
+            length: Array.isArray(response.data) ? response.data.length : 'N/A'
           })
           
-          if (response.ok && response.data) {
-            results[endpoint] = response.data
-            console.log(`📊 ${endpoint} dados:`, Array.isArray(response.data) ? `${response.data.length} itens` : 'objeto')
+          if (response.error) {
+            console.error(`❌ ${endpoint} erro:`, response.error)
+            results[endpoint] = { error: response.error }
+          } else if (response.data) {
+            results[endpoint] = { data: response.data }
+            console.log(`✅ ${endpoint} dados:`, Array.isArray(response.data) ? `${response.data.length} itens` : 'objeto')
             
             // Log detalhado para receitas
             if (endpoint === '/api/recipes' && Array.isArray(response.data)) {
               console.log('🍳 Receitas encontradas:', response.data.map(r => ({ id: r.id, name: r.name })))
             }
           } else {
-            console.log(`❌ ${endpoint} falhou:`, response.status)
+            console.log(`⚠️ ${endpoint} sem dados`)
+            results[endpoint] = { data: [] }
           }
         } catch (error) {
           console.error(`💥 Erro em ${endpoint}:`, error)
-          results[endpoint] = null
+          results[endpoint] = { error: error instanceof Error ? error.message : 'Erro desconhecido' }
         }
       }
       
       // Processar resultados
-      if (results['/api/recipes']) {
-        setRecipes(Array.isArray(results['/api/recipes']) ? results['/api/recipes'] : [])
-        console.log('✅ Receitas carregadas:', results['/api/recipes'].length)
+      if (results['/api/recipes']?.data) {
+        setRecipes(Array.isArray(results['/api/recipes'].data) ? results['/api/recipes'].data : [])
+        console.log('✅ Receitas carregadas:', results['/api/recipes'].data.length)
       } else {
         console.log('❌ Nenhuma receita carregada')
         setRecipes([])
       }
       
-      if (results['/api/users']) {
-        setUsers(Array.isArray(results['/api/users']) ? results['/api/users'] : [])
-        console.log('✅ Usuários carregados:', results['/api/users'].length)
+      if (results['/api/users']?.data) {
+        setUsers(Array.isArray(results['/api/users'].data) ? results['/api/users'].data : [])
+        console.log('✅ Usuários carregados:', results['/api/users'].data.length)
       }
       
-      if (results['/api/recipe-categories']) {
-        setCategories(Array.isArray(results['/api/recipe-categories']) ? results['/api/recipe-categories'] : [])
-        console.log('✅ Categorias carregadas:', results['/api/recipe-categories'].length)
+      if (results['/api/recipe-categories']?.data) {
+        setCategories(Array.isArray(results['/api/recipe-categories'].data) ? results['/api/recipe-categories'].data : [])
+        console.log('✅ Categorias carregadas:', results['/api/recipe-categories'].data.length)
       }
       
-      if (results['/api/productions']) {
-        const productionsData = Array.isArray(results['/api/productions']) ? results['/api/productions'] : []
+      if (results['/api/productions']?.data) {
+        const productionsData = Array.isArray(results['/api/productions'].data) ? results['/api/productions'].data : []
         const mappedProductions = productionsData.map((prod: any) => ({
           id: prod.id,
           recipeId: prod.recipeId,
@@ -305,11 +388,11 @@ export default function ProducaoDebug() {
       setDeleting(id)
       const response = await api.delete(`/api/productions/${id}`)
       
-      if (response.ok) {
+      if (response.data) {
         setProducoes(producoes.filter(item => item.id !== id))
         showToast('Produção excluída com sucesso!')
       } else {
-        throw new Error('Falha ao excluir')
+        throw new Error(response.error || 'Falha ao excluir')
       }
     } catch (error) {
       console.error('Erro ao excluir:', error)
@@ -380,14 +463,13 @@ export default function ProducaoDebug() {
         response = await api.post('/api/productions', apiData)
       }
 
-      if (response.ok) {
+      if (response.data) {
         showToast(editingItem ? 'Produção atualizada com sucesso!' : 'Produção criada com sucesso!')
         setIsModalOpen(false)
         setEditingItem(null)
         await loadData() // Recarregar dados
       } else {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Falha ao salvar')
+        throw new Error(response.error || 'Falha ao salvar')
       }
 
     } catch (error) {
@@ -434,7 +516,7 @@ export default function ProducaoDebug() {
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
           <p className="text-gray-600 text-lg">Carregando dados de produção...</p>
-          <p className="text-gray-500 text-sm mt-2">Verificando APIs e receitas...</p>
+          <p className="text-gray-500 text-sm mt-2">Verificando autenticação e APIs...</p>
         </div>
       </div>
     )
@@ -443,9 +525,68 @@ export default function ProducaoDebug() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="container mx-auto px-4 py-8 space-y-8">
-        {/* Debug Info */}
+        {/* Auth Debug Info */}
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6">
+          <h3 className="font-bold text-red-800 mb-3 flex items-center">
+            <Shield className="mr-2" size={20} />
+            🔐 Debug Autenticação:
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="space-y-2">
+              <div className={`flex items-center ${authDebug.hasSupabase ? 'text-green-600' : 'text-red-600'}`}>
+                <Database className="mr-2" size={16} />
+                <span>Supabase: {authDebug.hasSupabase ? '✅' : '❌'}</span>
+              </div>
+              <div className={`flex items-center ${authDebug.hasSession ? 'text-green-600' : 'text-red-600'}`}>
+                <Key className="mr-2" size={16} />
+                <span>Sessão: {authDebug.hasSession ? '✅' : '❌'}</span>
+              </div>
+              <div className={`flex items-center ${authDebug.hasUser ? 'text-green-600' : 'text-red-600'}`}>
+                <User className="mr-2" size={16} />
+                <span>Usuário: {authDebug.hasUser ? '✅' : '❌'}</span>
+              </div>
+              <div className={`flex items-center ${authDebug.hasToken ? 'text-green-600' : 'text-red-600'}`}>
+                <Shield className="mr-2" size={16} />
+                <span>Token: {authDebug.hasToken ? '✅' : '❌'}</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {authDebug.userEmail && (
+                <div className="text-blue-600">
+                  <span className="font-medium">Email:</span> {authDebug.userEmail}
+                </div>
+              )}
+              {authDebug.tokenPreview && (
+                <div className="text-blue-600">
+                  <span className="font-medium">Token:</span> {authDebug.tokenPreview}
+                </div>
+              )}
+              {authDebug.lastError && (
+                <div className="text-red-600 font-medium">
+                  <span className="font-bold">Erro:</span> {authDebug.lastError}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="mt-3 flex space-x-3">
+            <button
+              onClick={checkAuth}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            >
+              🔄 Verificar Auth
+            </button>
+            <button
+              onClick={loadData}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+            >
+              🔄 Recarregar Dados
+            </button>
+          </div>
+        </div>
+
+        {/* Data Debug Info */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-6">
-          <h3 className="font-bold text-yellow-800 mb-2">🔍 Debug Info:</h3>
+          <h3 className="font-bold text-yellow-800 mb-2">🔍 Debug Dados:</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <span className="font-medium">Receitas:</span> {recipes.length}
@@ -460,9 +601,14 @@ export default function ProducaoDebug() {
               <span className="font-medium">Produções:</span> {producoes.length}
             </div>
           </div>
-          {recipes.length === 0 && (
+          {recipes.length === 0 && authDebug.hasToken && (
             <div className="mt-2 text-red-600 font-medium">
-              ⚠️ Nenhuma receita encontrada! Verifique se há fichas técnicas cadastradas.
+              ⚠️ Usuário autenticado mas nenhuma receita encontrada! Verifique se há fichas técnicas cadastradas.
+            </div>
+          )}
+          {!authDebug.hasToken && (
+            <div className="mt-2 text-red-600 font-medium">
+              🚫 Sem token de autenticação! Faça login novamente.
             </div>
           )}
         </div>
@@ -477,7 +623,8 @@ export default function ProducaoDebug() {
           </div>
           <button
             onClick={handleAdd}
-            className="flex items-center space-x-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+            disabled={!authDebug.hasToken}
+            className="flex items-center space-x-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus size={24} />
             <span className="font-semibold">Nova Produção</span>
@@ -667,7 +814,9 @@ export default function ProducaoDebug() {
             <div className="text-center py-16">
               <Factory className="mx-auto h-16 w-16 text-gray-400 mb-6" />
               <h3 className="text-xl font-semibold text-gray-900 mb-3">Nenhuma produção encontrada</h3>
-              <p className="text-gray-500 text-lg">Comece criando uma nova produção.</p>
+              <p className="text-gray-500 text-lg">
+                {!authDebug.hasToken ? 'Faça login para ver suas produções.' : 'Comece criando uma nova produção.'}
+              </p>
             </div>
           )}
         </div>
@@ -694,6 +843,7 @@ export default function ProducaoDebug() {
                 <div className="text-sm text-blue-700">
                   <p>Receitas disponíveis: {recipes.length}</p>
                   <p>Usuários disponíveis: {users.length}</p>
+                  <p>Token válido: {authDebug.hasToken ? '✅' : '❌'}</p>
                   {recipes.length > 0 && (
                     <p>Primeira receita: {recipes[0].name}</p>
                   )}
@@ -779,6 +929,9 @@ export default function ProducaoDebug() {
                                 <div className="text-sm mt-2">
                                   <p className="text-red-600 font-medium">⚠️ Nenhuma receita cadastrada!</p>
                                   <p>Cadastre receitas primeiro nas Fichas Técnicas</p>
+                                  {!authDebug.hasToken && (
+                                    <p className="text-red-600 font-medium mt-1">🚫 Ou faça login novamente</p>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -895,7 +1048,7 @@ export default function ProducaoDebug() {
               <div className="flex space-x-6 mt-10">
                 <button
                   onClick={handleSave}
-                  disabled={saving}
+                  disabled={saving || !authDebug.hasToken}
                   className="flex-1 flex items-center justify-center space-x-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed text-lg font-semibold"
                 >
                   {saving ? (
