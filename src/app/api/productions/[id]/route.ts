@@ -26,36 +26,52 @@ function mapProductionStatus(value: string): ProductionStatus {
   throw new Error(`Invalid production status: ${value}`)
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const { user, error } = await getUser(request)
     if (error || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const productions = await prisma.production.findMany({
-      where: { userId: user.id },
+    const production = await prisma.production.findFirst({
+      where: { 
+        id: params.id,
+        userId: user.id 
+      },
       include: {
         recipe: true,
         product: true,
-        user: true
-      },
-      orderBy: {
-        createdAt: 'desc'
+        user: true,
+        ingredients: {
+          include: {
+            ingredient: true,
+            unit: true
+          }
+        }
       }
     })
 
-    return NextResponse.json(productions)
+    if (!production) {
+      return NextResponse.json({ error: 'Production not found' }, { status: 404 })
+    }
+
+    return NextResponse.json(production)
   } catch (error) {
-    console.error('Error fetching productions:', error)
+    console.error('Error fetching production:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch productions' },
+      { error: 'Failed to fetch production' },
       { status: 500 }
     )
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const { user, error } = await getUser(request)
     if (error || !user) {
@@ -84,11 +100,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const production = await prisma.production.create({
+    const production = await prisma.production.update({
+      where: { 
+        id: params.id,
+        userId: user.id 
+      },
       data: {
         recipeId: data.recipeId,
         productId: data.productId,
-        userId: user.id,
         batchNumber: data.batchNumber,
         quantityPlanned: data.quantityPlanned,
         quantityProduced: data.quantityProduced || null,
@@ -102,11 +121,17 @@ export async function POST(request: NextRequest) {
       include: {
         recipe: true,
         product: true,
-        user: true
+        user: true,
+        ingredients: {
+          include: {
+            ingredient: true,
+            unit: true
+          }
+        }
       }
     })
 
-    return NextResponse.json(production, { status: 201 })
+    return NextResponse.json(production)
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -115,9 +140,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.error('Error creating production:', error)
+    console.error('Error updating production:', error)
     return NextResponse.json(
-      { error: 'Failed to create production' },
+      { error: 'Failed to update production' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { user, error } = await getUser(request)
+    if (error || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    await prisma.production.delete({
+      where: { 
+        id: params.id,
+        userId: user.id 
+      }
+    })
+
+    return NextResponse.json({ message: 'Production deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting production:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete production' },
       { status: 500 }
     )
   }
