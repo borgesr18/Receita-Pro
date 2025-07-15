@@ -585,8 +585,8 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
 
         {/* Cards de Configuração */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Seleção de Receita com Dropdown */}
-          <div className="bg-white/20 backdrop-blur-lg rounded-3xl border border-white/30 p-8 shadow-2xl">
+          {/* Seleção de Receita com Dropdown - Z-INDEX MÁXIMO */}
+          <div className="bg-white/20 backdrop-blur-lg rounded-3xl border border-white/30 p-8 shadow-2xl relative">
             <div className="flex items-center gap-4 mb-6">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-xl blur opacity-75"></div>
@@ -600,11 +600,12 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
               </div>
             </div>
 
-            {/* Dropdown de Receitas com Z-INDEX ALTO */}
-            <div className="relative z-50">
+            {/* Dropdown de Receitas com Z-INDEX MÁXIMO ABSOLUTO */}
+            <div className="relative" style={{ zIndex: 99999 }}>
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full bg-white/80 backdrop-blur-sm border border-white/50 rounded-2xl p-4 flex items-center justify-between hover:bg-white/90 transition-all duration-300 shadow-lg"
+                className="w-full bg-white/80 backdrop-blur-sm border border-white/50 rounded-2xl p-4 flex items-center justify-between hover:bg-white/90 transition-all duration-300 shadow-lg relative"
+                style={{ zIndex: 99999 }}
               >
                 <div className="flex items-center gap-3">
                   <Utensils className="w-5 h-5 text-gray-500" />
@@ -616,7 +617,15 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
               </button>
 
               {isDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-lg border border-white/50 rounded-2xl shadow-2xl z-[9999] max-h-96 overflow-hidden">
+                <div 
+                  className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-lg border border-white/50 rounded-2xl shadow-2xl max-h-96 overflow-hidden"
+                  style={{ 
+                    zIndex: 999999,
+                    position: 'fixed',
+                    width: 'calc(100% - 4rem)',
+                    maxWidth: '500px'
+                  }}
+                >
                   {/* Filtros */}
                   <div className="p-4 border-b border-gray-200/50">
                     <div className="space-y-3">
