@@ -15,7 +15,7 @@ interface Product {
   category?: { name: string }
 }
 
-interface ProductCategory {
+interface RecipeCategory {
   id: string
   name: string
   description?: string
@@ -45,12 +45,12 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   }, 3000)
 }
 
-export default function ProdutosCorrigida() {
+export default function ProdutosMelhorada() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [viewingItem, setViewingItem] = useState<Product | null>(null)
   const [produtos, setProdutos] = useState<Product[]>([])
-  const [categories, setCategories] = useState<ProductCategory[]>([])
+  const [categories, setCategories] = useState<RecipeCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -72,11 +72,11 @@ export default function ProdutosCorrigida() {
       
       const [productsRes, categoriesRes] = await Promise.all([
         api.get('/api/products'),
-        api.get('/api/product-categories')
+        api.get('/api/recipe-categories') // Usando categorias de receitas
       ])
 
       console.log('📊 Resposta produtos:', productsRes)
-      console.log('📊 Resposta categorias:', categoriesRes)
+      console.log('📊 Resposta categorias de receitas:', categoriesRes)
 
       if (productsRes.data) {
         setProdutos(Array.isArray(productsRes.data) ? productsRes.data : [])
@@ -88,10 +88,10 @@ export default function ProdutosCorrigida() {
 
       if (categoriesRes.data) {
         setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : [])
-        console.log('✅ Categorias carregadas:', categoriesRes.data.length)
+        console.log('✅ Categorias de receitas carregadas:', categoriesRes.data.length)
       } else {
         setCategories([])
-        console.log('⚠️ Nenhuma categoria encontrada')
+        console.log('⚠️ Nenhuma categoria de receita encontrada')
       }
 
     } catch (error) {
@@ -253,6 +253,12 @@ export default function ProdutosCorrigida() {
     return `${weight}g`
   }
 
+  // Encontrar nome da categoria
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId)
+    return category?.name || 'Sem categoria'
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
@@ -273,7 +279,7 @@ export default function ProdutosCorrigida() {
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">
               Produtos
             </h1>
-            <p className="text-gray-600 mt-2 text-lg">Gerencie seus produtos e categorias</p>
+            <p className="text-gray-600 mt-2 text-lg">Gerencie seus produtos usando categorias de receitas</p>
           </div>
           <button
             onClick={handleAdd}
@@ -382,7 +388,7 @@ export default function ProdutosCorrigida() {
                     </td>
                     <td className="px-8 py-6 whitespace-nowrap">
                       <span className="px-4 py-2 text-sm font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {produto.category?.name || 'Sem categoria'}
+                        {getCategoryName(produto.categoryId)}
                       </span>
                     </td>
                     <td className="px-8 py-6 whitespace-nowrap text-sm text-gray-900">
@@ -433,40 +439,40 @@ export default function ProdutosCorrigida() {
           )}
         </div>
 
-        {/* Modal de Criação/Edição */}
+        {/* Modal de Criação/Edição - COMPACTO */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-8 w-full max-w-2xl shadow-2xl border border-white/50">
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-white/50 max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   {editingItem ? 'Editar' : 'Adicionar'} Produto
                 </h3>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 p-3 rounded-2xl hover:bg-gray-100 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 p-2 rounded-xl hover:bg-gray-100 transition-colors"
                 >
-                  <X size={28} />
+                  <X size={24} />
                 </button>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-3">Nome do Produto *</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Nome do Produto *</label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-6 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm text-lg"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
                     placeholder="Ex: Bolo de Chocolate"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-3">Categoria *</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Categoria *</label>
                   <select
                     value={formData.categoryId}
                     onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                    className="w-full px-6 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm text-lg"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
                   >
                     <option value="">Selecione uma categoria</option>
                     {categories.map(category => (
@@ -474,17 +480,17 @@ export default function ProdutosCorrigida() {
                     ))}
                   </select>
                   {categories.length === 0 && (
-                    <p className="text-sm text-red-600 mt-2">⚠️ Nenhuma categoria encontrada. Cadastre categorias primeiro.</p>
+                    <p className="text-sm text-red-600 mt-1">⚠️ Cadastre categorias em Configurações primeiro.</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-3">Peso Médio (g) *</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Peso Médio (g) *</label>
                   <input
                     type="number"
                     value={formData.averageWeight || ''}
                     onChange={(e) => setFormData({ ...formData, averageWeight: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-6 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm text-lg"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
                     placeholder="Ex: 500"
                     min="0"
                     step="0.1"
@@ -492,39 +498,39 @@ export default function ProdutosCorrigida() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-3">Descrição</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Descrição</label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-6 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm text-lg"
-                    rows={4}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    rows={3}
                     placeholder="Descrição opcional do produto..."
                   />
                 </div>
               </div>
 
-              <div className="flex space-x-6 mt-10">
+              <div className="flex space-x-4 mt-8">
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex-1 flex items-center justify-center space-x-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed text-lg font-semibold"
+                  className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                 >
                   {saving ? (
                     <>
-                      <Loader2 size={24} className="animate-spin" />
+                      <Loader2 size={20} className="animate-spin" />
                       <span>Salvando...</span>
                     </>
                   ) : (
                     <>
-                      <Package size={24} />
-                      <span>Salvar Produto</span>
+                      <Package size={20} />
+                      <span>Salvar</span>
                     </>
                   )}
                 </button>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   disabled={saving}
-                  className="flex-1 px-8 py-4 border-2 border-gray-200 text-gray-700 rounded-2xl hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-lg font-semibold"
+                  className="flex-1 px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                 >
                   Cancelar
                 </button>
@@ -533,54 +539,54 @@ export default function ProdutosCorrigida() {
           </div>
         )}
 
-        {/* Modal de Visualização */}
+        {/* Modal de Visualização - COMPACTO */}
         {isViewModalOpen && viewingItem && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-8 w-full max-w-2xl shadow-2xl border border-white/50">
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-white/50">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   Detalhes do Produto
                 </h3>
                 <button
                   onClick={() => setIsViewModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 p-3 rounded-2xl hover:bg-gray-100 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 p-2 rounded-xl hover:bg-gray-100 transition-colors"
                 >
-                  <X size={28} />
+                  <X size={24} />
                 </button>
               </div>
 
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Nome</label>
-                    <p className="text-lg text-gray-900">{viewingItem.name}</p>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Nome</label>
+                    <p className="text-gray-900">{viewingItem.name}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Categoria</label>
-                    <p className="text-lg text-gray-900">{viewingItem.category?.name || 'Sem categoria'}</p>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Categoria</label>
+                    <p className="text-gray-900">{getCategoryName(viewingItem.categoryId)}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Peso Médio</label>
-                    <p className="text-lg text-gray-900">{formatWeight(viewingItem.averageWeight)}</p>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Peso Médio</label>
+                    <p className="text-gray-900">{formatWeight(viewingItem.averageWeight)}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Criado em</label>
-                    <p className="text-lg text-gray-900">{formatDate(viewingItem.createdAt || '')}</p>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Criado em</label>
+                    <p className="text-gray-900">{formatDate(viewingItem.createdAt || '')}</p>
                   </div>
                 </div>
                 
                 {viewingItem.description && (
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Descrição</label>
-                    <p className="text-lg text-gray-900">{viewingItem.description}</p>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Descrição</label>
+                    <p className="text-gray-900">{viewingItem.description}</p>
                   </div>
                 )}
               </div>
 
-              <div className="flex justify-end mt-10">
+              <div className="flex justify-end mt-8">
                 <button
                   onClick={() => setIsViewModalOpen(false)}
-                  className="px-8 py-4 border-2 border-gray-200 text-gray-700 rounded-2xl hover:bg-gray-50 transition-colors text-lg font-semibold"
+                  className="px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-semibold"
                 >
                   Fechar
                 </button>
