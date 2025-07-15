@@ -19,7 +19,6 @@ import {
   Package
 } from 'lucide-react'
 import { api } from '@/lib/api'
-import { useToast } from '@/hooks/use-toast'
 
 interface Production {
   id?: string
@@ -47,6 +46,31 @@ interface Recipe {
   ingredients?: any[]
 }
 
+// Sistema de toast simples sem dependências externas
+const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+  // Criar elemento de toast
+  const toast = document.createElement('div')
+  toast.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white font-medium transition-all duration-300 transform translate-x-full ${
+    type === 'success' ? 'bg-green-500' : 'bg-red-500'
+  }`
+  toast.textContent = message
+  
+  document.body.appendChild(toast)
+  
+  // Animar entrada
+  setTimeout(() => {
+    toast.style.transform = 'translateX(0)'
+  }, 100)
+  
+  // Remover após 3 segundos
+  setTimeout(() => {
+    toast.style.transform = 'translateX(full)'
+    setTimeout(() => {
+      document.body.removeChild(toast)
+    }, 300)
+  }, 3000)
+}
+
 export default function ProducaoMelhorada() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Production | null>(null)
@@ -58,7 +82,6 @@ export default function ProducaoMelhorada() {
   const [deleting, setDeleting] = useState<string | null>(null)
   const [producoes, setProducoes] = useState<Production[]>([])
   const [recipes, setRecipes] = useState<Recipe[]>([])
-  const { toast } = useToast()
 
   const [formData, setFormData] = useState<Production>({
     recipeId: '',
@@ -138,11 +161,7 @@ export default function ProducaoMelhorada() {
 
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
-      toast({
-        title: "Erro",
-        description: "Falha ao carregar dados. Tente novamente.",
-        variant: "destructive"
-      })
+      showToast('Falha ao carregar dados. Tente novamente.', 'error')
     } finally {
       setLoading(false)
     }
@@ -206,20 +225,13 @@ export default function ProducaoMelhorada() {
       
       if (response.ok) {
         setProducoes(producoes.filter(item => item.id !== id))
-        toast({
-          title: "Sucesso",
-          description: "Produção excluída com sucesso!"
-        })
+        showToast('Produção excluída com sucesso!')
       } else {
         throw new Error('Falha ao excluir')
       }
     } catch (error) {
       console.error('Erro ao excluir:', error)
-      toast({
-        title: "Erro",
-        description: "Falha ao excluir produção. Tente novamente.",
-        variant: "destructive"
-      })
+      showToast('Falha ao excluir produção. Tente novamente.', 'error')
     } finally {
       setDeleting(null)
     }
@@ -252,20 +264,12 @@ export default function ProducaoMelhorada() {
 
       // Validações básicas
       if (!formData.recipeId) {
-        toast({
-          title: "Erro",
-          description: "Selecione uma receita",
-          variant: "destructive"
-        })
+        showToast('Selecione uma receita', 'error')
         return
       }
 
       if (!formData.batchNumber) {
-        toast({
-          title: "Erro", 
-          description: "Número do lote é obrigatório",
-          variant: "destructive"
-        })
+        showToast('Número do lote é obrigatório', 'error')
         return
       }
 
@@ -290,10 +294,7 @@ export default function ProducaoMelhorada() {
       }
 
       if (response.ok) {
-        toast({
-          title: "Sucesso",
-          description: editingItem ? "Produção atualizada com sucesso!" : "Produção criada com sucesso!"
-        })
+        showToast(editingItem ? 'Produção atualizada com sucesso!' : 'Produção criada com sucesso!')
         setIsModalOpen(false)
         setEditingItem(null)
         await loadData() // Recarregar dados
@@ -304,11 +305,7 @@ export default function ProducaoMelhorada() {
 
     } catch (error) {
       console.error('Erro ao salvar:', error)
-      toast({
-        title: "Erro",
-        description: "Falha ao salvar produção. Tente novamente.",
-        variant: "destructive"
-      })
+      showToast('Falha ao salvar produção. Tente novamente.', 'error')
     } finally {
       setSaving(false)
     }
