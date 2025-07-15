@@ -58,7 +58,7 @@ export const productionSchema = z.object({
   productionDate: z.string().optional(),
   expirationDate: z.string().optional(),
   notes: z.string().optional(),
-  status: z.enum(['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).default('PLANNED')
+  status: z.enum(['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'planejada', 'em_andamento', 'concluida', 'cancelada']).default('PLANNED')
 })
 
 export const saleSchema = z.object({
