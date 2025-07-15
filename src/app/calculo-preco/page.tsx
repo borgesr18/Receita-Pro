@@ -1,5 +1,6 @@
 'use client'
 
+import { DropdownPortal } from '@/components/ui/DropdownPortal'
 import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Calculator, 
@@ -461,6 +462,22 @@ export default function CalculoPreco() {
   const copyResults = () => {
     const text = `CÁLCULO DE PREÇO - ${formData.productName}
 
+<DropdownPortal
+  isOpen={isDropdownOpen}
+  anchorRef={dropdownButtonRef}
+  searchTerm={searchTerm}
+  filterCategory={selectedCategory}
+  onSearch={setSearchTerm}
+  onCategoryChange={setSelectedCategory}
+  recipes={filteredRecipes}
+  categories={categories}
+  onSelect={handleRecipeSelect}
+  onClose={() => setIsDropdownOpen(false)}
+  calculateRecipeData={calculateRecipeData}
+  loading={loading}
+/>
+
+
 DADOS:
 • Peso Final: ${formData.finalWeight}g
 • Custo da Receita: R$ ${formData.recipeCost}
@@ -491,6 +508,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
   })
 
   // Selecionar receita
+  const dropdownButtonRef = useRef<HTMLButtonElement>(null)
   const selectRecipe = (recipe: Recipe) => {
     setSelectedRecipe(recipe)
     setIsDropdownOpen(false)
@@ -504,6 +522,12 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
     if (results.markup < 40) return { color: 'yellow', text: 'Margem moderada', icon: AlertCircle }
     return { color: 'green', text: 'Margem excelente', icon: CheckCircle }
   }
+
+  <button
+  ref={dropdownButtonRef}  ← ADICIONAR ESTA LINHA
+  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+  className="w-full p-4 bg-white/80..."
+>
 
   const marginAnalysis = getMarginAnalysis()
 
@@ -603,9 +627,11 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
             {/* Dropdown de Receitas com Z-INDEX ALTO */}
             <div className="relative z-50">
               <button
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full bg-white/80 backdrop-blur-sm border border-white/50 rounded-2xl p-4 flex items-center justify-between hover:bg-white/90 transition-all duration-300 shadow-lg"
-              >
+               {isDropdownOpen && (
+              <div className="absolute top-full left-0 right-0 mt-2...">
+              {/* Todo o conteúdo do dropdown atual */}
+                </div>
+                )}
                 <div className="flex items-center gap-3">
                   <Utensils className="w-5 h-5 text-gray-500" />
                   <span className="text-gray-900 font-medium">
