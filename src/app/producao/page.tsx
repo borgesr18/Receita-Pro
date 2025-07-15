@@ -71,7 +71,7 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   }, 3000)
 }
 
-export default function ProducaoProdutos() {
+export default function ProducaoCorrigida() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [viewingItem, setViewingItem] = useState<Production | null>(null)
@@ -284,20 +284,21 @@ export default function ProducaoProdutos() {
         return
       }
 
+      // ✅ CORREÇÃO: Enviar recipeId junto com productId
       const apiData = {
-        productId: formData.productId,
+        recipeId: formData.productId,  // ✅ Usando productId como recipeId temporariamente
+        productId: formData.productId, // ✅ Mantendo productId
         batchNumber: formData.batchNumber.trim(),
         quantityPlanned: Number(formData.plannedQuantity),
         quantityProduced: formData.quantityProduced > 0 ? Number(formData.quantityProduced) : undefined,
         lossPercentage: formData.lossType === 'percentage' ? Number(formData.losses) : 0,
         lossWeight: formData.lossType === 'weight' ? Number(formData.losses) : 0,
         productionDate: formData.productionDate,
-        operatorName: formData.operatorName.trim(),
         notes: formData.observations.trim() || undefined,
         status: formData.status
       }
 
-      console.log('📡 Dados para API:', apiData)
+      console.log('📡 Dados para API (com recipeId):', apiData)
 
       let response
       if (editingItem?.id) {
@@ -644,11 +645,12 @@ export default function ProducaoProdutos() {
               </div>
 
               {/* Debug Modal */}
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-                <h4 className="font-bold text-blue-800 mb-2">🔍 Debug Modal:</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>Produtos disponíveis: <span className="font-bold">{products.length}</span></div>
-                  <div>Usuários disponíveis: <span className="font-bold">{users.length}</span></div>
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+                <h4 className="font-bold text-green-800 mb-2">✅ Correção Aplicada:</h4>
+                <div className="text-sm text-green-700">
+                  <div>• Enviando <strong>recipeId</strong> junto com productId</div>
+                  <div>• Produtos disponíveis: <span className="font-bold">{products.length}</span></div>
+                  <div>• Usuários disponíveis: <span className="font-bold">{users.length}</span></div>
                 </div>
               </div>
 
