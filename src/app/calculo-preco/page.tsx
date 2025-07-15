@@ -23,7 +23,6 @@ import {
   Target,
   ShoppingCart,
   Truck,
-  Users,
   Calendar,
   PieChart,
   AlertCircle,
@@ -86,13 +85,14 @@ export default function CalculoPreco() {
   const [filterCategory, setFilterCategory] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   
+  // CAMPOS COMO STRING PARA MELHOR UX (SEM MOSTRAR 0)
   const [formData, setFormData] = useState({
     productName: '',
-    finalWeight: 0,
-    recipeCost: 0,
-    desiredProfit: 50,
-    packagingCost: 0,
-    extraCosts: 0,
+    finalWeight: '',
+    recipeCost: '',
+    desiredProfit: '50',
+    packagingCost: '',
+    extraCosts: '',
     salesChannel: 'varejo'
   })
 
@@ -113,7 +113,6 @@ export default function CalculoPreco() {
 
   // Função para converter qualquer unidade para gramas/ml
   const convertToGrams = useCallback((quantity: number, ingredient: any, unit: any): number => {
-    // Verificar se os dados são válidos
     if (!quantity || quantity <= 0) return 0
     if (!ingredient || !unit) return quantity
 
@@ -138,22 +137,18 @@ export default function CalculoPreco() {
     
     // Unidades com fator de conversão
     if (unitName.includes('unidade') || unitSymbol === 'un') {
-      // Usar fator de conversão específico se disponível
       if (ingredient?.conversionFactor && ingredient.conversionFactor > 0) {
         return quantity * ingredient.conversionFactor
       }
       
-      // Conversões específicas por tipo de ingrediente
       const ingredientName = ingredient?.name?.toLowerCase() || ''
       if (ingredientName.includes('ovo')) {
         return quantity * 50 // 1 ovo = 50g
       }
       
-      // Padrão para unidades sem conversão específica
-      return quantity * 100
+      return quantity * 100 // Padrão para unidades
     }
 
-    // Se não conseguir converter, retorna a quantidade original
     return quantity
   }, [])
 
@@ -173,14 +168,10 @@ export default function CalculoPreco() {
       if (!ingredient || !unit || !ing.quantity) return
 
       try {
-        // Converter quantidade para gramas
         const quantityInGrams = convertToGrams(ing.quantity, ingredient, unit)
-        
-        // Calcular custo (preço por unidade é geralmente por kg, então dividir por 1000 para obter preço por grama)
         const pricePerGram = (ingredient.pricePerUnit || 0) / 1000
         const ingredientCost = quantityInGrams * pricePerGram
 
-        // Verificar se os valores são válidos
         if (!isNaN(ingredientCost) && isFinite(ingredientCost)) {
           totalCost += ingredientCost
         }
@@ -194,8 +185,8 @@ export default function CalculoPreco() {
     })
 
     return { 
-      totalCost: Math.round(totalCost * 100) / 100, // Arredondar para 2 casas decimais
-      totalWeight: Math.round(totalWeight) // Arredondar peso para gramas inteiras
+      totalCost: Math.round(totalCost * 100) / 100,
+      totalWeight: Math.round(totalWeight)
     }
   }, [convertToGrams])
 
@@ -236,11 +227,54 @@ export default function CalculoPreco() {
       setFormData(prev => ({
         ...prev,
         productName: selectedRecipe.name,
-        finalWeight: totalWeight,
-        recipeCost: totalCost
+        finalWeight: totalWeight.toString(),
+        recipeCost: totalCost.toFixed(2)
       }))
     }
   }, [selectedRecipe, calculateRecipeCost])
+
+  // CÁLCULO AUTOMÁTICO EM TEMPO REAL - CORRIGIDO
+  useEffect(() => {
+    const finalWeight = parseFloat(formData.finalWeight) || 0
+    const recipeCost = parseFloat(formData.recipeCost) || 0
+    const packagingCost = parseFloat(formData.packagingCost) || 0
+    const extraCosts = parseFloat(formData.extraCosts) || 0
+    const desiredProfit = parseFloat(formData.desiredProfit) || 0
+
+    console.log('🔄 Recalculando:', { finalWeight, recipeCost, packagingCost, extraCosts, desiredProfit })
+
+    // Só calcular se tiver dados mínimos
+    if (finalWeight > 0 && recipeCost >= 0) {
+      const totalCost = recipeCost + packagingCost + extraCosts
+      const costPerGram = finalWeight > 0 ? totalCost / finalWeight : 0
+      const profitAmount = totalCost * (desiredProfit / 100)
+      const suggestedPrice = totalCost + profitAmount
+      const markup = totalCost > 0 ? ((suggestedPrice - totalCost) / totalCost) * 100 : 0
+      const pricePerPortion = finalWeight > 0 ? suggestedPrice / finalWeight : 0
+
+      const newResults = {
+        costPerGram: costPerGram * 1000, // Converter para custo por kg
+        totalCost,
+        suggestedPrice,
+        markup,
+        pricePerPortion: pricePerPortion * 1000, // Converter para preço por kg
+        profitAmount
+      }
+
+      console.log('✅ Resultados calculados:', newResults)
+      setResults(newResults)
+    } else {
+      console.log('❌ Dados insuficientes para cálculo')
+      setResults({
+        costPerGram: 0,
+        totalCost: 0,
+        suggestedPrice: 0,
+        markup: 0,
+        pricePerPortion: 0,
+        profitAmount: 0
+      })
+    }
+  }, [formData.finalWeight, formData.recipeCost, formData.packagingCost, formData.extraCosts, formData.desiredProfit])
 
   const fetchCalculationHistory = async () => {
     try {
@@ -288,23 +322,28 @@ export default function CalculoPreco() {
       newErrors.productName = 'Nome do produto é obrigatório'
     }
 
-    if (formData.finalWeight <= 0) {
+    const finalWeight = parseFloat(formData.finalWeight) || 0
+    if (finalWeight <= 0) {
       newErrors.finalWeight = 'Peso deve ser maior que zero'
     }
 
-    if (formData.recipeCost < 0) {
+    const recipeCost = parseFloat(formData.recipeCost) || 0
+    if (recipeCost < 0) {
       newErrors.recipeCost = 'Custo não pode ser negativo'
     }
 
-    if (formData.desiredProfit < 0 || formData.desiredProfit > 1000) {
+    const desiredProfit = parseFloat(formData.desiredProfit) || 0
+    if (desiredProfit < 0 || desiredProfit > 1000) {
       newErrors.desiredProfit = 'Lucro deve estar entre 0% e 1000%'
     }
 
-    if (formData.packagingCost < 0) {
+    const packagingCost = parseFloat(formData.packagingCost) || 0
+    if (packagingCost < 0) {
       newErrors.packagingCost = 'Custo de embalagem não pode ser negativo'
     }
 
-    if (formData.extraCosts < 0) {
+    const extraCosts = parseFloat(formData.extraCosts) || 0
+    if (extraCosts < 0) {
       newErrors.extraCosts = 'Custos extras não podem ser negativos'
     }
 
@@ -312,54 +351,30 @@ export default function CalculoPreco() {
     return Object.keys(newErrors).length === 0
   }
 
-  const calculatePrice = () => {
+  const saveToHistory = () => {
     if (!validateForm()) {
       showError('Por favor, corrija os erros no formulário')
       return
     }
 
-    try {
-      const totalCost = formData.recipeCost + formData.packagingCost + formData.extraCosts
-      const costPerGram = formData.finalWeight > 0 ? totalCost / formData.finalWeight : 0
-      const profitAmount = totalCost * (formData.desiredProfit / 100)
-      const suggestedPrice = totalCost + profitAmount
-      const markup = totalCost > 0 ? ((suggestedPrice - totalCost) / totalCost) * 100 : 0
-      const pricePerPortion = formData.finalWeight > 0 ? suggestedPrice / formData.finalWeight : 0
-
-      const newResults = {
-        costPerGram: costPerGram * 1000,
-        totalCost,
-        suggestedPrice,
-        markup,
-        pricePerPortion: pricePerPortion * 1000,
-        profitAmount
-      }
-
-      setResults(newResults)
-
-      // Salvar no histórico
+    if (results.suggestedPrice > 0) {
       saveCalculation({
-        custo: totalCost,
-        peso: formData.finalWeight,
-        lucro: formData.desiredProfit,
-        precoFinal: suggestedPrice
+        custo: results.totalCost,
+        peso: parseFloat(formData.finalWeight) || 0,
+        lucro: parseFloat(formData.desiredProfit) || 0,
+        precoFinal: results.suggestedPrice
       })
-
-      showSuccess('Preço calculado com sucesso!')
-    } catch (error) {
-      console.error('Erro no cálculo:', error)
-      showError('Erro ao calcular preço')
     }
   }
 
   const resetForm = () => {
     setFormData({
       productName: '',
-      finalWeight: 0,
-      recipeCost: 0,
-      desiredProfit: 50,
-      packagingCost: 0,
-      extraCosts: 0,
+      finalWeight: '',
+      recipeCost: '',
+      desiredProfit: '50',
+      packagingCost: '',
+      extraCosts: '',
       salesChannel: 'varejo'
     })
     setResults({
@@ -383,9 +398,9 @@ export default function CalculoPreco() {
 
 DADOS:
 • Peso Final: ${formData.finalWeight}g
-• Custo da Receita: R$ ${formData.recipeCost.toFixed(2)}
-• Custo Embalagem: R$ ${formData.packagingCost.toFixed(2)}
-• Custos Extras: R$ ${formData.extraCosts.toFixed(2)}
+• Custo da Receita: R$ ${formData.recipeCost}
+• Custo Embalagem: R$ ${formData.packagingCost || '0.00'}
+• Custos Extras: R$ ${formData.extraCosts || '0.00'}
 • Margem de Lucro: ${formData.desiredProfit}%
 • Canal de Venda: ${salesChannels.find(c => c.value === formData.salesChannel)?.label}
 
@@ -462,7 +477,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                   <p className="text-gray-600 mt-2 text-xl">Precificação inteligente e rentável</p>
                   <div className="flex items-center gap-2 mt-3">
                     <Sparkles className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm text-blue-600 font-medium">Sistema Integrado com Fichas Técnicas</span>
+                    <span className="text-sm text-blue-600 font-medium">Cálculo Automático em Tempo Real</span>
                   </div>
                 </div>
               </div>
@@ -478,14 +493,25 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                 </button>
                 
                 {results.suggestedPrice > 0 && (
-                  <button
-                    onClick={copyResults}
-                    className="group relative overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-2xl flex items-center gap-3 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                    <Copy className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                    <span className="font-semibold">Copiar Cálculo</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={saveToHistory}
+                      className="group relative overflow-hidden bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-2xl flex items-center gap-3 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                      <History className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+                      <span className="font-semibold">Salvar</span>
+                    </button>
+                    
+                    <button
+                      onClick={copyResults}
+                      className="group relative overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-2xl flex items-center gap-3 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                      <Copy className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+                      <span className="font-semibold">Copiar</span>
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -625,7 +651,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                 <div className="mt-3 p-3 bg-emerald-100/50 rounded-xl">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-emerald-700">Custo calculado automaticamente:</span>
-                    <span className="font-bold text-emerald-800">R$ {formData.recipeCost.toFixed(2)}</span>
+                    <span className="font-bold text-emerald-800">R$ {formData.recipeCost}</span>
                   </div>
                 </div>
               </div>
@@ -679,7 +705,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                     <input
                       type="number"
                       value={formData.finalWeight}
-                      onChange={(e) => setFormData(prev => ({ ...prev, finalWeight: Number(e.target.value) }))}
+                      onChange={(e) => setFormData(prev => ({ ...prev, finalWeight: e.target.value }))}
                       className={`w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm border rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-lg ${
                         errors.finalWeight ? 'border-red-500' : 'border-white/50'
                       }`}
@@ -705,7 +731,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                     <input
                       type="number"
                       value={formData.recipeCost}
-                      onChange={(e) => setFormData(prev => ({ ...prev, recipeCost: Number(e.target.value) }))}
+                      onChange={(e) => setFormData(prev => ({ ...prev, recipeCost: e.target.value }))}
                       className={`w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm border rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-lg ${
                         errors.recipeCost ? 'border-red-500' : 'border-white/50'
                       }`}
@@ -753,7 +779,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                   <input
                     type="number"
                     value={formData.packagingCost}
-                    onChange={(e) => setFormData(prev => ({ ...prev, packagingCost: Number(e.target.value) }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, packagingCost: e.target.value }))}
                     className={`w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm border rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-lg ${
                       errors.packagingCost ? 'border-red-500' : 'border-white/50'
                     }`}
@@ -779,7 +805,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                   <input
                     type="number"
                     value={formData.extraCosts}
-                    onChange={(e) => setFormData(prev => ({ ...prev, extraCosts: Number(e.target.value) }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, extraCosts: e.target.value }))}
                     className={`w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm border rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-lg ${
                       errors.extraCosts ? 'border-red-500' : 'border-white/50'
                     }`}
@@ -803,7 +829,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                 </div>
                 <div className="text-center">
                   <div className="text-3xl font-bold text-yellow-800">
-                    R$ {(formData.recipeCost + formData.packagingCost + formData.extraCosts).toFixed(2)}
+                    R$ {results.totalCost.toFixed(2)}
                   </div>
                   <div className="text-sm text-yellow-700 mt-1">Receita + Embalagem + Extras</div>
                 </div>
@@ -836,7 +862,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                   <input
                     type="number"
                     value={formData.desiredProfit}
-                    onChange={(e) => setFormData(prev => ({ ...prev, desiredProfit: Number(e.target.value) }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, desiredProfit: e.target.value }))}
                     className={`w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm border rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-lg ${
                       errors.desiredProfit ? 'border-red-500' : 'border-white/50'
                     }`}
@@ -893,30 +919,6 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
           </div>
         </div>
 
-        {/* Botão de Calcular */}
-        <div className="mb-8">
-          <div className="bg-white/20 backdrop-blur-lg rounded-3xl border border-white/30 p-8 shadow-2xl text-center">
-            <button
-              onClick={calculatePrice}
-              disabled={isLoading}
-              className="group relative overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-12 py-6 rounded-3xl flex items-center gap-4 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 disabled:hover:scale-100 mx-auto text-xl font-bold"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-              {isLoading ? (
-                <>
-                  <div className="w-6 h-6 border-2 border-white/30 rounded-full animate-spin border-t-white"></div>
-                  <span>Calculando...</span>
-                </>
-              ) : (
-                <>
-                  <Calculator className="w-8 h-8 group-hover:scale-110 transition-transform duration-300" />
-                  <span>Calcular Preço</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
         {/* Resultados */}
         {results.suggestedPrice > 0 && (
           <div className="bg-white/20 backdrop-blur-lg rounded-3xl border border-white/30 overflow-hidden shadow-2xl mb-8">
@@ -930,6 +932,10 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                   <div>
                     <h3 className="text-3xl font-bold text-white">Resultados do Cálculo</h3>
                     <p className="text-white/80 text-lg">{formData.productName}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Sparkles className="w-4 h-4 text-white/80" />
+                      <span className="text-white/80 text-sm">Calculado automaticamente em tempo real</span>
+                    </div>
                   </div>
                 </div>
                 <div className="text-right">
