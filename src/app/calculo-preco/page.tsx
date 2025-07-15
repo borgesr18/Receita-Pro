@@ -1,7 +1,7 @@
 'use client'
 
 import { DropdownPortal } from '@/components/ui/DropdownPortal'
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { 
   Calculator, 
   Scale, 
@@ -85,6 +85,9 @@ export default function CalculoPreco() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  
+  // REF PARA O BOTÃO DO DROPDOWN
+  const dropdownButtonRef = useRef<HTMLButtonElement>(null)
   
   // DADOS DA RECEITA ORIGINAL (para cálculo proporcional)
   const [originalRecipeData, setOriginalRecipeData] = useState<{
@@ -462,22 +465,6 @@ export default function CalculoPreco() {
   const copyResults = () => {
     const text = `CÁLCULO DE PREÇO - ${formData.productName}
 
-<DropdownPortal
-  isOpen={isDropdownOpen}
-  anchorRef={dropdownButtonRef}
-  searchTerm={searchTerm}
-  filterCategory={selectedCategory}
-  onSearch={setSearchTerm}
-  onCategoryChange={setSelectedCategory}
-  recipes={filteredRecipes}
-  categories={categories}
-  onSelect={handleRecipeSelect}
-  onClose={() => setIsDropdownOpen(false)}
-  calculateRecipeData={calculateRecipeData}
-  loading={loading}
-/>
-
-
 DADOS:
 • Peso Final: ${formData.finalWeight}g
 • Custo da Receita: R$ ${formData.recipeCost}
@@ -508,7 +495,6 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
   })
 
   // Selecionar receita
-  const dropdownButtonRef = useRef<HTMLButtonElement>(null)
   const selectRecipe = (recipe: Recipe) => {
     setSelectedRecipe(recipe)
     setIsDropdownOpen(false)
@@ -522,12 +508,6 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
     if (results.markup < 40) return { color: 'yellow', text: 'Margem moderada', icon: AlertCircle }
     return { color: 'green', text: 'Margem excelente', icon: CheckCircle }
   }
-
-  <button
-  ref={dropdownButtonRef}  ← ADICIONAR ESTA LINHA
-  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-  className="w-full p-4 bg-white/80..."
->
 
   const marginAnalysis = getMarginAnalysis()
 
@@ -627,11 +607,10 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
             {/* Dropdown de Receitas com Z-INDEX ALTO */}
             <div className="relative z-50">
               <button
-               {isDropdownOpen && (
-              <div className="absolute top-full left-0 right-0 mt-2...">
-              {/* Todo o conteúdo do dropdown atual */}
-                </div>
-                )}
+                ref={dropdownButtonRef}
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="w-full p-4 bg-white/80 backdrop-blur-sm border border-white/50 rounded-2xl hover:bg-white/90 transition-all duration-300 flex items-center justify-between group"
+              >
                 <div className="flex items-center gap-3">
                   <Utensils className="w-5 h-5 text-gray-500" />
                   <span className="text-gray-900 font-medium">
@@ -641,77 +620,21 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                 <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              {isDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-lg border border-white/50 rounded-2xl shadow-2xl z-[9999] max-h-96 overflow-hidden">
-                  {/* Filtros */}
-                  <div className="p-4 border-b border-gray-200/50">
-                    <div className="space-y-3">
-                      <div className="relative">
-                        <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder="Buscar receitas..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        />
-                      </div>
-                      
-                      <select
-                        value={filterCategory}
-                        onChange={(e) => setFilterCategory(e.target.value)}
-                        className="w-full px-3 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      >
-                        <option value="">Todas as categorias</option>
-                        {categories.map(category => (
-                          <option key={category.id} value={category.id}>{category.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Lista de Receitas */}
-                  <div className="max-h-64 overflow-y-auto">
-                    {filteredRecipes.length > 0 ? (
-                      filteredRecipes.map((recipe) => (
-                        <button
-                          key={recipe.id}
-                          onClick={() => selectRecipe(recipe)}
-                          className="w-full p-4 text-left hover:bg-blue-50/80 transition-all duration-300 border-b border-gray-100/50 last:border-b-0"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-gray-900 mb-1">{recipe.name}</h4>
-                              <div className="flex items-center gap-4 text-xs text-gray-600">
-                                <div className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  <span>{recipe.preparationTime}min</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Thermometer className="w-3 h-3" />
-                                  <span>{recipe.ovenTemperature}°C</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Package className="w-3 h-3" />
-                                  <span>{recipe.ingredients?.length || 0} ingredientes</span>
-                                </div>
-                              </div>
-                            </div>
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium ml-3">
-                              {recipe.category?.name}
-                            </span>
-                          </div>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="p-8 text-center">
-                        <ChefHat className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                        <p className="text-gray-600">Nenhuma receita encontrada</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              {/* DROPDOWN PORTAL */}
+              <DropdownPortal
+                isOpen={isDropdownOpen}
+                anchorRef={dropdownButtonRef}
+                searchTerm={searchTerm}
+                filterCategory={filterCategory}
+                onSearch={setSearchTerm}
+                onCategoryChange={setFilterCategory}
+                recipes={filteredRecipes}
+                categories={categories}
+                onSelect={selectRecipe}
+                onClose={() => setIsDropdownOpen(false)}
+                calculateRecipeData={calculateRecipeCost}
+                loading={loading}
+              />
             </div>
 
             {/* Receita Selecionada */}
