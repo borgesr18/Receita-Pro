@@ -112,43 +112,54 @@ export default function CalculoPreco() {
   const { showSuccess, showError } = useToast()
 
   // Função para converter qualquer unidade para gramas/ml
-  const convertToGrams = (quantity: number, ingredient: any, unit: any): number => {
-    if (unit?.name?.toLowerCase().includes('grama') || 
-        unit?.symbol?.toLowerCase() === 'g' ||
-        unit?.name?.toLowerCase().includes('ml') ||
-        unit?.symbol?.toLowerCase() === 'ml') {
+  const convertToGrams = useCallback((quantity: number, ingredient: any, unit: any): number => {
+    // Verificar se os dados são válidos
+    if (!quantity || quantity <= 0) return 0
+    if (!ingredient || !unit) return quantity
+
+    const unitName = unit?.name?.toLowerCase() || ''
+    const unitSymbol = unit?.symbol?.toLowerCase() || ''
+    
+    // Gramas e mililitros (base)
+    if (unitName.includes('grama') || unitSymbol === 'g' ||
+        unitName.includes('ml') || unitSymbol === 'ml') {
       return quantity
     }
     
-    if (unit?.name?.toLowerCase().includes('kg') || 
-        unit?.name?.toLowerCase().includes('quilograma') ||
-        unit?.symbol?.toLowerCase() === 'kg') {
+    // Quilogramas
+    if (unitName.includes('kg') || unitName.includes('quilograma') || unitSymbol === 'kg') {
       return quantity * 1000
     }
 
-    if (unit?.name?.toLowerCase().includes('litro') || 
-        unit?.symbol?.toLowerCase() === 'l') {
+    // Litros
+    if (unitName.includes('litro') || unitSymbol === 'l') {
       return quantity * 1000
     }
     
-    if (unit?.name?.toLowerCase().includes('unidade') || 
-        unit?.symbol?.toLowerCase() === 'un') {
-      
+    // Unidades com fator de conversão
+    if (unitName.includes('unidade') || unitSymbol === 'un') {
+      // Usar fator de conversão específico se disponível
       if (ingredient?.conversionFactor && ingredient.conversionFactor > 0) {
         return quantity * ingredient.conversionFactor
       }
       
-      if (ingredient?.name?.toLowerCase().includes('ovo')) {
-        return quantity * 50
+      // Conversões específicas por tipo de ingrediente
+      const ingredientName = ingredient?.name?.toLowerCase() || ''
+      if (ingredientName.includes('ovo')) {
+        return quantity * 50 // 1 ovo = 50g
       }
+      
+      // Padrão para unidades sem conversão específica
+      return quantity * 100
     }
 
+    // Se não conseguir converter, retorna a quantidade original
     return quantity
-  }
+  }, [])
 
   // Calcular custo total da receita
   const calculateRecipeCost = useCallback((recipe: Recipe): { totalCost: number, totalWeight: number } => {
-    if (!recipe.ingredients) {
+    if (!recipe.ingredients || recipe.ingredients.length === 0) {
       return { totalCost: 0, totalWeight: 0 }
     }
 
@@ -159,18 +170,34 @@ export default function CalculoPreco() {
       const ingredient = ing.ingredient
       const unit = ing.unit
       
-      if (!ingredient || !unit) return
+      if (!ingredient || !unit || !ing.quantity) return
 
-      const quantityInGrams = convertToGrams(ing.quantity, ingredient, unit)
-      const costPerGram = (ingredient.pricePerUnit || 0) / 1000
-      const ingredientCost = quantityInGrams * costPerGram
+      try {
+        // Converter quantidade para gramas
+        const quantityInGrams = convertToGrams(ing.quantity, ingredient, unit)
+        
+        // Calcular custo (preço por unidade é geralmente por kg, então dividir por 1000 para obter preço por grama)
+        const pricePerGram = (ingredient.pricePerUnit || 0) / 1000
+        const ingredientCost = quantityInGrams * pricePerGram
 
-      totalCost += ingredientCost
-      totalWeight += quantityInGrams
+        // Verificar se os valores são válidos
+        if (!isNaN(ingredientCost) && isFinite(ingredientCost)) {
+          totalCost += ingredientCost
+        }
+        
+        if (!isNaN(quantityInGrams) && isFinite(quantityInGrams)) {
+          totalWeight += quantityInGrams
+        }
+      } catch (error) {
+        console.error('Erro ao calcular ingrediente:', ing, error)
+      }
     })
 
-    return { totalCost, totalWeight }
-  }, [])
+    return { 
+      totalCost: Math.round(totalCost * 100) / 100, // Arredondar para 2 casas decimais
+      totalWeight: Math.round(totalWeight) // Arredondar peso para gramas inteiras
+    }
+  }, [convertToGrams])
 
   // Carregar dados
   const loadData = useCallback(async () => {
@@ -205,10 +232,11 @@ export default function CalculoPreco() {
   useEffect(() => {
     if (selectedRecipe) {
       const { totalCost, totalWeight } = calculateRecipeCost(selectedRecipe)
+      
       setFormData(prev => ({
         ...prev,
         productName: selectedRecipe.name,
-        finalWeight: Math.round(totalWeight),
+        finalWeight: totalWeight,
         recipeCost: totalCost
       }))
     }
@@ -481,8 +509,8 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
               </div>
             </div>
 
-            {/* Dropdown de Receitas */}
-            <div className="relative">
+            {/* Dropdown de Receitas com Z-INDEX ALTO */}
+            <div className="relative z-50">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="w-full bg-white/80 backdrop-blur-sm border border-white/50 rounded-2xl p-4 flex items-center justify-between hover:bg-white/90 transition-all duration-300 shadow-lg"
@@ -497,7 +525,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
               </button>
 
               {isDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-lg border border-white/50 rounded-2xl shadow-2xl z-50 max-h-96 overflow-hidden">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-lg border border-white/50 rounded-2xl shadow-2xl z-[9999] max-h-96 overflow-hidden">
                   {/* Filtros */}
                   <div className="p-4 border-b border-gray-200/50">
                     <div className="space-y-3">
