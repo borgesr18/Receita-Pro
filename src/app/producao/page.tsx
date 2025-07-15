@@ -92,7 +92,7 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   }, 3000)
 }
 
-export default function ProducaoFinal() {
+export default function ProducaoCorrigida() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Production | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -143,6 +143,7 @@ export default function ProducaoFinal() {
   const loadData = async () => {
     try {
       setLoading(true)
+      console.log('🔄 Carregando dados...')
       
       // Carregar todos os dados em paralelo
       const [productionsResponse, recipesResponse, usersResponse, categoriesResponse] = await Promise.all([
@@ -152,12 +153,21 @@ export default function ProducaoFinal() {
         api.get('/api/recipe-categories')
       ])
 
+      console.log('📊 Respostas das APIs:', {
+        productions: !!productionsResponse.data,
+        recipes: !!recipesResponse.data,
+        users: !!usersResponse.data,
+        categories: !!categoriesResponse.data
+      })
+
       // Processar receitas
       if (recipesResponse.data) {
         setRecipes(Array.isArray(recipesResponse.data) ? recipesResponse.data : [])
+        console.log('✅ Receitas carregadas:', recipesResponse.data.length)
       } else {
         setRecipes([])
         if (recipesResponse.error) {
+          console.error('❌ Erro ao carregar receitas:', recipesResponse.error)
           showToast('Falha ao carregar receitas. Verifique se há fichas técnicas cadastradas.', 'error')
         }
       }
@@ -165,6 +175,7 @@ export default function ProducaoFinal() {
       // Processar usuários
       if (usersResponse.data) {
         setUsers(Array.isArray(usersResponse.data) ? usersResponse.data : [])
+        console.log('✅ Usuários carregados:', usersResponse.data.length)
       } else {
         setUsers([])
       }
@@ -172,6 +183,7 @@ export default function ProducaoFinal() {
       // Processar categorias
       if (categoriesResponse.data) {
         setCategories(Array.isArray(categoriesResponse.data) ? categoriesResponse.data : [])
+        console.log('✅ Categorias carregadas:', categoriesResponse.data.length)
       } else {
         setCategories([])
       }
@@ -198,12 +210,13 @@ export default function ProducaoFinal() {
           ingredients: []
         }))
         setProducoes(mappedProductions)
+        console.log('✅ Produções carregadas:', mappedProductions.length)
       } else {
         setProducoes([])
       }
 
     } catch (error) {
-      console.error('Erro ao carregar dados:', error)
+      console.error('❌ Erro ao carregar dados:', error)
       showToast('Falha ao carregar dados. Verifique sua conexão.', 'error')
     } finally {
       setLoading(false)
@@ -219,6 +232,17 @@ export default function ProducaoFinal() {
       'Cancelado': 'cancelada'
     }
     return statusMap[dbStatus] || 'planejada'
+  }
+
+  // Mapear status da interface para banco
+  const mapStatusToDB = (uiStatus: Production['status']): string => {
+    const statusMap: Record<Production['status'], string> = {
+      'planejada': 'Planejado',
+      'em_andamento': 'Em_Andamento',
+      'concluida': 'Completo',
+      'cancelada': 'Cancelado'
+    }
+    return statusMap[uiStatus] || 'Planejado'
   }
 
   // Filtrar receitas para dropdown
@@ -273,7 +297,7 @@ export default function ProducaoFinal() {
       setDeleting(id)
       const response = await api.delete(`/api/productions/${id}`)
       
-      if (response.data) {
+      if (response.data || !response.error) {
         setProducoes(producoes.filter(item => item.id !== id))
         showToast('Produção excluída com sucesso!')
       } else {
@@ -288,6 +312,7 @@ export default function ProducaoFinal() {
   }
 
   const handleRecipeSelect = (recipe: Recipe) => {
+    console.log('🍳 Receita selecionada:', recipe)
     const batchNumber = generateBatchNumber(recipe.name, formData.productionDate)
     setFormData({
       ...formData,
@@ -310,6 +335,8 @@ export default function ProducaoFinal() {
   const handleSave = async () => {
     try {
       setSaving(true)
+      console.log('💾 Iniciando salvamento...')
+      console.log('📊 Dados do formulário:', formData)
 
       // Validações básicas
       if (!formData.recipeId) {
@@ -327,6 +354,11 @@ export default function ProducaoFinal() {
         return
       }
 
+      if (!formData.productionDate) {
+        showToast('Data de produção é obrigatória', 'error')
+        return
+      }
+
       // Preparar dados para API
       const apiData = {
         recipeId: formData.recipeId,
@@ -337,28 +369,55 @@ export default function ProducaoFinal() {
         lossWeight: formData.losses,
         productionDate: formData.productionDate,
         notes: formData.observations,
-        status: formData.status
+        status: mapStatusToDB(formData.status)
       }
+
+      console.log('📡 Dados para API:', apiData)
 
       let response
       if (editingItem?.id) {
+        console.log('✏️ Atualizando produção existente:', editingItem.id)
         response = await api.put(`/api/productions/${editingItem.id}`, apiData)
       } else {
+        console.log('🆕 Criando nova produção')
         response = await api.post('/api/productions', apiData)
       }
 
-      if (response.data) {
+      console.log('📊 Resposta da API:', response)
+
+      if (response.data || !response.error) {
         showToast(editingItem ? 'Produção atualizada com sucesso!' : 'Produção criada com sucesso!')
         setIsModalOpen(false)
         setEditingItem(null)
-        await loadData() // Recarregar dados
+        
+        // Resetar formulário
+        setFormData({
+          recipeId: '',
+          recipeName: '',
+          quantityProduced: 0,
+          plannedQuantity: 0,
+          productionDate: '',
+          startTime: '',
+          endTime: '',
+          operator: '',
+          batchNumber: '',
+          losses: 0,
+          lossType: 'weight',
+          observations: '',
+          status: 'planejada',
+          ingredients: []
+        })
+        
+        // Recarregar dados
+        console.log('🔄 Recarregando dados...')
+        await loadData()
       } else {
         throw new Error(response.error || 'Falha ao salvar')
       }
 
     } catch (error) {
-      console.error('Erro ao salvar:', error)
-      showToast('Falha ao salvar produção. Tente novamente.', 'error')
+      console.error('❌ Erro ao salvar:', error)
+      showToast(`Falha ao salvar produção: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, 'error')
     } finally {
       setSaving(false)
     }
@@ -671,7 +730,7 @@ export default function ProducaoFinal() {
                           </select>
                         </div>
 
-                        {/* Lista de receitas */}
+                        {/* Lista de receitas - SIMPLIFICADA */}
                         <div className="max-h-64 overflow-y-auto">
                           {filteredRecipes.length > 0 ? (
                             filteredRecipes.map((recipe) => (
@@ -683,15 +742,8 @@ export default function ProducaoFinal() {
                                 <div className="flex items-center space-x-3">
                                   <ChefHat className="text-blue-600" size={20} />
                                   <div>
+                                    {/* APENAS O NOME DA RECEITA */}
                                     <div className="font-semibold text-gray-900">{recipe.name}</div>
-                                    {recipe.description && (
-                                      <div className="text-sm text-gray-600">{recipe.description}</div>
-                                    )}
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      {recipe.preparationTime && `⏱️ ${recipe.preparationTime}min`}
-                                      {recipe.ovenTemperature && ` • 🌡️ ${recipe.ovenTemperature}°C`}
-                                      {recipe.category && ` • 📂 ${recipe.category.name}`}
-                                    </div>
                                   </div>
                                 </div>
                               </button>
