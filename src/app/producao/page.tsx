@@ -92,7 +92,7 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   }, 3000)
 }
 
-export default function ProducaoCorrigida() {
+export default function ProducaoDebugValidacao() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Production | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -143,7 +143,6 @@ export default function ProducaoCorrigida() {
   const loadData = async () => {
     try {
       setLoading(true)
-      console.log('🔄 Carregando dados...')
       
       // Carregar todos os dados em paralelo
       const [productionsResponse, recipesResponse, usersResponse, categoriesResponse] = await Promise.all([
@@ -153,21 +152,12 @@ export default function ProducaoCorrigida() {
         api.get('/api/recipe-categories')
       ])
 
-      console.log('📊 Respostas das APIs:', {
-        productions: !!productionsResponse.data,
-        recipes: !!recipesResponse.data,
-        users: !!usersResponse.data,
-        categories: !!categoriesResponse.data
-      })
-
       // Processar receitas
       if (recipesResponse.data) {
         setRecipes(Array.isArray(recipesResponse.data) ? recipesResponse.data : [])
-        console.log('✅ Receitas carregadas:', recipesResponse.data.length)
       } else {
         setRecipes([])
         if (recipesResponse.error) {
-          console.error('❌ Erro ao carregar receitas:', recipesResponse.error)
           showToast('Falha ao carregar receitas. Verifique se há fichas técnicas cadastradas.', 'error')
         }
       }
@@ -175,7 +165,6 @@ export default function ProducaoCorrigida() {
       // Processar usuários
       if (usersResponse.data) {
         setUsers(Array.isArray(usersResponse.data) ? usersResponse.data : [])
-        console.log('✅ Usuários carregados:', usersResponse.data.length)
       } else {
         setUsers([])
       }
@@ -183,7 +172,6 @@ export default function ProducaoCorrigida() {
       // Processar categorias
       if (categoriesResponse.data) {
         setCategories(Array.isArray(categoriesResponse.data) ? categoriesResponse.data : [])
-        console.log('✅ Categorias carregadas:', categoriesResponse.data.length)
       } else {
         setCategories([])
       }
@@ -210,13 +198,12 @@ export default function ProducaoCorrigida() {
           ingredients: []
         }))
         setProducoes(mappedProductions)
-        console.log('✅ Produções carregadas:', mappedProductions.length)
       } else {
         setProducoes([])
       }
 
     } catch (error) {
-      console.error('❌ Erro ao carregar dados:', error)
+      console.error('Erro ao carregar dados:', error)
       showToast('Falha ao carregar dados. Verifique sua conexão.', 'error')
     } finally {
       setLoading(false)
@@ -232,17 +219,6 @@ export default function ProducaoCorrigida() {
       'Cancelado': 'cancelada'
     }
     return statusMap[dbStatus] || 'planejada'
-  }
-
-  // Mapear status da interface para banco
-  const mapStatusToDB = (uiStatus: Production['status']): string => {
-    const statusMap: Record<Production['status'], string> = {
-      'planejada': 'Planejado',
-      'em_andamento': 'Em_Andamento',
-      'concluida': 'Completo',
-      'cancelada': 'Cancelado'
-    }
-    return statusMap[uiStatus] || 'Planejado'
   }
 
   // Filtrar receitas para dropdown
@@ -359,20 +335,52 @@ export default function ProducaoCorrigida() {
         return
       }
 
-      // Preparar dados para API
+      // Preparar dados EXATAMENTE como a API espera
       const apiData = {
+        // CAMPOS OBRIGATÓRIOS conforme schema
         recipeId: formData.recipeId,
-        productId: formData.recipeId, // Usando recipeId como productId temporariamente
+        productId: formData.recipeId, // Usando recipeId como productId
         batchNumber: formData.batchNumber,
-        quantityPlanned: formData.plannedQuantity,
-        quantityProduced: formData.quantityProduced,
-        lossWeight: formData.losses,
+        quantityPlanned: Number(formData.plannedQuantity),
+        
+        // CAMPOS OPCIONAIS
+        quantityProduced: formData.quantityProduced > 0 ? Number(formData.quantityProduced) : undefined,
+        lossPercentage: formData.lossType === 'percentage' ? Number(formData.losses) : 0,
+        lossWeight: formData.lossType === 'weight' ? Number(formData.losses) : 0,
         productionDate: formData.productionDate,
-        notes: formData.observations,
-        status: mapStatusToDB(formData.status)
+        expirationDate: undefined, // Não usado no formulário
+        notes: formData.observations || '',
+        status: formData.status // Mantém em português, API faz o mapeamento
       }
 
-      console.log('📡 Dados para API:', apiData)
+      console.log('📡 Dados EXATOS para API (conforme schema):')
+      console.log('🔍 recipeId:', apiData.recipeId, typeof apiData.recipeId)
+      console.log('🔍 productId:', apiData.productId, typeof apiData.productId)
+      console.log('🔍 batchNumber:', apiData.batchNumber, typeof apiData.batchNumber)
+      console.log('🔍 quantityPlanned:', apiData.quantityPlanned, typeof apiData.quantityPlanned)
+      console.log('🔍 quantityProduced:', apiData.quantityProduced, typeof apiData.quantityProduced)
+      console.log('🔍 lossPercentage:', apiData.lossPercentage, typeof apiData.lossPercentage)
+      console.log('🔍 lossWeight:', apiData.lossWeight, typeof apiData.lossWeight)
+      console.log('🔍 productionDate:', apiData.productionDate, typeof apiData.productionDate)
+      console.log('🔍 notes:', apiData.notes, typeof apiData.notes)
+      console.log('🔍 status:', apiData.status, typeof apiData.status)
+      console.log('📦 Objeto completo:', apiData)
+
+      // Validar dados antes de enviar
+      const validationErrors = []
+      if (!apiData.recipeId || apiData.recipeId.length === 0) validationErrors.push('recipeId vazio')
+      if (!apiData.productId || apiData.productId.length === 0) validationErrors.push('productId vazio')
+      if (!apiData.batchNumber || apiData.batchNumber.length === 0) validationErrors.push('batchNumber vazio')
+      if (!apiData.quantityPlanned || apiData.quantityPlanned <= 0) validationErrors.push('quantityPlanned inválido')
+      if (!apiData.productionDate) validationErrors.push('productionDate vazio')
+
+      if (validationErrors.length > 0) {
+        console.error('❌ Erros de validação local:', validationErrors)
+        showToast(`Erros de validação: ${validationErrors.join(', ')}`, 'error')
+        return
+      }
+
+      console.log('✅ Validação local passou, enviando para API...')
 
       let response
       if (editingItem?.id) {
@@ -383,9 +391,9 @@ export default function ProducaoCorrigida() {
         response = await api.post('/api/productions', apiData)
       }
 
-      console.log('📊 Resposta da API:', response)
+      console.log('📊 Resposta completa da API:', response)
 
-      if (response.data || !response.error) {
+      if (response.data && !response.error) {
         showToast(editingItem ? 'Produção atualizada com sucesso!' : 'Produção criada com sucesso!')
         setIsModalOpen(false)
         setEditingItem(null)
@@ -412,12 +420,26 @@ export default function ProducaoCorrigida() {
         console.log('🔄 Recarregando dados...')
         await loadData()
       } else {
+        console.error('❌ API retornou erro:', response.error)
         throw new Error(response.error || 'Falha ao salvar')
       }
 
     } catch (error) {
       console.error('❌ Erro ao salvar:', error)
-      showToast(`Falha ao salvar produção: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, 'error')
+      
+      // Extrair detalhes do erro de validação se disponível
+      let errorMessage = 'Erro desconhecido'
+      if (error instanceof Error) {
+        errorMessage = error.message
+        
+        // Se for erro de validação, tentar extrair detalhes
+        if (errorMessage.includes('Validation failed')) {
+          console.log('🔍 Erro de validação detectado, verificando detalhes...')
+          // Aqui podemos adicionar mais lógica para extrair detalhes específicos
+        }
+      }
+      
+      showToast(`Falha ao salvar produção: ${errorMessage}`, 'error')
     } finally {
       setSaving(false)
     }
