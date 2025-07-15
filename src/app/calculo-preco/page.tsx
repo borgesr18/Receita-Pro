@@ -85,6 +85,12 @@ export default function CalculoPreco() {
   const [filterCategory, setFilterCategory] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   
+  // DADOS DA RECEITA ORIGINAL (para cálculo proporcional)
+  const [originalRecipeData, setOriginalRecipeData] = useState<{
+    totalCost: number
+    totalWeight: number
+  } | null>(null)
+  
   // CAMPOS COMO STRING PARA MELHOR UX (SEM MOSTRAR 0)
   const [formData, setFormData] = useState({
     productName: '',
@@ -190,6 +196,31 @@ export default function CalculoPreco() {
     }
   }, [convertToGrams])
 
+  // CÁLCULO PROPORCIONAL DO CUSTO DA RECEITA
+  const calculateProportionalCost = useCallback((desiredWeight: number): number => {
+    if (!originalRecipeData || !desiredWeight || desiredWeight <= 0) {
+      return 0
+    }
+
+    const { totalCost, totalWeight } = originalRecipeData
+    
+    if (totalWeight <= 0) return 0
+
+    // Calcular proporção: peso desejado / peso original
+    const proportion = desiredWeight / totalWeight
+    const proportionalCost = totalCost * proportion
+
+    console.log('🧮 Cálculo proporcional:', {
+      pesoOriginal: totalWeight,
+      custoOriginal: totalCost,
+      pesoDesejado: desiredWeight,
+      proporcao: proportion,
+      custoCalculado: proportionalCost
+    })
+
+    return Math.round(proportionalCost * 100) / 100
+  }, [originalRecipeData])
+
   // Carregar dados
   const loadData = useCallback(async () => {
     try {
@@ -222,18 +253,51 @@ export default function CalculoPreco() {
   // Atualizar dados quando receita é selecionada
   useEffect(() => {
     if (selectedRecipe) {
-      const { totalCost, totalWeight } = calculateRecipeCost(selectedRecipe)
+      const recipeData = calculateRecipeCost(selectedRecipe)
+      
+      // Salvar dados originais da receita
+      setOriginalRecipeData(recipeData)
       
       setFormData(prev => ({
         ...prev,
         productName: selectedRecipe.name,
-        finalWeight: totalWeight.toString(),
-        recipeCost: totalCost.toFixed(2)
+        finalWeight: recipeData.totalWeight.toString(),
+        recipeCost: recipeData.totalCost.toFixed(2)
       }))
+
+      console.log('📋 Receita selecionada:', {
+        nome: selectedRecipe.name,
+        pesoOriginal: recipeData.totalWeight,
+        custoOriginal: recipeData.totalCost
+      })
     }
   }, [selectedRecipe, calculateRecipeCost])
 
-  // CÁLCULO AUTOMÁTICO EM TEMPO REAL - CORRIGIDO
+  // CÁLCULO PROPORCIONAL QUANDO PESO É ALTERADO
+  useEffect(() => {
+    if (originalRecipeData && formData.finalWeight && selectedRecipe) {
+      const desiredWeight = parseFloat(formData.finalWeight) || 0
+      
+      if (desiredWeight > 0) {
+        const proportionalCost = calculateProportionalCost(desiredWeight)
+        
+        // Atualizar apenas o custo da receita se for diferente
+        if (proportionalCost !== parseFloat(formData.recipeCost)) {
+          setFormData(prev => ({
+            ...prev,
+            recipeCost: proportionalCost.toFixed(2)
+          }))
+
+          console.log('🔄 Custo atualizado proporcionalmente:', {
+            pesoNovo: desiredWeight,
+            custoNovo: proportionalCost
+          })
+        }
+      }
+    }
+  }, [formData.finalWeight, originalRecipeData, selectedRecipe, calculateProportionalCost])
+
+  // CÁLCULO AUTOMÁTICO EM TEMPO REAL
   useEffect(() => {
     const finalWeight = parseFloat(formData.finalWeight) || 0
     const recipeCost = parseFloat(formData.recipeCost) || 0
@@ -241,7 +305,7 @@ export default function CalculoPreco() {
     const extraCosts = parseFloat(formData.extraCosts) || 0
     const desiredProfit = parseFloat(formData.desiredProfit) || 0
 
-    console.log('🔄 Recalculando:', { finalWeight, recipeCost, packagingCost, extraCosts, desiredProfit })
+    console.log('🔄 Recalculando resultados:', { finalWeight, recipeCost, packagingCost, extraCosts, desiredProfit })
 
     // Só calcular se tiver dados mínimos
     if (finalWeight > 0 && recipeCost >= 0) {
@@ -386,6 +450,7 @@ export default function CalculoPreco() {
       profitAmount: 0
     })
     setSelectedRecipe(null)
+    setOriginalRecipeData(null)
     setSearchTerm('')
     setFilterCategory('')
     setIsDropdownOpen(false)
@@ -477,7 +542,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                   <p className="text-gray-600 mt-2 text-xl">Precificação inteligente e rentável</p>
                   <div className="flex items-center gap-2 mt-3">
                     <Sparkles className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm text-blue-600 font-medium">Cálculo Automático em Tempo Real</span>
+                    <span className="text-sm text-blue-600 font-medium">Cálculo Proporcional Automático</span>
                   </div>
                 </div>
               </div>
@@ -624,7 +689,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
             </div>
 
             {/* Receita Selecionada */}
-            {selectedRecipe && (
+            {selectedRecipe && originalRecipeData && (
               <div className="mt-6 p-4 bg-gradient-to-r from-emerald-50/80 to-teal-50/80 rounded-2xl border border-emerald-200/50">
                 <div className="flex items-center gap-3 mb-3">
                   <Target className="w-5 h-5 text-emerald-600" />
@@ -649,9 +714,21 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                   </div>
                 </div>
                 <div className="mt-3 p-3 bg-emerald-100/50 rounded-xl">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-emerald-700">Custo calculado automaticamente:</span>
-                    <span className="font-bold text-emerald-800">R$ {formData.recipeCost}</span>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-emerald-700">Peso original:</span>
+                      <div className="font-bold text-emerald-800">{originalRecipeData.totalWeight}g</div>
+                    </div>
+                    <div>
+                      <span className="text-emerald-700">Custo original:</span>
+                      <div className="font-bold text-emerald-800">R$ {originalRecipeData.totalCost.toFixed(2)}</div>
+                    </div>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-emerald-200">
+                    <div className="flex items-center gap-2 text-xs text-emerald-700">
+                      <Sparkles className="w-3 h-3" />
+                      <span>Custo será calculado proporcionalmente ao peso</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -725,6 +802,11 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-3">
                     Custo da Receita (R$)
+                    {selectedRecipe && (
+                      <span className="ml-2 text-xs text-blue-600 font-normal">
+                        (Calculado automaticamente)
+                      </span>
+                    )}
                   </label>
                   <div className="relative">
                     <DollarSign className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -734,16 +816,23 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                       onChange={(e) => setFormData(prev => ({ ...prev, recipeCost: e.target.value }))}
                       className={`w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm border rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-lg ${
                         errors.recipeCost ? 'border-red-500' : 'border-white/50'
-                      }`}
+                      } ${selectedRecipe ? 'bg-blue-50/50' : ''}`}
                       min="0"
                       step="0.01"
                       placeholder="8.75"
+                      readOnly={!!selectedRecipe}
                     />
                   </div>
                   {errors.recipeCost && (
                     <p className="mt-2 text-sm text-red-600 flex items-center gap-2">
                       <AlertCircle className="w-4 h-4" />
                       {errors.recipeCost}
+                    </p>
+                  )}
+                  {selectedRecipe && (
+                    <p className="mt-2 text-sm text-blue-600 flex items-center gap-2">
+                      <Info className="w-4 h-4" />
+                      Campo calculado automaticamente baseado no peso
                     </p>
                   )}
                 </div>
@@ -1090,7 +1179,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
             <div className="flex items-center justify-center gap-6 text-sm text-gray-500">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4" />
-                <span>Cálculo automático</span>
+                <span>Cálculo proporcional</span>
               </div>
               <div className="flex items-center gap-2">
                 <Target className="w-4 h-4" />
