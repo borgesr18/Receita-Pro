@@ -712,3 +712,4 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
     </div>
   )
 }
+
