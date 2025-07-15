@@ -4,13 +4,15 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Calculator, 
   Scale, 
+  Package, 
+  TrendingUp,
   RotateCcw,
   Copy,
+  Info,
+  History,
   Search,
   ChefHat,
   Utensils,
-  TrendingUp,
-  Package,
   Clock,
   Thermometer,
   DollarSign,
@@ -19,7 +21,14 @@ import {
   ChevronDown,
   Sparkles,
   Target,
-  Info
+  ShoppingCart,
+  Truck,
+  Users,
+  Calendar,
+  PieChart,
+  AlertCircle,
+  CheckCircle,
+  TrendingDown
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/contexts/ToastContext'
@@ -54,34 +63,52 @@ interface RecipeIngredient {
   unit?: { name: string; symbol?: string }
 }
 
-interface CalculatedIngredient {
-  id: string
-  name: string
-  originalQuantity: number
-  originalUnit: string
-  calculatedQuantity: number
-  calculatedUnit: string
-  percentage: number
-  pricePerKg: number
-  totalCost: number
-}
-
 interface Category {
   id: string
   name: string
 }
 
-export default function CalculoReceita() {
+interface CalculationHistory {
+  id: string
+  custo: number
+  peso: number
+  lucro: number
+  precoFinal: number
+  createdAt: string
+}
+
+export default function CalculoPreco() {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null)
-  const [flourQuantity, setFlourQuantity] = useState<number>(1000)
-  const [calculatedIngredients, setCalculatedIngredients] = useState<CalculatedIngredient[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   
+  const [formData, setFormData] = useState({
+    productName: '',
+    finalWeight: 0,
+    recipeCost: 0,
+    desiredProfit: 50,
+    packagingCost: 0,
+    extraCosts: 0,
+    salesChannel: 'varejo'
+  })
+
+  const [results, setResults] = useState({
+    costPerGram: 0,
+    totalCost: 0,
+    suggestedPrice: 0,
+    markup: 0,
+    pricePerPortion: 0,
+    profitAmount: 0
+  })
+
+  const [calculationHistory, setCalculationHistory] = useState<CalculationHistory[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [errors, setErrors] = useState<{[key: string]: string}>({})
+
   const { showSuccess, showError } = useToast()
 
   // Função para converter qualquer unidade para gramas/ml
@@ -119,39 +146,31 @@ export default function CalculoReceita() {
     return quantity
   }
 
-  // Função para formatar unidade de exibição
-  const getDisplayUnit = (ingredient: any): string => {
-    if (ingredient?.name?.toLowerCase().includes('água') ||
-        ingredient?.name?.toLowerCase().includes('leite') ||
-        ingredient?.name?.toLowerCase().includes('óleo') ||
-        ingredient?.name?.toLowerCase().includes('vinagre') ||
-        ingredient?.ingredientType?.toLowerCase() === 'líquido') {
-      return 'ml'
+  // Calcular custo total da receita
+  const calculateRecipeCost = useCallback((recipe: Recipe): { totalCost: number, totalWeight: number } => {
+    if (!recipe.ingredients) {
+      return { totalCost: 0, totalWeight: 0 }
     }
-    
-    if (ingredient?.name?.toLowerCase().includes('ovo')) {
-      return 'unidades'
-    }
-    
-    return 'g'
-  }
 
-  // Função para formatar quantidade para exibição
-  const formatQuantityForDisplay = (quantity: number, ingredient: any, unit: any): number => {
-    if (unit?.name?.toLowerCase().includes('unidade') || 
-        unit?.symbol?.toLowerCase() === 'un') {
+    let totalCost = 0
+    let totalWeight = 0
+
+    recipe.ingredients.forEach(ing => {
+      const ingredient = ing.ingredient
+      const unit = ing.unit
       
-      if (ingredient?.conversionFactor && ingredient.conversionFactor > 0) {
-        return quantity / ingredient.conversionFactor
-      }
-      
-      if (ingredient?.name?.toLowerCase().includes('ovo')) {
-        return quantity / 50
-      }
-    }
-    
-    return quantity
-  }
+      if (!ingredient || !unit) return
+
+      const quantityInGrams = convertToGrams(ing.quantity, ingredient, unit)
+      const costPerGram = (ingredient.pricePerUnit || 0) / 1000
+      const ingredientCost = quantityInGrams * costPerGram
+
+      totalCost += ingredientCost
+      totalWeight += quantityInGrams
+    })
+
+    return { totalCost, totalWeight }
+  }, [])
 
   // Carregar dados
   const loadData = useCallback(async () => {
@@ -168,6 +187,8 @@ export default function CalculoReceita() {
 
       setRecipes(recipesData)
       setCategories(categoriesData)
+      
+      await fetchCalculationHistory()
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
       showError('Erro ao carregar dados')
@@ -180,98 +201,178 @@ export default function CalculoReceita() {
     loadData()
   }, [loadData])
 
-  // Calcular ingredientes baseado na quantidade de farinha
-  const calculateIngredients = useCallback(() => {
-    if (!selectedRecipe || !selectedRecipe.ingredients) {
-      setCalculatedIngredients([])
+  // Atualizar dados quando receita é selecionada
+  useEffect(() => {
+    if (selectedRecipe) {
+      const { totalCost, totalWeight } = calculateRecipeCost(selectedRecipe)
+      setFormData(prev => ({
+        ...prev,
+        productName: selectedRecipe.name,
+        finalWeight: Math.round(totalWeight),
+        recipeCost: totalCost
+      }))
+    }
+  }, [selectedRecipe, calculateRecipeCost])
+
+  const fetchCalculationHistory = async () => {
+    try {
+      const response = await api.get('/api/calculo-preco/historico')
+      if (response.data) {
+        setCalculationHistory(response.data)
+      }
+    } catch (error) {
+      console.error('Error fetching calculation history:', error)
+    }
+  }
+
+  const saveCalculation = async (calculationData: {
+    custo: number;
+    peso: number;
+    lucro: number;
+    precoFinal: number;
+  }) => {
+    try {
+      setIsLoading(true)
+      const response = await api.post('/api/calculo-preco/historico', calculationData)
+      if (response.data) {
+        await fetchCalculationHistory()
+        showSuccess('Cálculo salvo com sucesso!')
+      }
+    } catch (error) {
+      console.error('Error saving calculation:', error)
+      showError('Erro ao salvar cálculo')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const salesChannels = [
+    { value: 'varejo', label: 'Varejo', description: 'Venda direta ao consumidor', margin: '50-80%', icon: ShoppingCart },
+    { value: 'atacado', label: 'Atacado', description: 'Venda para revendedores', margin: '20-40%', icon: Package },
+    { value: 'delivery', label: 'Delivery', description: 'Entrega em domicílio', margin: '60-90%', icon: Truck },
+    { value: 'eventos', label: 'Eventos', description: 'Vendas para eventos', margin: '60-100%', icon: Calendar }
+  ]
+
+  const validateForm = () => {
+    const newErrors: {[key: string]: string} = {}
+
+    if (!formData.productName.trim()) {
+      newErrors.productName = 'Nome do produto é obrigatório'
+    }
+
+    if (formData.finalWeight <= 0) {
+      newErrors.finalWeight = 'Peso deve ser maior que zero'
+    }
+
+    if (formData.recipeCost < 0) {
+      newErrors.recipeCost = 'Custo não pode ser negativo'
+    }
+
+    if (formData.desiredProfit < 0 || formData.desiredProfit > 1000) {
+      newErrors.desiredProfit = 'Lucro deve estar entre 0% e 1000%'
+    }
+
+    if (formData.packagingCost < 0) {
+      newErrors.packagingCost = 'Custo de embalagem não pode ser negativo'
+    }
+
+    if (formData.extraCosts < 0) {
+      newErrors.extraCosts = 'Custos extras não podem ser negativos'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const calculatePrice = () => {
+    if (!validateForm()) {
+      showError('Por favor, corrija os erros no formulário')
       return
     }
 
-    const calculated = selectedRecipe.ingredients.map(ing => {
-      const ingredient = ing.ingredient
-      const unit = ing.unit
-      
-      if (!ingredient || !unit) {
-        return null
+    try {
+      const totalCost = formData.recipeCost + formData.packagingCost + formData.extraCosts
+      const costPerGram = formData.finalWeight > 0 ? totalCost / formData.finalWeight : 0
+      const profitAmount = totalCost * (formData.desiredProfit / 100)
+      const suggestedPrice = totalCost + profitAmount
+      const markup = totalCost > 0 ? ((suggestedPrice - totalCost) / totalCost) * 100 : 0
+      const pricePerPortion = formData.finalWeight > 0 ? suggestedPrice / formData.finalWeight : 0
+
+      const newResults = {
+        costPerGram: costPerGram * 1000,
+        totalCost,
+        suggestedPrice,
+        markup,
+        pricePerPortion: pricePerPortion * 1000,
+        profitAmount
       }
 
-      const originalInGrams = convertToGrams(ing.quantity, ingredient, unit)
-      const proportionalQuantity = (originalInGrams * flourQuantity) / 1000
-      const displayUnit = getDisplayUnit(ingredient)
-      const displayQuantity = formatQuantityForDisplay(proportionalQuantity, ingredient, unit)
+      setResults(newResults)
 
-      return {
-        id: ing.id,
-        name: ingredient.name,
-        originalQuantity: ing.quantity,
-        originalUnit: unit.name,
-        calculatedQuantity: Math.round(displayQuantity * 100) / 100,
-        calculatedUnit: displayUnit,
-        percentage: ing.percentage,
-        pricePerKg: ingredient.pricePerUnit || 0,
-        totalCost: (proportionalQuantity / 1000) * (ingredient.pricePerUnit || 0)
-      }
-    }).filter(Boolean) as CalculatedIngredient[]
+      // Salvar no histórico
+      saveCalculation({
+        custo: totalCost,
+        peso: formData.finalWeight,
+        lucro: formData.desiredProfit,
+        precoFinal: suggestedPrice
+      })
 
-    setCalculatedIngredients(calculated)
-  }, [selectedRecipe, flourQuantity])
-
-  useEffect(() => {
-    calculateIngredients()
-  }, [calculateIngredients])
-
-  // Calcular totais
-  const totalWeight = calculatedIngredients.reduce((sum, ing) => {
-    if (ing.calculatedUnit === 'unidades') {
-      if (ing.name.toLowerCase().includes('ovo')) {
-        return sum + (ing.calculatedQuantity * 50)
-      } else {
-        const originalIngredient = selectedRecipe?.ingredients?.find(i => 
-          i.ingredient?.name === ing.name
-        )?.ingredient
-        
-        if (originalIngredient?.conversionFactor && originalIngredient.conversionFactor > 0) {
-          return sum + (ing.calculatedQuantity * originalIngredient.conversionFactor)
-        }
-      }
+      showSuccess('Preço calculado com sucesso!')
+    } catch (error) {
+      console.error('Erro no cálculo:', error)
+      showError('Erro ao calcular preço')
     }
-    
-    return sum + ing.calculatedQuantity
-  }, 0)
+  }
 
-  const totalCost = calculatedIngredients.reduce((sum, ing) => sum + ing.totalCost, 0)
-  const costPerKg = totalWeight > 0 ? (totalCost / totalWeight) * 1000 : 0
+  const resetForm = () => {
+    setFormData({
+      productName: '',
+      finalWeight: 0,
+      recipeCost: 0,
+      desiredProfit: 50,
+      packagingCost: 0,
+      extraCosts: 0,
+      salesChannel: 'varejo'
+    })
+    setResults({
+      costPerGram: 0,
+      totalCost: 0,
+      suggestedPrice: 0,
+      markup: 0,
+      pricePerPortion: 0,
+      profitAmount: 0
+    })
+    setSelectedRecipe(null)
+    setSearchTerm('')
+    setFilterCategory('')
+    setIsDropdownOpen(false)
+    setErrors({})
+    showSuccess('Formulário resetado!')
+  }
 
-  // Copiar para área de transferência
-  const copyToClipboard = () => {
-    const text = `RECEITA: ${selectedRecipe?.name || 'Sem nome'}
-BASE: ${flourQuantity}g de farinha
+  const copyResults = () => {
+    const text = `CÁLCULO DE PREÇO - ${formData.productName}
 
-INGREDIENTES:
-${calculatedIngredients.map(ing => 
-  `• ${ing.name}: ${ing.calculatedQuantity} ${ing.calculatedUnit} (${ing.percentage}%)`
-).join('\n')}
+DADOS:
+• Peso Final: ${formData.finalWeight}g
+• Custo da Receita: R$ ${formData.recipeCost.toFixed(2)}
+• Custo Embalagem: R$ ${formData.packagingCost.toFixed(2)}
+• Custos Extras: R$ ${formData.extraCosts.toFixed(2)}
+• Margem de Lucro: ${formData.desiredProfit}%
+• Canal de Venda: ${salesChannels.find(c => c.value === formData.salesChannel)?.label}
 
-RESUMO:
-• Peso Total: ${(totalWeight / 1000).toFixed(2)} kg
-• Custo Total: R$ ${totalCost.toFixed(2)}
-• Custo por Kg: R$ ${costPerKg.toFixed(2)}
+RESULTADOS:
+• Custo Total: R$ ${results.totalCost.toFixed(2)}
+• Valor do Lucro: R$ ${results.profitAmount.toFixed(2)}
+• Preço Sugerido: R$ ${results.suggestedPrice.toFixed(2)}
+• Markup: ${results.markup.toFixed(1)}%
+• Custo por Grama: R$ ${results.costPerGram.toFixed(4)}
+• Preço por Grama: R$ ${results.pricePerPortion.toFixed(4)}
 
 Calculado em: ${new Date().toLocaleString('pt-BR')}`
     
     navigator.clipboard.writeText(text)
-    showSuccess('Receita copiada para área de transferência!')
-  }
-
-  // Resetar cálculo
-  const resetCalculation = () => {
-    setSelectedRecipe(null)
-    setFlourQuantity(1000)
-    setCalculatedIngredients([])
-    setSearchTerm('')
-    setFilterCategory('')
-    setIsDropdownOpen(false)
-    showSuccess('Cálculo resetado!')
+    showSuccess('Cálculo copiado para área de transferência!')
   }
 
   // Filtrar receitas
@@ -288,22 +389,32 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
     showSuccess(`Receita "${recipe.name}" selecionada!`)
   }
 
+  // Análise de margem
+  const getMarginAnalysis = () => {
+    if (results.markup === 0) return { color: 'gray', text: 'Não calculado', icon: Calculator }
+    if (results.markup < 20) return { color: 'red', text: 'Margem baixa', icon: TrendingDown }
+    if (results.markup < 40) return { color: 'yellow', text: 'Margem moderada', icon: AlertCircle }
+    return { color: 'green', text: 'Margem excelente', icon: CheckCircle }
+  }
+
+  const marginAnalysis = getMarginAnalysis()
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
-            <div className="w-20 h-20 border-4 border-emerald-200 rounded-full animate-spin border-t-emerald-600 mx-auto"></div>
-            <Calculator className="w-8 h-8 text-emerald-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+            <div className="w-20 h-20 border-4 border-blue-200 rounded-full animate-spin border-t-blue-600 mx-auto"></div>
+            <Calculator className="w-8 h-8 text-blue-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
           </div>
-          <p className="mt-4 text-gray-600 font-medium">Carregando calculadora de receitas...</p>
+          <p className="mt-4 text-gray-600 font-medium">Carregando calculadora de preços...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="p-6 max-w-7xl mx-auto">
         {/* Header Glassmorphism */}
         <div className="mb-8">
@@ -311,26 +422,26 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div className="flex items-center gap-6">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-2xl blur-lg opacity-75"></div>
-                  <div className="relative p-4 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl shadow-xl">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500 rounded-2xl blur-lg opacity-75"></div>
+                  <div className="relative p-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl shadow-xl">
                     <Calculator className="w-10 h-10 text-white" />
                   </div>
                 </div>
                 <div>
                   <h1 className="text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-700 bg-clip-text text-transparent">
-                    Cálculo de Receitas
+                    Cálculo de Preço
                   </h1>
-                  <p className="text-gray-600 mt-2 text-xl">Precisão profissional em cada ingrediente</p>
+                  <p className="text-gray-600 mt-2 text-xl">Precificação inteligente e rentável</p>
                   <div className="flex items-center gap-2 mt-3">
-                    <Sparkles className="w-4 h-4 text-emerald-500" />
-                    <span className="text-sm text-emerald-600 font-medium">Sistema Inteligente de Conversão</span>
+                    <Sparkles className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm text-blue-600 font-medium">Sistema Integrado com Fichas Técnicas</span>
                   </div>
                 </div>
               </div>
               
               <div className="flex items-center gap-4">
                 <button
-                  onClick={resetCalculation}
+                  onClick={resetForm}
                   className="group relative overflow-hidden bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-6 py-3 rounded-2xl flex items-center gap-3 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
@@ -338,14 +449,14 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                   <span className="font-semibold">Resetar</span>
                 </button>
                 
-                {calculatedIngredients.length > 0 && (
+                {results.suggestedPrice > 0 && (
                   <button
-                    onClick={copyToClipboard}
-                    className="group relative overflow-hidden bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-2xl flex items-center gap-3 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105"
+                    onClick={copyResults}
+                    className="group relative overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-2xl flex items-center gap-3 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
                     <Copy className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                    <span className="font-semibold">Copiar Receita</span>
+                    <span className="font-semibold">Copiar Cálculo</span>
                   </button>
                 )}
               </div>
@@ -359,8 +470,8 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
           <div className="bg-white/20 backdrop-blur-lg rounded-3xl border border-white/30 p-8 shadow-2xl">
             <div className="flex items-center gap-4 mb-6">
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-xl blur opacity-75"></div>
-                <div className="relative p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl">
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-xl blur opacity-75"></div>
+                <div className="relative p-3 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl">
                   <ChefHat className="w-6 h-6 text-white" />
                 </div>
               </div>
@@ -397,14 +508,14 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                           placeholder="Buscar receitas..."
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                          className="w-full pl-10 pr-4 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                         />
                       </div>
                       
                       <select
                         value={filterCategory}
                         onChange={(e) => setFilterCategory(e.target.value)}
-                        className="w-full px-3 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                        className="w-full px-3 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                       >
                         <option value="">Todas as categorias</option>
                         {categories.map(category => (
@@ -421,7 +532,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                         <button
                           key={recipe.id}
                           onClick={() => selectRecipe(recipe)}
-                          className="w-full p-4 text-left hover:bg-emerald-50/80 transition-all duration-300 border-b border-gray-100/50 last:border-b-0"
+                          className="w-full p-4 text-left hover:bg-blue-50/80 transition-all duration-300 border-b border-gray-100/50 last:border-b-0"
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
@@ -441,7 +552,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                                 </div>
                               </div>
                             </div>
-                            <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full font-medium ml-3">
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium ml-3">
                               {recipe.category?.name}
                             </span>
                           </div>
@@ -483,11 +594,113 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                     <span>{selectedRecipe.ingredients?.length || 0} ingredientes</span>
                   </div>
                 </div>
+                <div className="mt-3 p-3 bg-emerald-100/50 rounded-xl">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-emerald-700">Custo calculado automaticamente:</span>
+                    <span className="font-bold text-emerald-800">R$ {formData.recipeCost.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Configuração da Quantidade Base */}
+          {/* Dados do Produto */}
+          <div className="bg-white/20 backdrop-blur-lg rounded-3xl border border-white/30 p-8 shadow-2xl">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-red-500 rounded-xl blur opacity-75"></div>
+                <div className="relative p-3 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl">
+                  <Package className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Dados do Produto</h2>
+                <p className="text-gray-600">Informações básicas para cálculo</p>
+              </div>
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Nome do Produto
+                </label>
+                <input
+                  type="text"
+                  value={formData.productName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, productName: e.target.value }))}
+                  className={`w-full px-4 py-4 bg-white/80 backdrop-blur-sm border rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-lg ${
+                    errors.productName ? 'border-red-500' : 'border-white/50'
+                  }`}
+                  placeholder="Ex: Bolo de Chocolate Premium"
+                />
+                {errors.productName && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.productName}
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Peso Final (gramas)
+                  </label>
+                  <div className="relative">
+                    <Weight className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="number"
+                      value={formData.finalWeight}
+                      onChange={(e) => setFormData(prev => ({ ...prev, finalWeight: Number(e.target.value) }))}
+                      className={`w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm border rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-lg ${
+                        errors.finalWeight ? 'border-red-500' : 'border-white/50'
+                      }`}
+                      min="0"
+                      step="1"
+                      placeholder="1000"
+                    />
+                  </div>
+                  {errors.finalWeight && (
+                    <p className="mt-2 text-sm text-red-600 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.finalWeight}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Custo da Receita (R$)
+                  </label>
+                  <div className="relative">
+                    <DollarSign className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="number"
+                      value={formData.recipeCost}
+                      onChange={(e) => setFormData(prev => ({ ...prev, recipeCost: Number(e.target.value) }))}
+                      className={`w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm border rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-lg ${
+                        errors.recipeCost ? 'border-red-500' : 'border-white/50'
+                      }`}
+                      min="0"
+                      step="0.01"
+                      placeholder="8.75"
+                    />
+                  </div>
+                  {errors.recipeCost && (
+                    <p className="mt-2 text-sm text-red-600 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.recipeCost}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Custos Adicionais e Margem */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Custos Adicionais */}
           <div className="bg-white/20 backdrop-blur-lg rounded-3xl border border-white/30 p-8 shadow-2xl">
             <div className="flex items-center gap-4 mb-6">
               <div className="relative">
@@ -497,183 +710,331 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                 </div>
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Quantidade Base</h2>
-                <p className="text-gray-600">Defina a quantidade de farinha</p>
+                <h2 className="text-2xl font-bold text-gray-900">Custos Adicionais</h2>
+                <p className="text-gray-600">Embalagem e outros custos</p>
               </div>
             </div>
             
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Quantidade de Farinha (gramas)
+                  Custo de Embalagem (R$)
                 </label>
                 <div className="relative">
-                  <Weight className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <Package className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
                     type="number"
-                    value={flourQuantity}
-                    onChange={(e) => setFlourQuantity(Number(e.target.value))}
-                    className="w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm border border-white/50 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-300 text-lg font-semibold"
-                    min="1"
-                    step="1"
-                    placeholder="1000"
+                    value={formData.packagingCost}
+                    onChange={(e) => setFormData(prev => ({ ...prev, packagingCost: Number(e.target.value) }))}
+                    className={`w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm border rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-lg ${
+                      errors.packagingCost ? 'border-red-500' : 'border-white/50'
+                    }`}
+                    min="0"
+                    step="0.01"
+                    placeholder="0.50"
                   />
                 </div>
+                {errors.packagingCost && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.packagingCost}
+                  </p>
+                )}
               </div>
-              
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Custos Extras (R$)
+                </label>
+                <div className="relative">
+                  <TrendingUp className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="number"
+                    value={formData.extraCosts}
+                    onChange={(e) => setFormData(prev => ({ ...prev, extraCosts: Number(e.target.value) }))}
+                    className={`w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm border rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-lg ${
+                      errors.extraCosts ? 'border-red-500' : 'border-white/50'
+                    }`}
+                    min="0"
+                    step="0.01"
+                    placeholder="1.00"
+                  />
+                </div>
+                {errors.extraCosts && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.extraCosts}
+                  </p>
+                )}
+              </div>
+
               <div className="bg-gradient-to-r from-yellow-50/80 to-orange-50/80 rounded-2xl p-6 border border-yellow-200/50">
                 <div className="flex items-center gap-3 mb-4">
-                  <TrendingUp className="w-5 h-5 text-yellow-600" />
-                  <span className="font-semibold text-yellow-800">Multiplicador de Receita</span>
+                  <Info className="w-5 h-5 text-yellow-600" />
+                  <span className="font-semibold text-yellow-800">Custo Total</span>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-800">{((flourQuantity / 1000) * 100).toFixed(1)}%</div>
-                    <div className="text-sm text-yellow-700">da receita original</div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-yellow-800">
+                    R$ {(formData.recipeCost + formData.packagingCost + formData.extraCosts).toFixed(2)}
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-800">{(flourQuantity / 1000).toFixed(2)}x</div>
-                    <div className="text-sm text-yellow-700">multiplicador</div>
-                  </div>
+                  <div className="text-sm text-yellow-700 mt-1">Receita + Embalagem + Extras</div>
                 </div>
-                <div className="mt-4 p-3 bg-yellow-100/50 rounded-xl">
-                  <div className="flex items-center gap-2">
-                    <Info className="w-4 h-4 text-yellow-700" />
-                    <span className="text-sm text-yellow-800">
-                      Base: 1000g → Atual: {flourQuantity}g
-                    </span>
-                  </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Margem e Canal de Venda */}
+          <div className="bg-white/20 backdrop-blur-lg rounded-3xl border border-white/30 p-8 shadow-2xl">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-xl blur opacity-75"></div>
+                <div className="relative p-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl">
+                  <TrendingUp className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Margem e Canal</h2>
+                <p className="text-gray-600">Lucro desejado e canal de venda</p>
+              </div>
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Margem de Lucro (%)
+                </label>
+                <div className="relative">
+                  <Percent className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="number"
+                    value={formData.desiredProfit}
+                    onChange={(e) => setFormData(prev => ({ ...prev, desiredProfit: Number(e.target.value) }))}
+                    className={`w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm border rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-lg ${
+                      errors.desiredProfit ? 'border-red-500' : 'border-white/50'
+                    }`}
+                    min="0"
+                    max="1000"
+                    step="1"
+                    placeholder="50"
+                  />
+                </div>
+                {errors.desiredProfit && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.desiredProfit}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Canal de Venda
+                </label>
+                <div className="grid grid-cols-1 gap-3">
+                  {salesChannels.map((channel) => {
+                    const IconComponent = channel.icon
+                    return (
+                      <button
+                        key={channel.value}
+                        onClick={() => setFormData(prev => ({ ...prev, salesChannel: channel.value }))}
+                        className={`p-4 rounded-2xl border-2 transition-all duration-300 text-left ${
+                          formData.salesChannel === channel.value
+                            ? 'border-blue-500 bg-blue-50/80 shadow-lg'
+                            : 'border-gray-200 bg-white/50 hover:border-blue-300 hover:bg-blue-50/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <IconComponent className={`w-5 h-5 ${
+                            formData.salesChannel === channel.value ? 'text-blue-600' : 'text-gray-500'
+                          }`} />
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-900">{channel.label}</div>
+                            <div className="text-sm text-gray-600">{channel.description}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-semibold text-gray-900">{channel.margin}</div>
+                            <div className="text-xs text-gray-600">margem típica</div>
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Ingredientes Calculados */}
-        {selectedRecipe && calculatedIngredients.length > 0 && (
-          <div className="bg-white/20 backdrop-blur-lg rounded-3xl border border-white/30 overflow-hidden shadow-2xl">
-            {/* Header dos Ingredientes */}
-            <div className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 p-8">
+        {/* Botão de Calcular */}
+        <div className="mb-8">
+          <div className="bg-white/20 backdrop-blur-lg rounded-3xl border border-white/30 p-8 shadow-2xl text-center">
+            <button
+              onClick={calculatePrice}
+              disabled={isLoading}
+              className="group relative overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-12 py-6 rounded-3xl flex items-center gap-4 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 disabled:hover:scale-100 mx-auto text-xl font-bold"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+              {isLoading ? (
+                <>
+                  <div className="w-6 h-6 border-2 border-white/30 rounded-full animate-spin border-t-white"></div>
+                  <span>Calculando...</span>
+                </>
+              ) : (
+                <>
+                  <Calculator className="w-8 h-8 group-hover:scale-110 transition-transform duration-300" />
+                  <span>Calcular Preço</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Resultados */}
+        {results.suggestedPrice > 0 && (
+          <div className="bg-white/20 backdrop-blur-lg rounded-3xl border border-white/30 overflow-hidden shadow-2xl mb-8">
+            {/* Header dos Resultados */}
+            <div className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 p-8">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
-                    <Utensils className="w-8 h-8 text-white" />
+                    <PieChart className="w-8 h-8 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-3xl font-bold text-white">Ingredientes Calculados</h3>
-                    <p className="text-white/80 text-lg">Base: {flourQuantity}g de farinha</p>
+                    <h3 className="text-3xl font-bold text-white">Resultados do Cálculo</h3>
+                    <p className="text-white/80 text-lg">{formData.productName}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-white/80 text-sm">Receita</div>
-                  <div className="text-white font-semibold text-lg">{selectedRecipe.name}</div>
+                  <div className="text-white/80 text-sm">Canal</div>
+                  <div className="text-white font-semibold text-lg">
+                    {salesChannels.find(c => c.value === formData.salesChannel)?.label}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Tabela de Ingredientes */}
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-gray-50/80 to-gray-100/80 backdrop-blur-sm">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">
-                      Ingrediente
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm font-bold text-gray-700 uppercase tracking-wider">
-                      Original
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm font-bold text-gray-700 uppercase tracking-wider">
-                      Calculado
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm font-bold text-gray-700 uppercase tracking-wider">
-                      Porcentagem
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm font-bold text-gray-700 uppercase tracking-wider">
-                      Preço/Kg
-                    </th>
-                    <th className="px-6 py-4 text-right text-sm font-bold text-gray-700 uppercase tracking-wider">
-                      Custo
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200/50">
-                  {calculatedIngredients.map((ing, index) => (
-                    <tr 
-                      key={ing.id} 
-                      className={`hover:bg-emerald-50/50 transition-all duration-300 ${
-                        index % 2 === 0 ? 'bg-white/40' : 'bg-white/20'
-                      }`}
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                          <span className="font-semibold text-gray-900">{ing.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm text-gray-600">
-                        {ing.originalQuantity} {ing.originalUnit}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <span className="font-bold text-gray-900 text-lg">
-                          {ing.calculatedQuantity} {ing.calculatedUnit}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Percent className="w-4 h-4 text-emerald-600" />
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-emerald-100 text-emerald-800">
-                            {ing.percentage.toFixed(1)}%
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <DollarSign className="w-4 h-4 text-gray-500" />
-                          <span className="text-gray-700 font-medium">
-                            {ing.pricePerKg.toFixed(2)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <span className="font-bold text-emerald-600 text-lg">
-                          R$ {ing.totalCost.toFixed(2)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {/* Cards de Resultados */}
+            <div className="p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div className="text-center p-6 bg-gradient-to-br from-green-50/60 to-emerald-50/60 rounded-2xl border border-green-200/50">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <DollarSign className="w-6 h-6 text-green-600" />
+                    <span className="text-sm font-semibold text-green-600 uppercase tracking-wider">Custo Total</span>
+                  </div>
+                  <div className="text-3xl font-bold text-green-600">R$ {results.totalCost.toFixed(2)}</div>
+                  <div className="text-sm text-green-700 mt-1">Receita + Embalagem + Extras</div>
+                </div>
+                
+                <div className="text-center p-6 bg-gradient-to-br from-blue-50/60 to-indigo-50/60 rounded-2xl border border-blue-200/50">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <TrendingUp className="w-6 h-6 text-blue-600" />
+                    <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Valor do Lucro</span>
+                  </div>
+                  <div className="text-3xl font-bold text-blue-600">R$ {results.profitAmount.toFixed(2)}</div>
+                  <div className="text-sm text-blue-700 mt-1">{formData.desiredProfit}% de margem</div>
+                </div>
+                
+                <div className="text-center p-6 bg-gradient-to-br from-purple-50/60 to-pink-50/60 rounded-2xl border border-purple-200/50">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <Target className="w-6 h-6 text-purple-600" />
+                    <span className="text-sm font-semibold text-purple-600 uppercase tracking-wider">Preço Sugerido</span>
+                  </div>
+                  <div className="text-4xl font-bold text-purple-600">R$ {results.suggestedPrice.toFixed(2)}</div>
+                  <div className="text-sm text-purple-700 mt-1">Preço final de venda</div>
+                </div>
+              </div>
 
-            {/* Resumo Final */}
-            <div className="bg-gradient-to-r from-gray-50/80 to-gray-100/80 backdrop-blur-sm p-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center p-6 bg-white/60 rounded-2xl border border-white/50">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <Weight className="w-6 h-6 text-gray-600" />
-                    <span className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Peso Total</span>
+              {/* Análise Detalhada */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-6 bg-gradient-to-br from-gray-50/60 to-gray-100/60 rounded-2xl border border-gray-200/50">
+                  <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <Scale className="w-5 h-5" />
+                    Análise por Peso
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Custo por grama:</span>
+                      <span className="font-semibold">R$ {results.costPerGram.toFixed(4)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Preço por grama:</span>
+                      <span className="font-semibold">R$ {results.pricePerPortion.toFixed(4)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Peso total:</span>
+                      <span className="font-semibold">{formData.finalWeight}g</span>
+                    </div>
                   </div>
-                  <div className="text-3xl font-bold text-gray-900">{(totalWeight / 1000).toFixed(2)} kg</div>
-                  <div className="text-sm text-gray-600 mt-1">{totalWeight.toFixed(0)} gramas</div>
                 </div>
-                
-                <div className="text-center p-6 bg-emerald-50/60 rounded-2xl border border-emerald-200/50">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <DollarSign className="w-6 h-6 text-emerald-600" />
-                    <span className="text-sm font-semibold text-emerald-600 uppercase tracking-wider">Custo Total</span>
+
+                <div className="p-6 bg-gradient-to-br from-yellow-50/60 to-orange-50/60 rounded-2xl border border-yellow-200/50">
+                  <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <PieChart className="w-5 h-5" />
+                    Análise de Margem
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Markup:</span>
+                      <div className="flex items-center gap-2">
+                        <marginAnalysis.icon className={`w-4 h-4 text-${marginAnalysis.color}-600`} />
+                        <span className="font-semibold">{results.markup.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Status:</span>
+                      <span className={`font-semibold text-${marginAnalysis.color}-600`}>
+                        {marginAnalysis.text}
+                      </span>
+                    </div>
+                    <div className="mt-4 p-3 bg-yellow-100/50 rounded-xl">
+                      <div className="text-xs text-yellow-800">
+                        <strong>Dica:</strong> Para {formData.salesChannel}, margem típica é{' '}
+                        {salesChannels.find(c => c.value === formData.salesChannel)?.margin}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-3xl font-bold text-emerald-600">R$ {totalCost.toFixed(2)}</div>
-                  <div className="text-sm text-emerald-700 mt-1">Todos os ingredientes</div>
                 </div>
-                
-                <div className="text-center p-6 bg-blue-50/60 rounded-2xl border border-blue-200/50">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <Calculator className="w-6 h-6 text-blue-600" />
-                    <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Custo por Kg</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Histórico */}
+        {calculationHistory.length > 0 && (
+          <div className="bg-white/20 backdrop-blur-lg rounded-3xl border border-white/30 overflow-hidden shadow-2xl">
+            <div className="bg-gradient-to-r from-gray-600 to-gray-700 p-6">
+              <div className="flex items-center gap-3">
+                <History className="w-6 h-6 text-white" />
+                <h3 className="text-xl font-bold text-white">Histórico de Cálculos</h3>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {calculationHistory.slice(0, 6).map((calc) => (
+                  <div key={calc.id} className="p-4 bg-white/50 rounded-xl border border-gray-200/50">
+                    <div className="text-sm text-gray-600 mb-2">
+                      {new Date(calc.createdAt).toLocaleDateString('pt-BR')}
+                    </div>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span>Custo:</span>
+                        <span className="font-semibold">R$ {calc.custo.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Peso:</span>
+                        <span className="font-semibold">{calc.peso}g</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Lucro:</span>
+                        <span className="font-semibold">{calc.lucro}%</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-1">
+                        <span>Preço:</span>
+                        <span className="font-bold text-blue-600">R$ {calc.precoFinal.toFixed(2)}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-3xl font-bold text-blue-600">R$ {costPerKg.toFixed(2)}</div>
-                  <div className="text-sm text-blue-700 mt-1">Preço unitário</div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
@@ -683,27 +1044,27 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
         {!selectedRecipe && (
           <div className="bg-white/20 backdrop-blur-lg rounded-3xl border border-white/30 p-16 text-center shadow-2xl">
             <div className="relative mb-8">
-              <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full blur-2xl opacity-30"></div>
-              <div className="relative w-32 h-32 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-full flex items-center justify-center mx-auto">
-                <Calculator className="w-16 h-16 text-emerald-600" />
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full blur-2xl opacity-30"></div>
+              <div className="relative w-32 h-32 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto">
+                <Calculator className="w-16 h-16 text-blue-600" />
               </div>
             </div>
             <h3 className="text-3xl font-bold text-gray-900 mb-4">Selecione uma Receita</h3>
             <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto">
-              Escolha uma receita da sua biblioteca de fichas técnicas para calcular os ingredientes automaticamente
+              Escolha uma receita da sua biblioteca de fichas técnicas para calcular o preço automaticamente
             </p>
             <div className="flex items-center justify-center gap-6 text-sm text-gray-500">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4" />
-                <span>Conversão automática</span>
+                <span>Cálculo automático</span>
               </div>
               <div className="flex items-center gap-2">
                 <Target className="w-4 h-4" />
-                <span>Precisão profissional</span>
+                <span>Precificação inteligente</span>
               </div>
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4" />
-                <span>Cálculo de custos</span>
+                <span>Análise de margem</span>
               </div>
             </div>
           </div>
@@ -712,3 +1073,4 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
     </div>
   )
 }
+
