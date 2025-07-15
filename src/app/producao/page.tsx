@@ -92,7 +92,7 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   }, 3000)
 }
 
-export default function ProducaoCorrigida() {
+export default function ProducaoDebug() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Production | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -143,26 +143,68 @@ export default function ProducaoCorrigida() {
   const loadData = async () => {
     try {
       setLoading(true)
+      console.log('🔄 Iniciando carregamento de dados...')
       
-      // Carregar todos os dados em paralelo
-      const [productionsResponse, recipesResponse, usersResponse, categoriesResponse] = await Promise.all([
-        api.get('/api/productions').catch(() => ({ ok: false })),
-        api.get('/api/recipes').catch(() => ({ ok: false })),
-        api.get('/api/users').catch(() => ({ ok: false })),
-        api.get('/api/recipe-categories').catch(() => ({ ok: false }))
-      ])
-
-      console.log('🔍 Respostas das APIs:', {
-        productions: productionsResponse.ok,
-        recipes: recipesResponse.ok,
-        users: usersResponse.ok,
-        categories: categoriesResponse.ok
-      })
-
-      if (productionsResponse.ok) {
-        const productionsData = await productionsResponse.json()
-        console.log('📊 Dados de produção:', productionsData)
-        
+      // Testar diferentes endpoints para receitas
+      console.log('🧪 Testando endpoints de receitas...')
+      
+      const endpoints = [
+        '/api/recipes',
+        '/api/recipe-categories', 
+        '/api/users',
+        '/api/productions'
+      ]
+      
+      const results = {}
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`📡 Testando ${endpoint}...`)
+          const response = await api.get(endpoint)
+          console.log(`✅ ${endpoint}:`, {
+            ok: response.ok,
+            status: response.status,
+            hasData: !!response.data
+          })
+          
+          if (response.ok && response.data) {
+            results[endpoint] = response.data
+            console.log(`📊 ${endpoint} dados:`, Array.isArray(response.data) ? `${response.data.length} itens` : 'objeto')
+            
+            // Log detalhado para receitas
+            if (endpoint === '/api/recipes' && Array.isArray(response.data)) {
+              console.log('🍳 Receitas encontradas:', response.data.map(r => ({ id: r.id, name: r.name })))
+            }
+          } else {
+            console.log(`❌ ${endpoint} falhou:`, response.status)
+          }
+        } catch (error) {
+          console.error(`💥 Erro em ${endpoint}:`, error)
+          results[endpoint] = null
+        }
+      }
+      
+      // Processar resultados
+      if (results['/api/recipes']) {
+        setRecipes(Array.isArray(results['/api/recipes']) ? results['/api/recipes'] : [])
+        console.log('✅ Receitas carregadas:', results['/api/recipes'].length)
+      } else {
+        console.log('❌ Nenhuma receita carregada')
+        setRecipes([])
+      }
+      
+      if (results['/api/users']) {
+        setUsers(Array.isArray(results['/api/users']) ? results['/api/users'] : [])
+        console.log('✅ Usuários carregados:', results['/api/users'].length)
+      }
+      
+      if (results['/api/recipe-categories']) {
+        setCategories(Array.isArray(results['/api/recipe-categories']) ? results['/api/recipe-categories'] : [])
+        console.log('✅ Categorias carregadas:', results['/api/recipe-categories'].length)
+      }
+      
+      if (results['/api/productions']) {
+        const productionsData = Array.isArray(results['/api/productions']) ? results['/api/productions'] : []
         const mappedProductions = productionsData.map((prod: any) => ({
           id: prod.id,
           recipeId: prod.recipeId,
@@ -182,36 +224,15 @@ export default function ProducaoCorrigida() {
           ingredients: []
         }))
         setProducoes(mappedProductions)
-      }
-
-      if (recipesResponse.ok) {
-        const recipesData = await recipesResponse.json()
-        console.log('🍳 Receitas carregadas:', recipesData.length)
-        setRecipes(recipesData)
-      } else {
-        console.log('❌ Falha ao carregar receitas')
-        showToast('Falha ao carregar receitas. Verifique se há receitas cadastradas.', 'error')
-      }
-
-      if (usersResponse.ok) {
-        const usersData = await usersResponse.json()
-        console.log('👥 Usuários carregados:', usersData.length)
-        setUsers(usersData)
-      } else {
-        console.log('❌ Falha ao carregar usuários')
-      }
-
-      if (categoriesResponse.ok) {
-        const categoriesData = await categoriesResponse.json()
-        console.log('📂 Categorias carregadas:', categoriesData.length)
-        setCategories(categoriesData)
+        console.log('✅ Produções carregadas:', mappedProductions.length)
       }
 
     } catch (error) {
-      console.error('❌ Erro ao carregar dados:', error)
+      console.error('💥 Erro geral ao carregar dados:', error)
       showToast('Falha ao carregar dados. Verifique sua conexão.', 'error')
     } finally {
       setLoading(false)
+      console.log('🏁 Carregamento finalizado')
     }
   }
 
@@ -243,6 +264,12 @@ export default function ProducaoCorrigida() {
   })
 
   const handleAdd = () => {
+    console.log('🆕 Abrindo modal para nova produção')
+    console.log('📊 Estado atual das receitas:', {
+      total: recipes.length,
+      receitas: recipes.map(r => ({ id: r.id, name: r.name }))
+    })
+    
     setEditingItem(null)
     const today = new Date().toISOString().split('T')[0]
     const now = new Date().toTimeString().slice(0, 5)
@@ -293,6 +320,7 @@ export default function ProducaoCorrigida() {
   }
 
   const handleRecipeSelect = (recipe: Recipe) => {
+    console.log('🍳 Receita selecionada:', recipe)
     const batchNumber = generateBatchNumber(recipe.name, formData.productionDate)
     setFormData({
       ...formData,
@@ -406,6 +434,7 @@ export default function ProducaoCorrigida() {
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
           <p className="text-gray-600 text-lg">Carregando dados de produção...</p>
+          <p className="text-gray-500 text-sm mt-2">Verificando APIs e receitas...</p>
         </div>
       </div>
     )
@@ -414,6 +443,30 @@ export default function ProducaoCorrigida() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="container mx-auto px-4 py-8 space-y-8">
+        {/* Debug Info */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-6">
+          <h3 className="font-bold text-yellow-800 mb-2">🔍 Debug Info:</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span className="font-medium">Receitas:</span> {recipes.length}
+            </div>
+            <div>
+              <span className="font-medium">Usuários:</span> {users.length}
+            </div>
+            <div>
+              <span className="font-medium">Categorias:</span> {categories.length}
+            </div>
+            <div>
+              <span className="font-medium">Produções:</span> {producoes.length}
+            </div>
+          </div>
+          {recipes.length === 0 && (
+            <div className="mt-2 text-red-600 font-medium">
+              ⚠️ Nenhuma receita encontrada! Verifique se há fichas técnicas cadastradas.
+            </div>
+          )}
+        </div>
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -635,6 +688,18 @@ export default function ProducaoCorrigida() {
                 </button>
               </div>
 
+              {/* Debug info no modal */}
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6">
+                <h4 className="font-bold text-blue-800 mb-2">🔍 Debug Modal:</h4>
+                <div className="text-sm text-blue-700">
+                  <p>Receitas disponíveis: {recipes.length}</p>
+                  <p>Usuários disponíveis: {users.length}</p>
+                  {recipes.length > 0 && (
+                    <p>Primeira receita: {recipes[0].name}</p>
+                  )}
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Dropdown de Receitas */}
                 <div className="lg:col-span-2">
@@ -642,11 +707,15 @@ export default function ProducaoCorrigida() {
                   <div className="relative">
                     <button
                       type="button"
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      onClick={() => {
+                        console.log('🔽 Abrindo dropdown de receitas')
+                        console.log('📊 Receitas disponíveis:', recipes.length)
+                        setIsDropdownOpen(!isDropdownOpen)
+                      }}
                       className="w-full px-6 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm text-left flex items-center justify-between text-lg"
                     >
                       <span className={formData.recipeName ? 'text-gray-900' : 'text-gray-500'}>
-                        {formData.recipeName || 'Selecione uma receita...'}
+                        {formData.recipeName || `Selecione uma receita... (${recipes.length} disponíveis)`}
                       </span>
                       <ChevronDown className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} size={24} />
                     </button>
@@ -707,7 +776,10 @@ export default function ProducaoCorrigida() {
                               <ChefHat className="mx-auto h-12 w-12 text-gray-300 mb-3" />
                               <p>Nenhuma receita encontrada</p>
                               {recipes.length === 0 && (
-                                <p className="text-sm mt-1">Cadastre receitas primeiro nas Fichas Técnicas</p>
+                                <div className="text-sm mt-2">
+                                  <p className="text-red-600 font-medium">⚠️ Nenhuma receita cadastrada!</p>
+                                  <p>Cadastre receitas primeiro nas Fichas Técnicas</p>
+                                </div>
                               )}
                             </div>
                           )}
@@ -739,7 +811,7 @@ export default function ProducaoCorrigida() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-3">Operador</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-3">Operador ({users.length} disponíveis)</label>
                   <select
                     value={formData.operator}
                     onChange={(e) => setFormData({ ...formData, operator: e.target.value })}
