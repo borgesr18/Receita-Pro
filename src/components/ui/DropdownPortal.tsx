@@ -1,3 +1,5 @@
+// Ajuste para corrigir dropdown fixo com posição dinâmica (sem scrollY)
+
 import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Search, Clock, Thermometer, Users } from 'lucide-react'
@@ -73,15 +75,14 @@ export const DropdownPortal: React.FC<DropdownPortalProps> = ({
       const updatePosition = () => {
         const rect = anchorRef.current!.getBoundingClientRect()
         setPosition({
-          top: rect.bottom + window.scrollY + 8,
-          left: rect.left + window.scrollX,
+          top: rect.bottom + 8, // corrigido: não somar window.scrollY
+          left: rect.left,      // corrigido: não somar window.scrollX
           width: rect.width
         })
       }
 
       updatePosition()
-      
-      // Atualizar posição em scroll e resize
+
       window.addEventListener('scroll', updatePosition, { passive: true })
       window.addEventListener('resize', updatePosition, { passive: true })
 
@@ -92,7 +93,6 @@ export const DropdownPortal: React.FC<DropdownPortalProps> = ({
     }
   }, [isOpen, anchorRef])
 
-  // Filtrar receitas
   const filteredRecipes = recipes.filter(recipe => {
     const matchesSearch = recipe.name.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = !filterCategory || recipe.categoryId === filterCategory
@@ -103,14 +103,9 @@ export const DropdownPortal: React.FC<DropdownPortalProps> = ({
 
   return createPortal(
     <>
-      {/* Overlay para fechar clicando fora */}
-      <div 
-        className="fixed inset-0 z-[999998]"
-        onClick={onClose}
-      />
-      
-      {/* Dropdown */}
-      <div 
+      <div className="fixed inset-0 z-[999998]" onClick={onClose} />
+
+      <div
         className="fixed bg-white/95 backdrop-blur-lg border border-white/50 rounded-2xl shadow-2xl max-h-96 overflow-hidden z-[999999]"
         style={{
           top: position.top,
@@ -119,7 +114,6 @@ export const DropdownPortal: React.FC<DropdownPortalProps> = ({
         }}
       >
         <div className="p-4 space-y-4">
-          {/* Busca */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -131,7 +125,6 @@ export const DropdownPortal: React.FC<DropdownPortalProps> = ({
             />
           </div>
 
-          {/* Filtro por categoria */}
           <select
             value={filterCategory}
             onChange={(e) => onCategoryChange(e.target.value)}
@@ -145,7 +138,6 @@ export const DropdownPortal: React.FC<DropdownPortalProps> = ({
             ))}
           </select>
 
-          {/* Lista de receitas */}
           <div className="max-h-64 overflow-y-auto space-y-2">
             {loading ? (
               <div className="text-center py-4 text-gray-500">Carregando receitas...</div>
