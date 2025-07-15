@@ -753,7 +753,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                     Custo da Receita (R$)
                     {selectedRecipe && (
                       <span className="ml-2 text-xs text-blue-600 font-normal">
-                        (Calculado automaticamente)
+                      
                       </span>
                     )}
                   </label>
@@ -781,7 +781,7 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                   {selectedRecipe && (
                     <p className="mt-2 text-sm text-blue-600 flex items-center gap-2">
                       <Info className="w-4 h-4" />
-                      Campo calculado automaticamente baseado no peso
+                      Campo calculado automaticamente baseado no peso.
                     </p>
                   )}
                 </div>
