@@ -79,7 +79,7 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   }, 3000)
 }
 
-export default function ProducaoSemOperador() {
+export default function ProducaoEdicaoCorrigida() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [viewingItem, setViewingItem] = useState<Production | null>(null)
@@ -201,7 +201,7 @@ export default function ProducaoSemOperador() {
     return null
   }
 
-  // Filtrar produções (removido filtro por operador)
+  // Filtrar produções
   const filteredProductions = productions.filter(production => {
     const matchesSearch = production.batchNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (production.product?.name && production.product.name.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -295,7 +295,7 @@ export default function ProducaoSemOperador() {
       console.log('📋 Dados do formulário:', formData)
       console.log('✏️ Editando item:', editingItem?.id)
 
-      // Validações básicas (removida validação de operador)
+      // Validações básicas
       if (!formData.productId) {
         showToast('Selecione um produto', 'error')
         return
@@ -325,30 +325,77 @@ export default function ProducaoSemOperador() {
 
       console.log('🍳 Receita encontrada:', associatedRecipe.name)
 
-      // ✅ CORREÇÃO: Dados sem operatorName
-      const apiData = {
-        recipeId: associatedRecipe.id,
-        productId: formData.productId,
-        batchNumber: formData.batchNumber.trim(),
-        quantityPlanned: Number(formData.plannedQuantity),
-        quantityProduced: formData.quantityProduced > 0 ? Number(formData.quantityProduced) : null,
-        lossPercentage: formData.lossType === 'percentage' && formData.losses > 0 ? Number(formData.losses) : null,
-        lossWeight: formData.lossType === 'weight' && formData.losses > 0 ? Number(formData.losses) : null,
-        productionDate: formData.productionDate,
-        expirationDate: formData.expirationDate || null,
-        notes: formData.observations.trim() || null,
-        status: formData.status
-        // ✅ REMOVIDO: operatorName completamente
+      // ✅ CORREÇÃO ESPECÍFICA PARA EDIÇÃO
+      let apiData: any
+
+      if (editingItem?.id) {
+        // EDIÇÃO - Dados limpos e específicos
+        console.log('✏️ Preparando dados para EDIÇÃO')
+        
+        apiData = {
+          recipeId: associatedRecipe.id,
+          productId: formData.productId,
+          batchNumber: formData.batchNumber.trim(),
+          quantityPlanned: Number(formData.plannedQuantity),
+          status: formData.status
+        }
+
+        // Campos opcionais - só incluir se tiverem valor válido
+        if (formData.quantityProduced && formData.quantityProduced > 0) {
+          apiData.quantityProduced = Number(formData.quantityProduced)
+        }
+
+        if (formData.lossType === 'percentage' && formData.losses > 0) {
+          apiData.lossPercentage = Number(formData.losses)
+          apiData.lossWeight = 0 // Zerar o outro tipo
+        } else if (formData.lossType === 'weight' && formData.losses > 0) {
+          apiData.lossWeight = Number(formData.losses)
+          apiData.lossPercentage = 0 // Zerar o outro tipo
+        } else {
+          // Sem perdas
+          apiData.lossPercentage = 0
+          apiData.lossWeight = 0
+        }
+
+        if (formData.productionDate) {
+          apiData.productionDate = formData.productionDate
+        }
+
+        if (formData.expirationDate) {
+          apiData.expirationDate = formData.expirationDate
+        }
+
+        if (formData.observations.trim()) {
+          apiData.notes = formData.observations.trim()
+        }
+
+      } else {
+        // CRIAÇÃO - Dados completos
+        console.log('🆕 Preparando dados para CRIAÇÃO')
+        
+        apiData = {
+          recipeId: associatedRecipe.id,
+          productId: formData.productId,
+          batchNumber: formData.batchNumber.trim(),
+          quantityPlanned: Number(formData.plannedQuantity),
+          quantityProduced: formData.quantityProduced > 0 ? Number(formData.quantityProduced) : null,
+          lossPercentage: formData.lossType === 'percentage' && formData.losses > 0 ? Number(formData.losses) : null,
+          lossWeight: formData.lossType === 'weight' && formData.losses > 0 ? Number(formData.losses) : null,
+          productionDate: formData.productionDate,
+          expirationDate: formData.expirationDate || null,
+          notes: formData.observations.trim() || null,
+          status: formData.status
+        }
       }
 
-      // Remover campos null/undefined para evitar problemas de validação
+      // Remover campos null/undefined/empty para evitar problemas de validação
       Object.keys(apiData).forEach(key => {
         if (apiData[key] === null || apiData[key] === undefined || apiData[key] === '') {
           delete apiData[key]
         }
       })
 
-      console.log('📡 Dados para API (sem operador):', apiData)
+      console.log('📡 Dados finais para API:', apiData)
 
       let response
       if (editingItem?.id) {
@@ -583,7 +630,7 @@ export default function ProducaoSemOperador() {
           </div>
         </div>
 
-        {/* Table (removida coluna Operador) */}
+        {/* Table */}
         <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/50 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -671,7 +718,7 @@ export default function ProducaoSemOperador() {
           )}
         </div>
 
-        {/* Modal de Criação/Edição (removido campo operador) */}
+        {/* Modal de Criação/Edição */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-6 w-full max-w-4xl shadow-2xl border border-white/50 max-h-[90vh] overflow-y-auto">
@@ -852,7 +899,7 @@ export default function ProducaoSemOperador() {
           </div>
         )}
 
-        {/* Modal de Visualização (removido operador) */}
+        {/* Modal de Visualização */}
         {isViewModalOpen && viewingItem && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-6 w-full max-w-2xl shadow-2xl border border-white/50">
