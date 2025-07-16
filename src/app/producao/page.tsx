@@ -16,7 +16,6 @@ interface Production {
   expirationDate?: string
   notes?: string
   status: string
-  operatorName?: string
   createdAt?: string
   updatedAt?: string
   product?: {
@@ -80,7 +79,7 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   }, 3000)
 }
 
-export default function ProducaoOperatorNameCorrigido() {
+export default function ProducaoSemOperador() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [viewingItem, setViewingItem] = useState<Production | null>(null)
@@ -106,7 +105,6 @@ export default function ProducaoOperatorNameCorrigido() {
     losses: 0,
     productionDate: new Date().toISOString().split('T')[0],
     expirationDate: '',
-    operatorName: '',
     observations: '',
     status: 'planejada' as 'planejada' | 'em_andamento' | 'concluida' | 'cancelada'
   })
@@ -203,11 +201,10 @@ export default function ProducaoOperatorNameCorrigido() {
     return null
   }
 
-  // Filtrar produções
+  // Filtrar produções (removido filtro por operador)
   const filteredProductions = productions.filter(production => {
     const matchesSearch = production.batchNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (production.product?.name && production.product.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         (production.operatorName && production.operatorName.toLowerCase().includes(searchTerm.toLowerCase()))
+                         (production.product?.name && production.product.name.toLowerCase().includes(searchTerm.toLowerCase()))
     const matchesStatus = statusFilter === '' || production.status === statusFilter
     return matchesSearch && matchesStatus
   })
@@ -225,7 +222,6 @@ export default function ProducaoOperatorNameCorrigido() {
       losses: 0,
       productionDate: new Date().toISOString().split('T')[0],
       expirationDate: '',
-      operatorName: '',
       observations: '',
       status: 'planejada'
     })
@@ -248,7 +244,6 @@ export default function ProducaoOperatorNameCorrigido() {
       losses: item.lossPercentage || item.lossWeight || 0,
       productionDate: item.productionDate ? item.productionDate.split('T')[0] : new Date().toISOString().split('T')[0],
       expirationDate: item.expirationDate ? item.expirationDate.split('T')[0] : '',
-      operatorName: item.operatorName || '',
       observations: item.notes || '',
       status: (item.status as any) || 'planejada'
     })
@@ -300,7 +295,7 @@ export default function ProducaoOperatorNameCorrigido() {
       console.log('📋 Dados do formulário:', formData)
       console.log('✏️ Editando item:', editingItem?.id)
 
-      // Validações básicas
+      // Validações básicas (removida validação de operador)
       if (!formData.productId) {
         showToast('Selecione um produto', 'error')
         return
@@ -321,11 +316,6 @@ export default function ProducaoOperatorNameCorrigido() {
         return
       }
 
-      if (!formData.operatorName.trim()) {
-        showToast('Operador é obrigatório', 'error')
-        return
-      }
-
       // Buscar receita real associada ao produto
       const associatedRecipe = findRecipeForProduct(formData.productId)
       if (!associatedRecipe) {
@@ -335,8 +325,8 @@ export default function ProducaoOperatorNameCorrigido() {
 
       console.log('🍳 Receita encontrada:', associatedRecipe.name)
 
-      // ✅ CORREÇÃO: Dados diferentes para criação vs edição
-      let apiData: any = {
+      // ✅ CORREÇÃO: Dados sem operatorName
+      const apiData = {
         recipeId: associatedRecipe.id,
         productId: formData.productId,
         batchNumber: formData.batchNumber.trim(),
@@ -348,16 +338,7 @@ export default function ProducaoOperatorNameCorrigido() {
         expirationDate: formData.expirationDate || null,
         notes: formData.observations.trim() || null,
         status: formData.status
-      }
-
-      // ✅ CORREÇÃO CRÍTICA: Só incluir operatorName na CRIAÇÃO, não na EDIÇÃO
-      if (!editingItem?.id) {
-        // Criação - incluir operatorName
-        apiData.operatorName = formData.operatorName.trim()
-        console.log('🆕 Criação - incluindo operatorName:', formData.operatorName)
-      } else {
-        // Edição - NÃO incluir operatorName (API não suporta)
-        console.log('✏️ Edição - removendo operatorName para evitar erro de validação')
+        // ✅ REMOVIDO: operatorName completamente
       }
 
       // Remover campos null/undefined para evitar problemas de validação
@@ -367,7 +348,7 @@ export default function ProducaoOperatorNameCorrigido() {
         }
       })
 
-      console.log('📡 Dados para API (limpos):', apiData)
+      console.log('📡 Dados para API (sem operador):', apiData)
 
       let response
       if (editingItem?.id) {
@@ -397,7 +378,6 @@ export default function ProducaoOperatorNameCorrigido() {
           losses: 0,
           productionDate: new Date().toISOString().split('T')[0],
           expirationDate: '',
-          operatorName: '',
           observations: '',
           status: 'planejada'
         })
@@ -580,7 +560,7 @@ export default function ProducaoOperatorNameCorrigido() {
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={24} />
                 <input
                   type="text"
-                  placeholder="Buscar por lote, produto ou operador..."
+                  placeholder="Buscar por lote ou produto..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-14 pr-6 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm text-lg"
@@ -603,7 +583,7 @@ export default function ProducaoOperatorNameCorrigido() {
           </div>
         </div>
 
-        {/* Table */}
+        {/* Table (removida coluna Operador) */}
         <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/50 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -613,7 +593,6 @@ export default function ProducaoOperatorNameCorrigido() {
                   <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Produto</th>
                   <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Quantidade</th>
                   <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Status</th>
-                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Operador</th>
                   <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Data Produção</th>
                   <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Data Validade</th>
                   <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Ações</th>
@@ -643,9 +622,6 @@ export default function ProducaoOperatorNameCorrigido() {
                       <span className={`px-4 py-2 text-sm font-semibold rounded-full ${getStatusColor(production.status)}`}>
                         {getStatusLabel(production.status)}
                       </span>
-                    </td>
-                    <td className="px-8 py-6 whitespace-nowrap text-sm text-gray-900">
-                      {production.operatorName || '-'}
                     </td>
                     <td className="px-8 py-6 whitespace-nowrap text-sm text-gray-900">
                       {formatDate(production.productionDate)}
@@ -695,7 +671,7 @@ export default function ProducaoOperatorNameCorrigido() {
           )}
         </div>
 
-        {/* Modal de Criação/Edição */}
+        {/* Modal de Criação/Edição (removido campo operador) */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-6 w-full max-w-4xl shadow-2xl border border-white/50 max-h-[90vh] overflow-y-auto">
@@ -795,20 +771,6 @@ export default function ProducaoOperatorNameCorrigido() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Operador *</label>
-                    <select
-                      value={formData.operatorName}
-                      onChange={(e) => setFormData({ ...formData, operatorName: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                    >
-                      <option value="">Selecione um operador</option>
-                      {users.map(user => (
-                        <option key={user.id} value={user.name}>{user.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Status</label>
                     <select
                       value={formData.status}
@@ -890,7 +852,7 @@ export default function ProducaoOperatorNameCorrigido() {
           </div>
         )}
 
-        {/* Modal de Visualização */}
+        {/* Modal de Visualização (removido operador) */}
         {isViewModalOpen && viewingItem && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-6 w-full max-w-2xl shadow-2xl border border-white/50">
@@ -929,10 +891,6 @@ export default function ProducaoOperatorNameCorrigido() {
                     <span className={`px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(viewingItem.status)}`}>
                       {getStatusLabel(viewingItem.status)}
                     </span>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Operador</label>
-                    <p className="text-gray-900">{viewingItem.operatorName || '-'}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Data de Produção</label>
