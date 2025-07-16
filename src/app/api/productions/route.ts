@@ -34,113 +34,123 @@ async function processStockMovements(
   userId: string,
   tx: any // Prisma transaction
 ) {
-  console.log('🔄 Processando desconto automático de ingredientes...')
-  console.log('📋 Receita ID:', recipeId)
-  console.log('📊 Quantidade planejada:', quantityPlanned)
+  try {
+    console.log('🔄 Processando desconto automático de ingredientes...')
+    console.log('📋 Receita ID:', recipeId)
+    console.log('📊 Quantidade planejada:', quantityPlanned)
 
-  // Buscar ingredientes da receita
-  const recipeIngredients = await tx.recipeIngredient.findMany({
-    where: { recipeId },
-    include: {
-      ingredient: {
-        include: {
-          unit: true,
-          category: true
-        }
-      },
-      unit: true
+    // Buscar ingredientes da receita
+    const recipeIngredients = await tx.recipeIngredient.findMany({
+      where: { recipeId },
+      include: {
+        ingredient: {
+          include: {
+            unit: true,
+            category: true
+          }
+        },
+        unit: true
+      }
+    })
+
+    console.log('🥘 Ingredientes da receita encontrados:', recipeIngredients.length)
+
+    if (recipeIngredients.length === 0) {
+      console.log('⚠️ Nenhum ingrediente encontrado na receita - pulando desconto de estoque')
+      return []
     }
-  })
 
-  console.log('🥘 Ingredientes da receita encontrados:', recipeIngredients.length)
+    const stockMovements = []
+    const insufficientStock = []
 
-  if (recipeIngredients.length === 0) {
-    console.log('⚠️ Nenhum ingrediente encontrado na receita')
-    return []
-  }
+    // Calcular e validar estoque para cada ingrediente
+    for (const recipeIngredient of recipeIngredients) {
+      const ingredient = recipeIngredient.ingredient
+      const quantityNeeded = recipeIngredient.quantity * quantityPlanned
 
-  const stockMovements = []
-  const insufficientStock = []
+      console.log(`📦 Ingrediente: ${ingredient.name}`)
+      console.log(`📏 Quantidade necessária: ${quantityNeeded} ${ingredient.unit?.abbreviation}`)
+      console.log(`📊 Estoque atual: ${ingredient.currentStock} ${ingredient.unit?.abbreviation}`)
 
-  // Calcular e validar estoque para cada ingrediente
-  for (const recipeIngredient of recipeIngredients) {
-    const ingredient = recipeIngredient.ingredient
-    const quantityNeeded = recipeIngredient.quantity * quantityPlanned
+      // Verificar se há estoque suficiente
+      if (ingredient.currentStock < quantityNeeded) {
+        insufficientStock.push({
+          name: ingredient.name,
+          needed: quantityNeeded,
+          available: ingredient.currentStock,
+          unit: ingredient.unit?.abbreviation || 'un'
+        })
+        continue
+      }
 
-    console.log(`📦 Ingrediente: ${ingredient.name}`)
-    console.log(`📏 Quantidade necessária: ${quantityNeeded} ${ingredient.unit?.abbreviation}`)
-    console.log(`📊 Estoque atual: ${ingredient.currentStock} ${ingredient.unit?.abbreviation}`)
-
-    // Verificar se há estoque suficiente
-    if (ingredient.currentStock < quantityNeeded) {
-      insufficientStock.push({
-        name: ingredient.name,
-        needed: quantityNeeded,
-        available: ingredient.currentStock,
-        unit: ingredient.unit?.abbreviation || 'un'
+      // Preparar movimentação de saída
+      stockMovements.push({
+        ingredientId: ingredient.id,
+        type: 'Saída',
+        quantity: quantityNeeded,
+        reason: `Produção - ${batchNumber}`,
+        reference: batchNumber,
+        ingredient: ingredient
       })
-      continue
     }
 
-    // Preparar movimentação de saída
-    stockMovements.push({
-      ingredientId: ingredient.id,
-      type: 'Saida',
-      quantity: quantityNeeded,
-      reason: `Produção - ${batchNumber}`,
-      reference: batchNumber,
-      ingredient: ingredient
-    })
+    // Se há estoque insuficiente, retornar erro
+    if (insufficientStock.length > 0) {
+      console.log('❌ Estoque insuficiente para ingredientes:', insufficientStock)
+      throw new Error(`Estoque insuficiente: ${insufficientStock.map(item => 
+        `${item.name} (necessário: ${item.needed} ${item.unit}, disponível: ${item.available} ${item.unit})`
+      ).join(', ')}`)
+    }
+
+    // Processar movimentações de estoque
+    const createdMovements = []
+    for (const movement of stockMovements) {
+      console.log(`📤 Criando movimentação de saída: ${movement.ingredient.name} - ${movement.quantity}`)
+
+      // Criar movimentação
+      const stockMovement = await tx.stockMovement.create({
+        data: {
+          ingredientId: movement.ingredientId,
+          type: movement.type,
+          quantity: movement.quantity,
+          reason: movement.reason,
+          reference: movement.reference,
+          date: new Date()
+        }
+      })
+
+      // Atualizar estoque do ingrediente
+      await tx.ingredient.update({
+        where: { id: movement.ingredientId },
+        data: {
+          currentStock: movement.ingredient.currentStock - movement.quantity,
+          updatedAt: new Date()
+        }
+      })
+
+      createdMovements.push(stockMovement)
+      console.log(`✅ Estoque atualizado: ${movement.ingredient.name} - novo estoque: ${movement.ingredient.currentStock - movement.quantity}`)
+    }
+
+    console.log('✅ Desconto automático de ingredientes concluído!')
+    return createdMovements
+  } catch (error) {
+    console.error('❌ Erro no processamento de estoque:', error)
+    throw error
   }
-
-  // Se há estoque insuficiente, retornar erro
-  if (insufficientStock.length > 0) {
-    console.log('❌ Estoque insuficiente para ingredientes:', insufficientStock)
-    throw new Error(`Estoque insuficiente: ${insufficientStock.map(item => 
-      `${item.name} (necessário: ${item.needed} ${item.unit}, disponível: ${item.available} ${item.unit})`
-    ).join(', ')}`)
-  }
-
-  // Processar movimentações de estoque
-  const createdMovements = []
-  for (const movement of stockMovements) {
-    console.log(`📤 Criando movimentação de saída: ${movement.ingredient.name} - ${movement.quantity}`)
-
-    // Criar movimentação
-    const stockMovement = await tx.stockMovement.create({
-      data: {
-        ingredientId: movement.ingredientId,
-        type: movement.type,
-        quantity: movement.quantity,
-        reason: movement.reason,
-        reference: movement.reference,
-        date: new Date()
-      }
-    })
-
-    // Atualizar estoque do ingrediente
-    await tx.ingredient.update({
-      where: { id: movement.ingredientId },
-      data: {
-        currentStock: movement.ingredient.currentStock - movement.quantity,
-        updatedAt: new Date()
-      }
-    })
-
-    createdMovements.push(stockMovement)
-    console.log(`✅ Estoque atualizado: ${movement.ingredient.name} - novo estoque: ${movement.ingredient.currentStock - movement.quantity}`)
-  }
-
-  console.log('✅ Desconto automático de ingredientes concluído!')
-  return createdMovements
 }
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('🔍 GET productions - Iniciando...')
+    
     const { user, error } = await getUser(request)
     if (error || !user) {
+      console.log('❌ GET productions - Unauthorized')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    console.log('✅ GET productions - Usuário autenticado:', user.id)
 
     const productions = await prisma.production.findMany({
       where: { userId: user.id },
@@ -168,9 +178,10 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    console.log('✅ GET productions - Produções encontradas:', productions.length)
     return NextResponse.json(productions)
   } catch (error) {
-    console.error('Error fetching productions:', error)
+    console.error('❌ GET productions - Erro:', error)
     return NextResponse.json(
       { error: 'Failed to fetch productions' },
       { status: 500 }
@@ -193,10 +204,34 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log('📤 POST productions - Dados recebidos:', body)
     
-    const data = productionSchema.parse(body)
+    // Validação com Zod
+    let data
+    try {
+      data = productionSchema.parse(body)
+      console.log('✅ Validação Zod passou')
+    } catch (zodError) {
+      console.error('❌ Erro de validação Zod:', zodError)
+      if (zodError instanceof z.ZodError) {
+        return NextResponse.json(
+          { error: 'Validation failed', details: zodError.format() },
+          { status: 400 }
+        )
+      }
+      throw zodError
+    }
 
     // Converte status do frontend para enum correto do Prisma
-    const productionStatus = mapProductionStatus(data.status)
+    let productionStatus
+    try {
+      productionStatus = mapProductionStatus(data.status)
+      console.log('✅ Status mapeado:', data.status, '->', productionStatus)
+    } catch (statusError) {
+      console.error('❌ Erro no mapeamento de status:', statusError)
+      return NextResponse.json(
+        { error: `Invalid status: ${data.status}` },
+        { status: 400 }
+      )
+    }
 
     const parseDate = (dateString: string | null | undefined): Date | null => {
       if (!dateString || dateString === '' || dateString === 'undefined') return null
@@ -283,6 +318,8 @@ export async function POST(request: NextRequest) {
         production,
         stockMovements
       }
+    }, {
+      timeout: 10000 // 10 segundos de timeout
     })
 
     console.log('✅ POST productions - Produção criada com sucesso!')
@@ -315,177 +352,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Tratar erros de timeout
+    if (error instanceof Error && error.message.includes('timeout')) {
+      return NextResponse.json(
+        { error: 'Operation timeout - please try again' },
+        { status: 408 }
+      )
+    }
+
+    // Tratar erros de banco de dados
+    if (error && typeof error === 'object' && 'code' in error) {
+      console.error('❌ Erro de banco de dados:', error)
+      
+      // Erro de chave estrangeira
+      if (error.code === 'P2003') {
+        return NextResponse.json(
+          { error: 'Invalid recipe or product reference' },
+          { status: 400 }
+        )
+      }
+      
+      // Erro de duplicação
+      if (error.code === 'P2002') {
+        return NextResponse.json(
+          { error: 'Batch number already exists' },
+          { status: 409 }
+        )
+      }
+    }
+
     return NextResponse.json(
       { error: 'Failed to create production' },
-      { status: 500 }
-    )
-  }
-}
-
-// Função para atualizar status de produção e processar estoque conforme necessário
-export async function PUT(request: NextRequest) {
-  try {
-    console.log('🔍 PUT productions - Iniciando atualização...')
-    
-    const { user, error } = await getUser(request)
-    if (error || !user) {
-      console.log('❌ PUT productions - Unauthorized')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const body = await request.json()
-    const { id, ...updateData } = body
-    
-    console.log('📤 PUT productions - Dados recebidos:', { id, updateData })
-
-    if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
-    }
-
-    // Buscar produção atual
-    const currentProduction = await prisma.production.findFirst({
-      where: {
-        id: id,
-        userId: user.id
-      },
-      include: {
-        recipe: {
-          include: {
-            ingredients: {
-              include: {
-                ingredient: {
-                  include: {
-                    unit: true,
-                    category: true
-                  }
-                },
-                unit: true
-              }
-            }
-          }
-        }
-      }
-    })
-
-    if (!currentProduction) {
-      return NextResponse.json(
-        { error: 'Production not found or access denied' },
-        { status: 404 }
-      )
-    }
-
-    const parseDate = (dateString: string | null | undefined): Date | null => {
-      if (!dateString || dateString === '' || dateString === 'undefined') return null
-      
-      try {
-        const date = new Date(dateString)
-        if (isNaN(date.getTime())) return null
-        
-        const year = date.getFullYear()
-        if (year < 1900 || year > 2100) return null
-        
-        return date
-      } catch {
-        return null
-      }
-    }
-
-    // Preparar dados para atualização
-    const productionData: any = {
-      updatedAt: new Date()
-    }
-
-    if (updateData.recipeId) productionData.recipeId = updateData.recipeId
-    if (updateData.productId) productionData.productId = updateData.productId
-    if (updateData.batchNumber) productionData.batchNumber = updateData.batchNumber
-    if (updateData.quantityPlanned) productionData.quantityPlanned = updateData.quantityPlanned
-    if (updateData.quantityProduced !== undefined) productionData.quantityProduced = updateData.quantityProduced
-    if (updateData.lossPercentage !== undefined) productionData.lossPercentage = updateData.lossPercentage
-    if (updateData.lossWeight !== undefined) productionData.lossWeight = updateData.lossWeight
-    if (updateData.productionDate) productionData.productionDate = parseDate(updateData.productionDate)
-    if (updateData.expirationDate) productionData.expirationDate = parseDate(updateData.expirationDate)
-    if (updateData.notes !== undefined) productionData.notes = updateData.notes
-    if (updateData.status) productionData.status = mapProductionStatus(updateData.status)
-
-    // Usar transação para atualizar produção e processar estoque se necessário
-    const result = await prisma.$transaction(async (tx) => {
-      // Atualizar produção
-      const updatedProduction = await tx.production.update({
-        where: { id: id },
-        data: productionData,
-        include: {
-          recipe: {
-            include: {
-              ingredients: {
-                include: {
-                  ingredient: {
-                    include: {
-                      unit: true,
-                      category: true
-                    }
-                  },
-                  unit: true
-                }
-              }
-            }
-          },
-          product: true,
-          user: true
-        }
-      })
-
-      let stockMovements = []
-      let message = 'Produção atualizada com sucesso.'
-
-      // Se o status mudou para "Em_Andamento" ou "Completo" e antes era "Planejado"
-      if (updateData.status && 
-          (mapProductionStatus(updateData.status) === 'Em_Andamento' || mapProductionStatus(updateData.status) === 'Completo') &&
-          currentProduction.status === 'Planejado') {
-        
-        console.log('🔄 Status mudou para ativo, processando desconto de estoque...')
-        
-        try {
-          stockMovements = await processStockMovements(
-            updatedProduction.recipeId,
-            updatedProduction.quantityPlanned,
-            updatedProduction.batchNumber,
-            user.id,
-            tx
-          )
-          message = `Produção atualizada e ${stockMovements.length} ingredientes descontados do estoque automaticamente.`
-        } catch (stockError) {
-          console.error('❌ Erro no desconto de estoque:', stockError)
-          throw stockError
-        }
-      }
-
-      return {
-        production: updatedProduction,
-        stockMovements,
-        message
-      }
-    })
-
-    console.log('✅ PUT productions - Produção atualizada com sucesso!')
-    
-    return NextResponse.json({
-      ...result.production,
-      stockMovements: result.stockMovements,
-      message: result.message
-    })
-
-  } catch (error) {
-    console.error('❌ PUT productions - Erro:', error)
-    
-    if (error instanceof Error && error.message.includes('Estoque insuficiente')) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
-    }
-    
-    return NextResponse.json(
-      { error: 'Failed to update production' },
       { status: 500 }
     )
   }
