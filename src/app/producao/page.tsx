@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Search, Plus, Edit, Trash2, X, Factory, Users, Package, TrendingUp, Calendar, Clock, Loader2, AlertCircle } from 'lucide-react'
+import { Search, Plus, Edit, Trash2, X, Factory, Users, Package, TrendingUp, Calendar, Clock, Loader2, AlertCircle, ChevronDown } from 'lucide-react'
 import { api } from '@/lib/api'
 
 interface Production {
@@ -13,7 +13,7 @@ interface Production {
   lossPercentage?: number
   lossWeight?: number
   productionDate: string
-  expirationDate?: string  // ✅ Campo data de validade
+  expirationDate?: string
   notes?: string
   status: string
   operatorName?: string
@@ -80,7 +80,7 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   }, 3000)
 }
 
-export default function ProducaoFinalAjustes() {
+export default function ProducaoDropdownCorrigida() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [viewingItem, setViewingItem] = useState<Production | null>(null)
@@ -105,7 +105,7 @@ export default function ProducaoFinalAjustes() {
     lossType: 'percentage' as 'percentage' | 'weight',
     losses: 0,
     productionDate: new Date().toISOString().split('T')[0],
-    expirationDate: '',  // ✅ Campo data de validade
+    expirationDate: '',
     operatorName: '',
     observations: '',
     status: 'planejada' as 'planejada' | 'em_andamento' | 'concluida' | 'cancelada'
@@ -174,6 +174,8 @@ export default function ProducaoFinalAjustes() {
 
   // Função para encontrar receita associada ao produto
   const findRecipeForProduct = (productId: string): Recipe | null => {
+    if (!productId) return null
+    
     const recipeByProductId = recipes.find(recipe => recipe.productId === productId)
     if (recipeByProductId) {
       console.log('✅ Receita encontrada por productId:', recipeByProductId.name)
@@ -210,16 +212,6 @@ export default function ProducaoFinalAjustes() {
     return matchesSearch && matchesStatus
   })
 
-  // Filtrar produtos por categoria e busca
-  const [productSearchTerm, setProductSearchTerm] = useState('')
-  const [productCategoryFilter, setProductCategoryFilter] = useState('')
-  
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(productSearchTerm.toLowerCase())
-    const matchesCategory = productCategoryFilter === '' || product.categoryId === productCategoryFilter
-    return matchesSearch && matchesCategory
-  })
-
   const handleAdd = () => {
     setEditingItem(null)
     setFormData({
@@ -242,21 +234,34 @@ export default function ProducaoFinalAjustes() {
 
   const handleEdit = (item: Production) => {
     setEditingItem(item)
+    
+    // ✅ Correção: Garantir que todos os campos sejam preenchidos corretamente
+    const selectedProduct = products.find(p => p.id === item.productId)
+    
     setFormData({
-      productId: item.productId,
-      productName: item.product?.name || '',
+      productId: item.productId || '',
+      productName: selectedProduct?.name || item.product?.name || '',
       recipeId: '',
-      batchNumber: item.batchNumber,
-      plannedQuantity: item.quantityPlanned,
+      batchNumber: item.batchNumber || '',
+      plannedQuantity: item.quantityPlanned || 0,
       quantityProduced: item.quantityProduced || 0,
-      lossType: item.lossPercentage ? 'percentage' : 'weight',
+      lossType: item.lossPercentage && item.lossPercentage > 0 ? 'percentage' : 'weight',
       losses: item.lossPercentage || item.lossWeight || 0,
-      productionDate: item.productionDate,
-      expirationDate: item.expirationDate || '',  // ✅ Carregar data de validade
+      productionDate: item.productionDate ? item.productionDate.split('T')[0] : new Date().toISOString().split('T')[0],
+      expirationDate: item.expirationDate ? item.expirationDate.split('T')[0] : '',
       operatorName: item.operatorName || '',
       observations: item.notes || '',
-      status: item.status as any
+      status: (item.status as any) || 'planejada'
     })
+    
+    console.log('✏️ Editando produção:', {
+      id: item.id,
+      productId: item.productId,
+      productName: selectedProduct?.name,
+      batchNumber: item.batchNumber,
+      status: item.status
+    })
+    
     setIsModalOpen(true)
   }
 
@@ -293,6 +298,8 @@ export default function ProducaoFinalAjustes() {
     try {
       setSaving(true)
       console.log('💾 Salvando produção...')
+      console.log('📋 Dados do formulário:', formData)
+      console.log('✏️ Editando item:', editingItem?.id)
 
       // Validações básicas
       if (!formData.productId) {
@@ -329,23 +336,30 @@ export default function ProducaoFinalAjustes() {
 
       console.log('🍳 Receita encontrada:', associatedRecipe.name)
 
-      // Dados com receita real
+      // ✅ Correção: Dados formatados corretamente para API
       const apiData = {
         recipeId: associatedRecipe.id,
         productId: formData.productId,
         batchNumber: formData.batchNumber.trim(),
         quantityPlanned: Number(formData.plannedQuantity),
-        quantityProduced: formData.quantityProduced > 0 ? Number(formData.quantityProduced) : undefined,
-        lossPercentage: formData.lossType === 'percentage' ? Number(formData.losses) : 0,
-        lossWeight: formData.lossType === 'weight' ? Number(formData.losses) : 0,
+        quantityProduced: formData.quantityProduced > 0 ? Number(formData.quantityProduced) : null,
+        lossPercentage: formData.lossType === 'percentage' && formData.losses > 0 ? Number(formData.losses) : null,
+        lossWeight: formData.lossType === 'weight' && formData.losses > 0 ? Number(formData.losses) : null,
         productionDate: formData.productionDate,
-        expirationDate: formData.expirationDate || undefined,  // ✅ Incluir data de validade
-        notes: formData.observations.trim() || undefined,
+        expirationDate: formData.expirationDate || null,
+        notes: formData.observations.trim() || null,
         status: formData.status,
-        operatorName: formData.operatorName.trim()  // ✅ Incluir operador
+        operatorName: formData.operatorName.trim()
       }
 
-      console.log('📡 Dados para API:', apiData)
+      // ✅ Remover campos null/undefined para evitar problemas de validação
+      Object.keys(apiData).forEach(key => {
+        if (apiData[key] === null || apiData[key] === undefined || apiData[key] === '') {
+          delete apiData[key]
+        }
+      })
+
+      console.log('📡 Dados para API (limpos):', apiData)
 
       let response
       if (editingItem?.id) {
@@ -402,18 +416,19 @@ export default function ProducaoFinalAjustes() {
     }
   }
 
-  // Selecionar produto
-  const handleProductSelect = (product: Product) => {
-    const associatedRecipe = findRecipeForProduct(product.id)
+  // ✅ Função para selecionar produto via dropdown
+  const handleProductChange = (productId: string) => {
+    const selectedProduct = products.find(p => p.id === productId)
+    const associatedRecipe = findRecipeForProduct(productId)
     
     setFormData({
       ...formData,
-      productId: product.id,
-      productName: product.name,
+      productId: productId,
+      productName: selectedProduct?.name || '',
       recipeId: associatedRecipe?.id || ''
     })
     
-    console.log('✅ Produto selecionado:', product.name)
+    console.log('✅ Produto selecionado via dropdown:', selectedProduct?.name)
     if (associatedRecipe) {
       console.log('✅ Receita associada:', associatedRecipe.name)
     }
@@ -622,14 +637,12 @@ export default function ProducaoFinalAjustes() {
                       </span>
                     </td>
                     <td className="px-8 py-6 whitespace-nowrap text-sm text-gray-900">
-                      {/* ✅ Exibir operador na tabela */}
                       {production.operatorName || '-'}
                     </td>
                     <td className="px-8 py-6 whitespace-nowrap text-sm text-gray-900">
                       {formatDate(production.productionDate)}
                     </td>
                     <td className="px-8 py-6 whitespace-nowrap text-sm text-gray-900">
-                      {/* ✅ Exibir data de validade na tabela */}
                       {production.expirationDate ? formatDate(production.expirationDate) : '-'}
                     </td>
                     <td className="px-8 py-6 whitespace-nowrap text-sm font-medium">
@@ -690,211 +703,152 @@ export default function ProducaoFinalAjustes() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Coluna 1: Seleção de Produto */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-bold text-gray-800">Produto</h4>
-                  
-                  {/* Produto Selecionado */}
-                  {formData.productId && (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-semibold text-green-800">{formData.productName}</div>
-                          <div className="text-sm text-green-600">Produto selecionado</div>
-                        </div>
-                        <button
-                          onClick={() => setFormData({ ...formData, productId: '', productName: '', recipeId: '' })}
-                          className="text-green-600 hover:text-green-800 p-1 rounded"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Busca e Filtro de Produtos */}
-                  {!formData.productId && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                          <input
-                            type="text"
-                            placeholder="Buscar produto..."
-                            value={productSearchTerm}
-                            onChange={(e) => setProductSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                          />
-                        </div>
-                        <select
-                          value={productCategoryFilter}
-                          onChange={(e) => setProductCategoryFilter(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                        >
-                          <option value="">Todas as categorias</option>
-                          {categories.map(category => (
-                            <option key={category.id} value={category.id}>{category.name}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Lista de Produtos */}
-                      <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-xl bg-white/70 backdrop-blur-sm">
-                        {filteredProducts.length === 0 ? (
-                          <div className="p-4 text-center text-gray-500">
-                            <AlertCircle className="mx-auto h-8 w-8 mb-2" />
-                            <p>Nenhum produto encontrado</p>
-                            {products.length === 0 && (
-                              <p className="text-sm text-red-600 mt-1">Cadastre produtos primeiro</p>
-                            )}
-                          </div>
-                        ) : (
-                          filteredProducts.map((product) => (
-                            <div
-                              key={product.id}
-                              onClick={() => handleProductSelect(product)}
-                              className="p-4 border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors"
-                            >
-                              <div className="font-semibold text-gray-900">{product.name}</div>
-                              <div className="text-sm text-gray-600">
-                                {getCategoryName(product.categoryId)} • {formatWeight(product.averageWeight)}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
+              <div className="space-y-6">
+                {/* ✅ Dropdown de Produtos */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Produto *</label>
+                  <div className="relative">
+                    <select
+                      value={formData.productId}
+                      onChange={(e) => handleProductChange(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm appearance-none pr-10"
+                    >
+                      <option value="">Selecione um produto</option>
+                      {products.map((product) => (
+                        <option key={product.id} value={product.id}>
+                          {product.name} - {getCategoryName(product.categoryId)} - {formatWeight(product.averageWeight)}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+                  </div>
+                  {products.length === 0 && (
+                    <p className="text-sm text-red-600 mt-1">Nenhum produto cadastrado. Cadastre produtos primeiro.</p>
                   )}
                 </div>
 
-                {/* Coluna 2: Dados da Produção */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-bold text-gray-800">Dados da Produção</h4>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Número do Lote *</label>
-                      <input
-                        type="text"
-                        value={formData.batchNumber}
-                        onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                        placeholder="Ex: LOTE-001"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Quantidade Planejada (g) *</label>
-                      <input
-                        type="number"
-                        value={formData.plannedQuantity || ''}
-                        onChange={(e) => setFormData({ ...formData, plannedQuantity: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                        placeholder="Ex: 1000"
-                        min="0"
-                        step="0.1"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Quantidade Produzida (g)</label>
-                      <input
-                        type="number"
-                        value={formData.quantityProduced || ''}
-                        onChange={(e) => setFormData({ ...formData, quantityProduced: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                        placeholder="Ex: 950"
-                        min="0"
-                        step="0.1"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Data de Produção *</label>
-                      <input
-                        type="date"
-                        value={formData.productionDate}
-                        onChange={(e) => setFormData({ ...formData, productionDate: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                      />
-                    </div>
-
-                    {/* ✅ Campo Data de Validade */}
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Data de Validade</label>
-                      <input
-                        type="date"
-                        value={formData.expirationDate}
-                        onChange={(e) => setFormData({ ...formData, expirationDate: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Operador *</label>
-                      <select
-                        value={formData.operatorName}
-                        onChange={(e) => setFormData({ ...formData, operatorName: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                      >
-                        <option value="">Selecione um operador</option>
-                        {users.map(user => (
-                          <option key={user.id} value={user.name}>{user.name}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Status</label>
-                      <select
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                      >
-                        <option value="planejada">Planejada</option>
-                        <option value="em_andamento">Em Andamento</option>
-                        <option value="concluida">Concluída</option>
-                        <option value="cancelada">Cancelada</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Perdas */}
+                {/* Dados da Produção */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Perdas</label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <select
-                        value={formData.lossType}
-                        onChange={(e) => setFormData({ ...formData, lossType: e.target.value as any })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                      >
-                        <option value="percentage">Percentual (%)</option>
-                        <option value="weight">Peso (g)</option>
-                      </select>
-                      <input
-                        type="number"
-                        value={formData.losses || ''}
-                        onChange={(e) => setFormData({ ...formData, losses: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                        placeholder={formData.lossType === 'percentage' ? 'Ex: 5' : 'Ex: 50'}
-                        min="0"
-                        step="0.1"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Observações */}
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Observações</label>
-                    <textarea
-                      value={formData.observations}
-                      onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Número do Lote *</label>
+                    <input
+                      type="text"
+                      value={formData.batchNumber}
+                      onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
-                      rows={3}
-                      placeholder="Observações sobre a produção..."
+                      placeholder="Ex: LOTE-001"
                     />
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Quantidade Planejada (g) *</label>
+                    <input
+                      type="number"
+                      value={formData.plannedQuantity || ''}
+                      onChange={(e) => setFormData({ ...formData, plannedQuantity: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                      placeholder="Ex: 1000"
+                      min="0"
+                      step="0.1"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Quantidade Produzida (g)</label>
+                    <input
+                      type="number"
+                      value={formData.quantityProduced || ''}
+                      onChange={(e) => setFormData({ ...formData, quantityProduced: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                      placeholder="Ex: 950"
+                      min="0"
+                      step="0.1"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Data de Produção *</label>
+                    <input
+                      type="date"
+                      value={formData.productionDate}
+                      onChange={(e) => setFormData({ ...formData, productionDate: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Data de Validade</label>
+                    <input
+                      type="date"
+                      value={formData.expirationDate}
+                      onChange={(e) => setFormData({ ...formData, expirationDate: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Operador *</label>
+                    <select
+                      value={formData.operatorName}
+                      onChange={(e) => setFormData({ ...formData, operatorName: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    >
+                      <option value="">Selecione um operador</option>
+                      {users.map(user => (
+                        <option key={user.id} value={user.name}>{user.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    >
+                      <option value="planejada">Planejada</option>
+                      <option value="em_andamento">Em Andamento</option>
+                      <option value="concluida">Concluída</option>
+                      <option value="cancelada">Cancelada</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Perdas */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Perdas</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <select
+                      value={formData.lossType}
+                      onChange={(e) => setFormData({ ...formData, lossType: e.target.value as any })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    >
+                      <option value="percentage">Percentual (%)</option>
+                      <option value="weight">Peso (g)</option>
+                    </select>
+                    <input
+                      type="number"
+                      value={formData.losses || ''}
+                      onChange={(e) => setFormData({ ...formData, losses: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                      placeholder={formData.lossType === 'percentage' ? 'Ex: 5' : 'Ex: 50'}
+                      min="0"
+                      step="0.1"
+                    />
+                  </div>
+                </div>
+
+                {/* Observações */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Observações</label>
+                  <textarea
+                    value={formData.observations}
+                    onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    rows={3}
+                    placeholder="Observações sobre a produção..."
+                  />
                 </div>
               </div>
 
