@@ -93,9 +93,9 @@ export async function PUT(
     }
 
     // Validações
-    if (body.type && !['Entrada', 'Saida'].includes(body.type)) {
+    if (body.type && !['Entrada', 'Saída'].includes(body.type)) {
       return NextResponse.json(
-        { error: 'Movement type must be "Entrada" or "Saida"' },
+        { error: 'Movement type must be "Entrada" or "Saída"' },
         { status: 400 }
       )
     }

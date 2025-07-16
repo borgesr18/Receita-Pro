@@ -99,10 +99,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Validar tipo de movimentação
-    if (!['Entrada', 'Saida'].includes(body.type)) {
+    if (!['Entrada', 'Saída'].includes(body.type)) {
       console.log('❌ POST stock-movements - Tipo de movimentação inválido')
       return NextResponse.json(
-        { error: 'Movement type must be "Entrada" or "Saida"' },
+        { error: 'Movement type must be "Entrada" or "Saída"' },
         { status: 400 }
       )
     }
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Para saídas, verificar se há estoque suficiente
-    if (body.type === 'Saida' && ingredient.currentStock < quantity) {
+    if (body.type === 'Saída' && ingredient.currentStock < quantity) {
       console.log('❌ POST stock-movements - Estoque insuficiente')
       return NextResponse.json(
         { error: 'Insufficient stock for this movement' },
@@ -248,3 +248,4 @@ export async function DELETE(request: NextRequest) {
     )
   }
 }
+
