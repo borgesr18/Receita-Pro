@@ -80,7 +80,7 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   }, 3000)
 }
 
-export default function ProducaoDropdownCorrigida() {
+export default function ProducaoOperatorNameCorrigido() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [viewingItem, setViewingItem] = useState<Production | null>(null)
@@ -235,7 +235,6 @@ export default function ProducaoDropdownCorrigida() {
   const handleEdit = (item: Production) => {
     setEditingItem(item)
     
-    // ✅ Correção: Garantir que todos os campos sejam preenchidos corretamente
     const selectedProduct = products.find(p => p.id === item.productId)
     
     setFormData({
@@ -336,8 +335,8 @@ export default function ProducaoDropdownCorrigida() {
 
       console.log('🍳 Receita encontrada:', associatedRecipe.name)
 
-      // ✅ Correção: Dados formatados corretamente para API
-      const apiData = {
+      // ✅ CORREÇÃO: Dados diferentes para criação vs edição
+      let apiData: any = {
         recipeId: associatedRecipe.id,
         productId: formData.productId,
         batchNumber: formData.batchNumber.trim(),
@@ -348,11 +347,20 @@ export default function ProducaoDropdownCorrigida() {
         productionDate: formData.productionDate,
         expirationDate: formData.expirationDate || null,
         notes: formData.observations.trim() || null,
-        status: formData.status,
-        operatorName: formData.operatorName.trim()
+        status: formData.status
       }
 
-      // ✅ Remover campos null/undefined para evitar problemas de validação
+      // ✅ CORREÇÃO CRÍTICA: Só incluir operatorName na CRIAÇÃO, não na EDIÇÃO
+      if (!editingItem?.id) {
+        // Criação - incluir operatorName
+        apiData.operatorName = formData.operatorName.trim()
+        console.log('🆕 Criação - incluindo operatorName:', formData.operatorName)
+      } else {
+        // Edição - NÃO incluir operatorName (API não suporta)
+        console.log('✏️ Edição - removendo operatorName para evitar erro de validação')
+      }
+
+      // Remover campos null/undefined para evitar problemas de validação
       Object.keys(apiData).forEach(key => {
         if (apiData[key] === null || apiData[key] === undefined || apiData[key] === '') {
           delete apiData[key]
@@ -416,7 +424,7 @@ export default function ProducaoDropdownCorrigida() {
     }
   }
 
-  // ✅ Função para selecionar produto via dropdown
+  // Função para selecionar produto via dropdown
   const handleProductChange = (productId: string) => {
     const selectedProduct = products.find(p => p.id === productId)
     const associatedRecipe = findRecipeForProduct(productId)
@@ -704,7 +712,7 @@ export default function ProducaoDropdownCorrigida() {
               </div>
 
               <div className="space-y-6">
-                {/* ✅ Dropdown de Produtos */}
+                {/* Dropdown de Produtos */}
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">Produto *</label>
                   <div className="relative">
