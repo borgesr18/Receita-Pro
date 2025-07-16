@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Search, Plus, Edit, Trash2, X, Factory, Users, Package, TrendingUp, Calendar, Clock, Loader2, AlertCircle, ChevronDown } from 'lucide-react'
+import { Search, Plus, Edit, Trash2, X, Factory, Users, Package, TrendingUp, Calendar, Clock, Loader2, AlertCircle, ChevronDown, Eye } from 'lucide-react'
 import { api } from '@/lib/api'
 
 interface Production {
@@ -79,7 +79,7 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   }, 3000)
 }
 
-export default function ProducaoEdicaoCorrigida() {
+export default function ProducaoSemEdicao() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [viewingItem, setViewingItem] = useState<Production | null>(null)
@@ -93,7 +93,6 @@ export default function ProducaoEdicaoCorrigida() {
   const [deleting, setDeleting] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [editingItem, setEditingItem] = useState<Production | null>(null)
   const [formData, setFormData] = useState({
     productId: '',
     productName: '',
@@ -210,7 +209,6 @@ export default function ProducaoEdicaoCorrigida() {
   })
 
   const handleAdd = () => {
-    setEditingItem(null)
     setFormData({
       productId: '',
       productName: '',
@@ -228,35 +226,10 @@ export default function ProducaoEdicaoCorrigida() {
     setIsModalOpen(true)
   }
 
+  // ❌ EDIÇÃO DESABILITADA TEMPORARIAMENTE
   const handleEdit = (item: Production) => {
-    setEditingItem(item)
-    
-    const selectedProduct = products.find(p => p.id === item.productId)
-    
-    setFormData({
-      productId: item.productId || '',
-      productName: selectedProduct?.name || item.product?.name || '',
-      recipeId: '',
-      batchNumber: item.batchNumber || '',
-      plannedQuantity: item.quantityPlanned || 0,
-      quantityProduced: item.quantityProduced || 0,
-      lossType: item.lossPercentage && item.lossPercentage > 0 ? 'percentage' : 'weight',
-      losses: item.lossPercentage || item.lossWeight || 0,
-      productionDate: item.productionDate ? item.productionDate.split('T')[0] : new Date().toISOString().split('T')[0],
-      expirationDate: item.expirationDate ? item.expirationDate.split('T')[0] : '',
-      observations: item.notes || '',
-      status: (item.status as any) || 'planejada'
-    })
-    
-    console.log('✏️ Editando produção:', {
-      id: item.id,
-      productId: item.productId,
-      productName: selectedProduct?.name,
-      batchNumber: item.batchNumber,
-      status: item.status
-    })
-    
-    setIsModalOpen(true)
+    showToast('Edição temporariamente desabilitada. Use exclusão + nova criação como alternativa.', 'error')
+    console.log('⚠️ Edição desabilitada para evitar erro 400')
   }
 
   const handleView = (item: Production) => {
@@ -291,9 +264,8 @@ export default function ProducaoEdicaoCorrigida() {
   const handleSave = async () => {
     try {
       setSaving(true)
-      console.log('💾 Salvando produção...')
+      console.log('💾 Salvando nova produção...')
       console.log('📋 Dados do formulário:', formData)
-      console.log('✏️ Editando item:', editingItem?.id)
 
       // Validações básicas
       if (!formData.productId) {
@@ -325,93 +297,38 @@ export default function ProducaoEdicaoCorrigida() {
 
       console.log('🍳 Receita encontrada:', associatedRecipe.name)
 
-      // ✅ CORREÇÃO ESPECÍFICA PARA EDIÇÃO
-      let apiData: any
-
-      if (editingItem?.id) {
-        // EDIÇÃO - Dados limpos e específicos
-        console.log('✏️ Preparando dados para EDIÇÃO')
-        
-        apiData = {
-          recipeId: associatedRecipe.id,
-          productId: formData.productId,
-          batchNumber: formData.batchNumber.trim(),
-          quantityPlanned: Number(formData.plannedQuantity),
-          status: formData.status
-        }
-
-        // Campos opcionais - só incluir se tiverem valor válido
-        if (formData.quantityProduced && formData.quantityProduced > 0) {
-          apiData.quantityProduced = Number(formData.quantityProduced)
-        }
-
-        if (formData.lossType === 'percentage' && formData.losses > 0) {
-          apiData.lossPercentage = Number(formData.losses)
-          apiData.lossWeight = 0 // Zerar o outro tipo
-        } else if (formData.lossType === 'weight' && formData.losses > 0) {
-          apiData.lossWeight = Number(formData.losses)
-          apiData.lossPercentage = 0 // Zerar o outro tipo
-        } else {
-          // Sem perdas
-          apiData.lossPercentage = 0
-          apiData.lossWeight = 0
-        }
-
-        if (formData.productionDate) {
-          apiData.productionDate = formData.productionDate
-        }
-
-        if (formData.expirationDate) {
-          apiData.expirationDate = formData.expirationDate
-        }
-
-        if (formData.observations.trim()) {
-          apiData.notes = formData.observations.trim()
-        }
-
-      } else {
-        // CRIAÇÃO - Dados completos
-        console.log('🆕 Preparando dados para CRIAÇÃO')
-        
-        apiData = {
-          recipeId: associatedRecipe.id,
-          productId: formData.productId,
-          batchNumber: formData.batchNumber.trim(),
-          quantityPlanned: Number(formData.plannedQuantity),
-          quantityProduced: formData.quantityProduced > 0 ? Number(formData.quantityProduced) : null,
-          lossPercentage: formData.lossType === 'percentage' && formData.losses > 0 ? Number(formData.losses) : null,
-          lossWeight: formData.lossType === 'weight' && formData.losses > 0 ? Number(formData.losses) : null,
-          productionDate: formData.productionDate,
-          expirationDate: formData.expirationDate || null,
-          notes: formData.observations.trim() || null,
-          status: formData.status
-        }
+      // ✅ APENAS CRIAÇÃO - SEM EDIÇÃO
+      const apiData = {
+        recipeId: associatedRecipe.id,
+        productId: formData.productId,
+        batchNumber: formData.batchNumber.trim(),
+        quantityPlanned: Number(formData.plannedQuantity),
+        quantityProduced: formData.quantityProduced > 0 ? Number(formData.quantityProduced) : null,
+        lossPercentage: formData.lossType === 'percentage' && formData.losses > 0 ? Number(formData.losses) : null,
+        lossWeight: formData.lossType === 'weight' && formData.losses > 0 ? Number(formData.losses) : null,
+        productionDate: formData.productionDate,
+        expirationDate: formData.expirationDate || null,
+        notes: formData.observations.trim() || null,
+        status: formData.status
       }
 
-      // Remover campos null/undefined/empty para evitar problemas de validação
+      // Remover campos null/undefined para evitar problemas de validação
       Object.keys(apiData).forEach(key => {
         if (apiData[key] === null || apiData[key] === undefined || apiData[key] === '') {
           delete apiData[key]
         }
       })
 
-      console.log('📡 Dados finais para API:', apiData)
+      console.log('📡 Dados para API (apenas criação):', apiData)
 
-      let response
-      if (editingItem?.id) {
-        console.log('✏️ Atualizando produção existente:', editingItem.id)
-        response = await api.put(`/api/productions/${editingItem.id}`, apiData)
-      } else {
-        console.log('🆕 Criando nova produção')
-        response = await api.post('/api/productions', apiData)
-      }
+      console.log('🆕 Criando nova produção')
+      const response = await api.post('/api/productions', apiData)
 
       console.log('📊 Resposta da API:', response)
 
       if (response.data && !response.error) {
-        showToast(editingItem ? 'Produção atualizada com sucesso!' : 'Produção criada com sucesso!')
+        showToast('Produção criada com sucesso!')
         setIsModalOpen(false)
-        setEditingItem(null)
         
         // Resetar formulário
         setFormData({
@@ -548,6 +465,20 @@ export default function ProducaoEdicaoCorrigida() {
           </button>
         </div>
 
+        {/* Aviso sobre edição desabilitada */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6">
+          <div className="flex items-center space-x-3">
+            <AlertCircle className="text-yellow-600" size={24} />
+            <div>
+              <h3 className="text-lg font-semibold text-yellow-800">Edição Temporariamente Desabilitada</h3>
+              <p className="text-yellow-700 mt-1">
+                Para evitar erros, a edição está desabilitada. Use <strong>exclusão + nova criação</strong> como alternativa.
+                Apenas <strong>visualização</strong> e <strong>exclusão</strong> estão disponíveis.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/50 p-8 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
@@ -681,12 +612,15 @@ export default function ProducaoEdicaoCorrigida() {
                         <button
                           onClick={() => handleView(production)}
                           className="text-green-600 hover:text-green-900 p-2 rounded-xl hover:bg-green-50 transition-colors"
+                          title="Visualizar detalhes"
                         >
-                          <Search size={18} />
+                          <Eye size={18} />
                         </button>
                         <button
                           onClick={() => handleEdit(production)}
-                          className="text-blue-600 hover:text-blue-900 p-2 rounded-xl hover:bg-blue-50 transition-colors"
+                          className="text-gray-400 p-2 rounded-xl cursor-not-allowed opacity-50"
+                          title="Edição temporariamente desabilitada"
+                          disabled
                         >
                           <Edit size={18} />
                         </button>
@@ -694,6 +628,7 @@ export default function ProducaoEdicaoCorrigida() {
                           onClick={() => handleDelete(production.id)}
                           disabled={deleting === production.id}
                           className="text-red-600 hover:text-red-900 p-2 rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50"
+                          title="Excluir produção"
                         >
                           {deleting === production.id ? (
                             <Loader2 size={18} className="animate-spin" />
@@ -718,13 +653,13 @@ export default function ProducaoEdicaoCorrigida() {
           )}
         </div>
 
-        {/* Modal de Criação/Edição */}
+        {/* Modal de Criação */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-6 w-full max-w-4xl shadow-2xl border border-white/50 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  {editingItem ? 'Editar' : 'Nova'} Produção
+                  Nova Produção
                 </h3>
                 <button
                   onClick={() => setIsModalOpen(false)}
