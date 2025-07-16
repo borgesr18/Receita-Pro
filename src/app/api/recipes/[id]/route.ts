@@ -1,163 +1,311 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUser } from '@/lib/auth'
-import { recipeSchema } from '@/lib/validations'
 import { z } from 'zod'
 
+// Schema de validação para atualização de ProductRecipe
+const productRecipeUpdateSchema = z.object({
+  quantity: z.coerce.number().min(0.01, 'Quantity must be greater than 0').optional(),
+  order: z.coerce.number().min(0, 'Order must be greater than or equal to 0').optional()
+})
+
+// GET /api/products/[id]/recipes/[recipeId] - Obter receita específica do produto
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string; recipeId: string } }
 ) {
   try {
+    console.log('🔍 GET product recipe - Iniciando...')
+    
     const { user, error } = await getUser(request)
     if (error || !user) {
+      console.log('❌ GET product recipe - Unauthorized')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
-    const recipe = await prisma.recipe.findFirst({
-      where: { id: params.id, userId: user.id },
+    console.log('✅ GET product recipe - Usuário autenticado:', user.id)
+    console.log('📤 GET product recipe - Product ID:', params.id, 'Recipe ID:', params.recipeId)
+
+    // Verificar se o produto pertence ao usuário
+    const product = await prisma.product.findFirst({
+      where: {
+        id: params.id,
+        userId: user.id
+      }
+    })
+
+    if (!product) {
+      console.log('❌ GET product recipe - Produto não encontrado')
+      return NextResponse.json(
+        { error: 'Product not found or access denied' },
+        { status: 404 }
+      )
+    }
+
+    // Buscar receita específica do produto
+    const productRecipe = await prisma.productRecipe.findUnique({
+      where: {
+        productId_recipeId: {
+          productId: params.id,
+          recipeId: params.recipeId
+        }
+      },
       include: {
-        category: true,
-        product: true,
-        ingredients: {
+        recipe: {
           include: {
-            ingredient: true,
-            unit: true
-          },
-          orderBy: {
-            order: 'asc'
+            category: true,
+            ingredients: {
+              include: {
+                ingredient: {
+                  include: {
+                    unit: true,
+                    category: true
+                  }
+                },
+                unit: true
+              },
+              orderBy: {
+                order: 'asc'
+              }
+            }
           }
         }
       }
     })
 
-    if (!recipe) {
+    if (!productRecipe) {
+      console.log('❌ GET product recipe - Receita não associada ao produto')
       return NextResponse.json(
-        { error: 'Recipe not found or access denied' },
+        { error: 'Recipe not associated with this product' },
         { status: 404 }
       )
     }
 
-    return NextResponse.json(recipe)
+    console.log('✅ GET product recipe - Receita encontrada')
+
+    // Calcular custo da receita
+    const totalCost = productRecipe.recipe.ingredients.reduce((sum, recipeIngredient) => {
+      return sum + (recipeIngredient.quantity * recipeIngredient.ingredient.pricePerUnit)
+    }, 0)
+
+    const adjustedCost = totalCost * productRecipe.quantity
+
+    return NextResponse.json({
+      ...productRecipe,
+      recipe: {
+        ...productRecipe.recipe,
+        totalCost,
+        adjustedCost,
+        totalIngredients: productRecipe.recipe.ingredients.length
+      }
+    })
+
   } catch (error) {
-    console.error('Error fetching recipe:', error)
+    console.error('❌ GET product recipe - Erro:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch recipe' },
+      { error: 'Failed to fetch product recipe' },
       { status: 500 }
     )
   }
 }
 
+// PUT /api/products/[id]/recipes/[recipeId] - Atualizar receita específica do produto
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string; recipeId: string } }
 ) {
   try {
+    console.log('🔍 PUT product recipe - Iniciando...')
+    
     const { user, error } = await getUser(request)
     if (error || !user) {
+      console.log('❌ PUT product recipe - Unauthorized')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
     const body = await request.json()
-    const data = recipeSchema.parse(body)
-    
-    const existingRecipe = await prisma.recipe.findFirst({
-      where: { id: params.id, userId: user.id }
+    console.log('📤 PUT product recipe - Dados recebidos:', body)
+
+    // Validar dados
+    const data = productRecipeUpdateSchema.parse(body)
+
+    // Verificar se o produto pertence ao usuário
+    const product = await prisma.product.findFirst({
+      where: {
+        id: params.id,
+        userId: user.id
+      }
     })
 
-    if (!existingRecipe) {
+    if (!product) {
+      console.log('❌ PUT product recipe - Produto não encontrado')
       return NextResponse.json(
-        { error: 'Recipe not found or access denied' },
+        { error: 'Product not found or access denied' },
         { status: 404 }
       )
     }
 
-    await prisma.recipeIngredient.deleteMany({
-      where: { recipeId: params.id }
+    // Verificar se a receita está associada ao produto
+    const existingProductRecipe = await prisma.productRecipe.findUnique({
+      where: {
+        productId_recipeId: {
+          productId: params.id,
+          recipeId: params.recipeId
+        }
+      }
     })
 
-    const recipe = await prisma.recipe.update({
-      where: { id: params.id },
-      data: {
-        name: data.name,
-        description: data.description,
-        categoryId: data.categoryId,
-        productId: data.productId || null,
-        preparationTime: data.preparationTime,
-        ovenTemperature: data.ovenTemperature,
-        instructions: data.instructions || '',
-        technicalNotes: data.technicalNotes || '',
-        ingredients: {
-          create: data.ingredients?.map((ing, index) => ({
-            ingredientId: ing.ingredientId,
-            quantity: ing.quantity,
-            percentage: ing.percentage,
-            unitId: ing.unitId,
-            order: index + 1
-          })) || []
+    if (!existingProductRecipe) {
+      console.log('❌ PUT product recipe - Receita não associada ao produto')
+      return NextResponse.json(
+        { error: 'Recipe not associated with this product' },
+        { status: 404 }
+      )
+    }
+
+    // Atualizar receita do produto
+    const updatedProductRecipe = await prisma.productRecipe.update({
+      where: {
+        productId_recipeId: {
+          productId: params.id,
+          recipeId: params.recipeId
         }
       },
+      data: {
+        ...(data.quantity !== undefined && { quantity: data.quantity }),
+        ...(data.order !== undefined && { order: data.order })
+      },
       include: {
-        category: true,
-        product: true,
-        ingredients: {
+        recipe: {
           include: {
-            ingredient: true,
-            unit: true
-          },
-          orderBy: {
-            order: 'asc'
+            category: true,
+            ingredients: {
+              include: {
+                ingredient: {
+                  include: {
+                    unit: true,
+                    category: true
+                  }
+                },
+                unit: true
+              },
+              orderBy: {
+                order: 'asc'
+              }
+            }
           }
         }
       }
     })
 
-    return NextResponse.json(recipe)
+    console.log('✅ PUT product recipe - Receita atualizada')
+
+    // Calcular custo da receita
+    const totalCost = updatedProductRecipe.recipe.ingredients.reduce((sum, recipeIngredient) => {
+      return sum + (recipeIngredient.quantity * recipeIngredient.ingredient.pricePerUnit)
+    }, 0)
+
+    const adjustedCost = totalCost * updatedProductRecipe.quantity
+
+    return NextResponse.json({
+      ...updatedProductRecipe,
+      recipe: {
+        ...updatedProductRecipe.recipe,
+        totalCost,
+        adjustedCost
+      }
+    })
+
   } catch (error) {
+    console.error('❌ PUT product recipe - Erro:', error)
+    
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Validation failed', details: error.format() },
         { status: 400 }
       )
     }
-    console.error('Error updating recipe:', error)
+
     return NextResponse.json(
-      { error: 'Failed to update recipe' },
+      { error: 'Failed to update product recipe' },
       { status: 500 }
     )
   }
 }
 
+// DELETE /api/products/[id]/recipes/[recipeId] - Remover receita específica do produto
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string; recipeId: string } }
 ) {
   try {
+    console.log('🔍 DELETE product recipe - Iniciando...')
+    
     const { user, error } = await getUser(request)
     if (error || !user) {
+      console.log('❌ DELETE product recipe - Unauthorized')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
-    const result = await prisma.recipe.deleteMany({
-      where: { id: params.id, userId: user.id }
+    console.log('✅ DELETE product recipe - Usuário autenticado:', user.id)
+    console.log('📤 DELETE product recipe - Product ID:', params.id, 'Recipe ID:', params.recipeId)
+
+    // Verificar se o produto pertence ao usuário
+    const product = await prisma.product.findFirst({
+      where: {
+        id: params.id,
+        userId: user.id
+      }
     })
 
-    if (result.count === 0) {
+    if (!product) {
+      console.log('❌ DELETE product recipe - Produto não encontrado')
       return NextResponse.json(
-        { error: 'Recipe not found or access denied' },
+        { error: 'Product not found or access denied' },
         { status: 404 }
       )
     }
 
-    return NextResponse.json({ success: true })
+    // Verificar se a receita está associada ao produto
+    const existingProductRecipe = await prisma.productRecipe.findUnique({
+      where: {
+        productId_recipeId: {
+          productId: params.id,
+          recipeId: params.recipeId
+        }
+      }
+    })
+
+    if (!existingProductRecipe) {
+      console.log('❌ DELETE product recipe - Receita não associada ao produto')
+      return NextResponse.json(
+        { error: 'Recipe not associated with this product' },
+        { status: 404 }
+      )
+    }
+
+    // Remover receita do produto
+    await prisma.productRecipe.delete({
+      where: {
+        productId_recipeId: {
+          productId: params.id,
+          recipeId: params.recipeId
+        }
+      }
+    })
+
+    console.log('✅ DELETE product recipe - Receita removida do produto')
+
+    return NextResponse.json({
+      message: 'Recipe removed from product successfully'
+    })
+
   } catch (error) {
-    console.error('Error deleting recipe:', error)
+    console.error('❌ DELETE product recipe - Erro:', error)
     return NextResponse.json(
-      { error: 'Failed to delete recipe' },
+      { error: 'Failed to remove recipe from product' },
       { status: 500 }
     )
   }
 }
+
