@@ -3,15 +3,19 @@ import { prisma } from '@/lib/prisma'
 import { getUser } from '@/lib/auth'
 import { z } from 'zod'
 
-// Schema de validação para receita
+// Schema de validação para receita (campos corretos do banco)
 const recipeSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   description: z.string().optional(),
   instructions: z.string().optional(),
-  prepTime: z.coerce.number().min(0, 'Tempo de preparo deve ser maior ou igual a 0').optional(),
-  cookTime: z.coerce.number().min(0, 'Tempo de cozimento deve ser maior ou igual a 0').optional(),
+  preparationTime: z.coerce.number().min(0, 'Tempo de preparo deve ser maior ou igual a 0').optional(),
+  ovenTemperature: z.coerce.number().min(0, 'Temperatura do forno deve ser maior ou igual a 0').optional(),
+  technicalNotes: z.string().optional(),
   servings: z.coerce.number().min(1, 'Porções deve ser maior que 0').optional(),
   categoryId: z.string().min(1, 'Categoria é obrigatória'),
+  productId: z.string().optional(),
+  version: z.coerce.number().min(1, 'Versão deve ser maior que 0').default(1),
+  isActive: z.boolean().default(true),
   ingredients: z.array(z.object({
     ingredientId: z.string().min(1, 'Ingrediente é obrigatório'),
     quantity: z.coerce.number().min(0.01, 'Quantidade deve ser maior que 0'),
@@ -77,13 +81,9 @@ export async function GET(request: NextRequest) {
         return sum + (recipeIngredient.quantity * recipeIngredient.ingredient.pricePerUnit)
       }, 0)
 
-      // Calcular tempo total
-      const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0)
-
       return {
         ...recipe,
         totalCost,
-        totalTime,
         costPerServing: recipe.servings ? totalCost / recipe.servings : totalCost,
         ingredientsCount: recipe._count.ingredients,
         productsCount: recipe._count.productRecipes
@@ -146,6 +146,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Verificar se produto pertence ao usuário (se fornecido)
+    if (data.productId) {
+      const product = await prisma.product.findFirst({
+        where: {
+          id: data.productId,
+          userId: user.id
+        }
+      })
+
+      if (!product) {
+        console.log('❌ POST recipe - Produto não encontrado')
+        return NextResponse.json(
+          { error: 'Product not found or access denied' },
+          { status: 404 }
+        )
+      }
+    }
+
     // Verificar se ingredientes pertencem ao usuário (se fornecidos)
     if (data.ingredients && data.ingredients.length > 0) {
       const ingredientIds = data.ingredients.map(ing => ing.ingredientId)
@@ -191,10 +209,14 @@ export async function POST(request: NextRequest) {
           name: data.name,
           description: data.description,
           instructions: data.instructions,
-          prepTime: data.prepTime,
-          cookTime: data.cookTime,
+          preparationTime: data.preparationTime,
+          ovenTemperature: data.ovenTemperature,
+          technicalNotes: data.technicalNotes,
           servings: data.servings,
           categoryId: data.categoryId,
+          productId: data.productId,
+          version: data.version,
+          isActive: data.isActive,
           userId: user.id
         }
       })
@@ -245,7 +267,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ...recipe,
       totalCost,
-      totalTime: (recipe?.prepTime || 0) + (recipe?.cookTime || 0),
       costPerServing: recipe?.servings ? totalCost / recipe.servings : totalCost
     }, { status: 201 })
 
@@ -265,3 +286,4 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
