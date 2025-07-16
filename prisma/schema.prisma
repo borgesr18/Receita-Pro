@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -110,8 +110,8 @@ model Ingredient {
   storageCondition      StorageCondition         @default(Ambiente_Seco)
   currentStock          Float                    @default(0)
   minimumStock          Float                    @default(0)
-  conversionFactor      Float?                   // Fator específico do insumo (ex: 1 ovo = 50g)
-  baseUnit              String?                  // Unidade base para cálculos (ex: "g", "ml")
+  conversionFactor      Float?
+  baseUnit              String?
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
   userId                String
@@ -154,7 +154,7 @@ model Product {
   category        RecipeCategory  @relation(fields: [categoryId], references: [id])
   defaultRecipe   Recipe?         @relation("ProductDefaultRecipe", fields: [defaultRecipeId], references: [id]) // NOVO
   user            User            @relation(fields: [userId], references: [id])
-  recipes         Recipe[]        @relation("ProductRecipes") // Mantém relação existente
+  recipes         Recipe[]        @relation("ProductRecipes")
   sales           Sale[]
 
   @@map("products")
@@ -227,7 +227,7 @@ model Recipe {
   ingredients     RecipeIngredient[]
   productRecipes  ProductRecipe[]    @relation("ProductRecipeRelation") // NOVO: Para receitas compostas
   category        RecipeCategory     @relation(fields: [categoryId], references: [id])
-  product         Product?           @relation("ProductRecipes", fields: [productId], references: [id]) // Mantém relação existente
+  product         Product?           @relation("ProductRecipes", fields: [productId], references: [id])
   defaultForProducts Product[]       @relation("ProductDefaultRecipe") // NOVO: Produtos que usam como receita padrão
   user            User               @relation(fields: [userId], references: [id])
 
@@ -360,7 +360,7 @@ enum UserRole {
 enum UnitType {
   Balde
   Caixa
-  Dúzia
+  Duzia
   Lata
   Pacote
   Peso
@@ -371,20 +371,20 @@ enum UnitType {
 }
 
 enum IngredientType {
-  Açúcares
+  Acucares
   Aditivos_Industriais
-  Adoçantes
+  Adocantes
   Agentes_de_Crescimento
   Coberturas
   Derivados
   Enriquecedores
   Farinha
   Fermentos
-  Finalizações
+  Finalizacoes
   Gorduras
   Ingredientes_Adicionais
-  Ingredientes_Secundários
-  Líquidos
+  Ingredientes_Secundarios
+  Liquidos
   Recheios
   Sal
   Temperos
@@ -409,4 +409,3 @@ enum MovementType {
   Entrada
   Saída
 }
-
