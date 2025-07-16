@@ -3,143 +3,145 @@ import { prisma } from '@/lib/prisma'
 import { getUser } from '@/lib/auth'
 import { productionSchema } from '@/lib/validations'
 import { z } from 'zod'
-import { ProductionStatus } from '@prisma/client'
 
-// Mapeia status vindo do frontend (português) para o enum do Prisma
-function mapProductionStatus(value: string): ProductionStatus {
-  const statusMap: Record<string, ProductionStatus> = {
-    // Aceita tanto português quanto inglês para compatibilidade
-    'planejada': 'Planejado',
-    'em_andamento': 'Em_Andamento', 
-    'concluida': 'Completo',
-    'cancelada': 'Cancelado',
-    'PLANNED': 'Planejado',
-    'IN_PROGRESS': 'Em_Andamento',
-    'COMPLETED': 'Completo',
-    'CANCELLED': 'Cancelado'
+// Schema expandido para suportar receitas compostas
+const productionSchemaExpanded = productionSchema.extend({
+  useProductRecipes: z.boolean().optional().default(false) // Flag para usar receitas do produto
+})
+
+// Função para calcular ingredientes de uma receita simples
+async function calculateIngredientsFromRecipe(recipeId: string, quantityPlanned: number, userId: string) {
+  console.log('🧮 Calculando ingredientes da receita:', recipeId)
+  
+  const recipe = await prisma.recipe.findFirst({
+    where: {
+      id: recipeId,
+      userId: userId
+    },
+    include: {
+      ingredients: {
+        include: {
+          ingredient: true,
+          unit: true
+        }
+      }
+    }
+  })
+
+  if (!recipe) {
+    throw new Error(`Recipe ${recipeId} not found or access denied`)
   }
 
-  if (value in statusMap) {
-    return statusMap[value]
+  if (!recipe.ingredients || recipe.ingredients.length === 0) {
+    console.log('⚠️ Receita sem ingredientes, produção será criada sem desconto de estoque')
+    return []
   }
 
-  throw new Error(`Invalid production status: ${value}`)
+  const ingredientsNeeded = []
+  for (const recipeIngredient of recipe.ingredients) {
+    const quantityNeeded = recipeIngredient.quantity * quantityPlanned
+    
+    ingredientsNeeded.push({
+      ingredientId: recipeIngredient.ingredient.id,
+      ingredient: recipeIngredient.ingredient,
+      quantityNeeded,
+      unit: recipeIngredient.unit,
+      source: `Recipe: ${recipe.name}`
+    })
+  }
+
+  console.log('✅ Ingredientes calculados da receita:', ingredientsNeeded.length)
+  return ingredientsNeeded
 }
 
-// Função para processar desconto automático de ingredientes
-async function processStockMovements(
-  recipeId: string, 
-  quantityPlanned: number, 
-  batchNumber: string,
-  userId: string,
-  tx: any // Prisma transaction
-) {
-  try {
-    console.log('🔄 Processando desconto automático de ingredientes...')
-    console.log('📋 Receita ID:', recipeId)
-    console.log('📊 Quantidade planejada:', quantityPlanned)
-
-    // Buscar ingredientes da receita
-    const recipeIngredients = await tx.recipeIngredient.findMany({
-      where: { recipeId },
-      include: {
-        ingredient: {
-          include: {
-            unit: true,
-            category: true
+// Função para calcular ingredientes de receitas compostas do produto
+async function calculateIngredientsFromProductRecipes(productId: string, quantityPlanned: number, userId: string) {
+  console.log('🧮 Calculando ingredientes das receitas compostas do produto:', productId)
+  
+  const productRecipes = await prisma.productRecipe.findMany({
+    where: {
+      productId: productId
+    },
+    include: {
+      recipe: {
+        include: {
+          ingredients: {
+            include: {
+              ingredient: true,
+              unit: true
+            }
           }
-        },
-        unit: true
+        }
+      }
+    },
+    orderBy: {
+      order: 'asc'
+    }
+  })
+
+  if (!productRecipes || productRecipes.length === 0) {
+    console.log('⚠️ Produto sem receitas compostas, tentando receita padrão...')
+    
+    // Tentar buscar receita padrão do produto
+    const product = await prisma.product.findFirst({
+      where: {
+        id: productId,
+        userId: userId
       }
     })
 
-    console.log('🥘 Ingredientes da receita encontrados:', recipeIngredients.length)
-
-    if (recipeIngredients.length === 0) {
-      console.log('⚠️ Nenhum ingrediente encontrado na receita - pulando desconto de estoque')
-      return []
+    if (product?.defaultRecipeId) {
+      console.log('🔄 Usando receita padrão do produto:', product.defaultRecipeId)
+      return await calculateIngredientsFromRecipe(product.defaultRecipeId, quantityPlanned, userId)
     }
 
-    const stockMovements = []
-    const insufficientStock = []
-
-    // Calcular e validar estoque para cada ingrediente
-    for (const recipeIngredient of recipeIngredients) {
-      const ingredient = recipeIngredient.ingredient
-      const quantityNeeded = recipeIngredient.quantity * quantityPlanned
-
-      console.log(`📦 Ingrediente: ${ingredient.name}`)
-      console.log(`📏 Quantidade necessária: ${quantityNeeded} ${ingredient.unit?.abbreviation}`)
-      console.log(`📊 Estoque atual: ${ingredient.currentStock} ${ingredient.unit?.abbreviation}`)
-
-      // Verificar se há estoque suficiente
-      if (ingredient.currentStock < quantityNeeded) {
-        insufficientStock.push({
-          name: ingredient.name,
-          needed: quantityNeeded,
-          available: ingredient.currentStock,
-          unit: ingredient.unit?.abbreviation || 'un'
-        })
-        continue
-      }
-
-      // Preparar movimentação de saída
-      stockMovements.push({
-        ingredientId: ingredient.id,
-        type: 'Saída',
-        quantity: quantityNeeded,
-        reason: `Produção - ${batchNumber}`,
-        reference: batchNumber,
-        ingredient: ingredient
-      })
-    }
-
-    // Se há estoque insuficiente, retornar erro
-    if (insufficientStock.length > 0) {
-      console.log('❌ Estoque insuficiente para ingredientes:', insufficientStock)
-      throw new Error(`Estoque insuficiente: ${insufficientStock.map(item => 
-        `${item.name} (necessário: ${item.needed} ${item.unit}, disponível: ${item.available} ${item.unit})`
-      ).join(', ')}`)
-    }
-
-    // Processar movimentações de estoque
-    const createdMovements = []
-    for (const movement of stockMovements) {
-      console.log(`📤 Criando movimentação de saída: ${movement.ingredient.name} - ${movement.quantity}`)
-
-      // Criar movimentação
-      const stockMovement = await tx.stockMovement.create({
-        data: {
-          ingredientId: movement.ingredientId,
-          type: movement.type,
-          quantity: movement.quantity,
-          reason: movement.reason,
-          reference: movement.reference,
-          date: new Date()
-        }
-      })
-
-      // Atualizar estoque do ingrediente
-      await tx.ingredient.update({
-        where: { id: movement.ingredientId },
-        data: {
-          currentStock: movement.ingredient.currentStock - movement.quantity,
-          updatedAt: new Date()
-        }
-      })
-
-      createdMovements.push(stockMovement)
-      console.log(`✅ Estoque atualizado: ${movement.ingredient.name} - novo estoque: ${movement.ingredient.currentStock - movement.quantity}`)
-    }
-
-    console.log('✅ Desconto automático de ingredientes concluído!')
-    return createdMovements
-  } catch (error) {
-    console.error('❌ Erro no processamento de estoque:', error)
-    throw error
+    console.log('⚠️ Produto sem receitas, produção será criada sem desconto de estoque')
+    return []
   }
+
+  const allIngredientsNeeded = []
+  
+  for (const productRecipe of productRecipes) {
+    const recipe = productRecipe.recipe
+    
+    if (!recipe.ingredients || recipe.ingredients.length === 0) {
+      console.log(`⚠️ Receita ${recipe.name} sem ingredientes, pulando...`)
+      continue
+    }
+
+    // Calcular quantidade ajustada pela quantidade da receita no produto
+    const recipeQuantity = productRecipe.quantity * quantityPlanned
+    
+    for (const recipeIngredient of recipe.ingredients) {
+      const quantityNeeded = recipeIngredient.quantity * recipeQuantity
+      
+      // Verificar se já temos este ingrediente na lista
+      const existingIngredient = allIngredientsNeeded.find(
+        item => item.ingredientId === recipeIngredient.ingredient.id
+      )
+      
+      if (existingIngredient) {
+        // Somar quantidades se o ingrediente já existe
+        existingIngredient.quantityNeeded += quantityNeeded
+        existingIngredient.source += `, Recipe: ${recipe.name} (${productRecipe.quantity}x)`
+      } else {
+        // Adicionar novo ingrediente
+        allIngredientsNeeded.push({
+          ingredientId: recipeIngredient.ingredient.id,
+          ingredient: recipeIngredient.ingredient,
+          quantityNeeded,
+          unit: recipeIngredient.unit,
+          source: `Recipe: ${recipe.name} (${productRecipe.quantity}x)`
+        })
+      }
+    }
+  }
+
+  console.log('✅ Ingredientes calculados das receitas compostas:', allIngredientsNeeded.length)
+  return allIngredientsNeeded
 }
 
+// GET /api/productions - Listar produções
 export async function GET(request: NextRequest) {
   try {
     console.log('🔍 GET productions - Iniciando...')
@@ -152,11 +154,53 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ GET productions - Usuário autenticado:', user.id)
 
+    const url = new URL(request.url)
+    const limit = parseInt(url.searchParams.get('limit') || '50')
+    const offset = parseInt(url.searchParams.get('offset') || '0')
+    const status = url.searchParams.get('status')
+    const productId = url.searchParams.get('productId')
+    const recipeId = url.searchParams.get('recipeId')
+
+    // Construir filtros
+    const where: any = {
+      userId: user.id
+    }
+
+    if (status) {
+      where.status = status
+    }
+
+    if (productId) {
+      where.productId = productId
+    }
+
+    if (recipeId) {
+      where.recipeId = recipeId
+    }
+
     const productions = await prisma.production.findMany({
-      where: { userId: user.id },
+      where,
       include: {
+        product: {
+          include: {
+            category: true,
+            productRecipes: {
+              include: {
+                recipe: {
+                  include: {
+                    category: true
+                  }
+                }
+              },
+              orderBy: {
+                order: 'asc'
+              }
+            }
+          }
+        },
         recipe: {
           include: {
+            category: true,
             ingredients: {
               include: {
                 ingredient: {
@@ -170,16 +214,47 @@ export async function GET(request: NextRequest) {
             }
           }
         },
-        product: true,
-        user: true
+        ingredients: {
+          include: {
+            ingredient: {
+              include: {
+                unit: true,
+                category: true
+              }
+            },
+            unit: true
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc'
-      }
+      },
+      take: limit,
+      skip: offset
     })
 
     console.log('✅ GET productions - Produções encontradas:', productions.length)
-    return NextResponse.json(productions)
+
+    // Enriquecer dados com informações de receitas compostas
+    const enrichedProductions = productions.map(production => {
+      const hasCompositeRecipes = production.product.productRecipes.length > 0
+      
+      return {
+        ...production,
+        hasCompositeRecipes,
+        compositeRecipesCount: production.product.productRecipes.length,
+        recipeType: hasCompositeRecipes ? 'composite' : 'simple'
+      }
+    })
+
+    return NextResponse.json({
+      productions: enrichedProductions,
+      pagination: {
+        limit,
+        offset,
+        total: productions.length
+      }
+    })
   } catch (error) {
     console.error('❌ GET productions - Erro:', error)
     return NextResponse.json(
@@ -189,70 +264,154 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// POST /api/productions - Criar produção com lógica inteligente
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔍 POST productions - Iniciando com integração de estoque...')
+    console.log('🔍 POST production - Iniciando...')
     
     const { user, error } = await getUser(request)
     if (error || !user) {
-      console.log('❌ POST productions - Unauthorized')
+      console.log('❌ POST production - Unauthorized')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('✅ POST productions - Usuário autenticado:', user.id)
+    console.log('✅ POST production - Usuário autenticado:', user.id)
 
     const body = await request.json()
-    console.log('📤 POST productions - Dados recebidos:', body)
-    
-    // Validação com Zod
-    let data
-    try {
-      data = productionSchema.parse(body)
-      console.log('✅ Validação Zod passou')
-    } catch (zodError) {
-      console.error('❌ Erro de validação Zod:', zodError)
-      if (zodError instanceof z.ZodError) {
-        return NextResponse.json(
-          { error: 'Validation failed', details: zodError.format() },
-          { status: 400 }
-        )
-      }
-      throw zodError
-    }
+    console.log('📤 POST production - Dados recebidos:', body)
 
-    // Converte status do frontend para enum correto do Prisma
-    let productionStatus
-    try {
-      productionStatus = mapProductionStatus(data.status)
-      console.log('✅ Status mapeado:', data.status, '->', productionStatus)
-    } catch (statusError) {
-      console.error('❌ Erro no mapeamento de status:', statusError)
+    // Validar dados
+    const data = productionSchemaExpanded.parse(body)
+
+    // Verificar se produto existe e pertence ao usuário
+    const product = await prisma.product.findFirst({
+      where: {
+        id: data.productId,
+        userId: user.id
+      }
+    })
+
+    if (!product) {
+      console.log('❌ POST production - Produto não encontrado')
       return NextResponse.json(
-        { error: `Invalid status: ${data.status}` },
-        { status: 400 }
+        { error: 'Product not found or access denied' },
+        { status: 404 }
       )
     }
 
-    const parseDate = (dateString: string | null | undefined): Date | null => {
-      if (!dateString || dateString === '' || dateString === 'undefined') return null
-      
-      try {
-        const date = new Date(dateString)
-        if (isNaN(date.getTime())) return null
-        
-        const year = date.getFullYear()
-        if (year < 1900 || year > 2100) return null
-        
-        return date
-      } catch {
-        return null
+    // Verificar se receita existe e pertence ao usuário (se fornecida)
+    let recipe = null
+    if (data.recipeId) {
+      recipe = await prisma.recipe.findFirst({
+        where: {
+          id: data.recipeId,
+          userId: user.id
+        }
+      })
+
+      if (!recipe) {
+        console.log('❌ POST production - Receita não encontrada')
+        return NextResponse.json(
+          { error: 'Recipe not found or access denied' },
+          { status: 404 }
+        )
       }
     }
 
-    // Usar transação para garantir consistência entre produção e estoque
-    const result = await prisma.$transaction(async (tx) => {
-      console.log('🔄 Iniciando transação para criação de produção...')
+    // LÓGICA INTELIGENTE: Determinar como calcular ingredientes
+    let ingredientsNeeded = []
+    let calculationMethod = 'none'
 
+    if (data.status === 'Em_Andamento' || data.status === 'Completo') {
+      console.log('🧠 Aplicando lógica inteligente para cálculo de ingredientes...')
+      
+      // Prioridade 1: Se useProductRecipes=true ou produto tem receitas compostas
+      const productRecipes = await prisma.productRecipe.findMany({
+        where: { productId: data.productId }
+      })
+
+      if (data.useProductRecipes || productRecipes.length > 0) {
+        console.log('🎯 Usando receitas compostas do produto')
+        ingredientsNeeded = await calculateIngredientsFromProductRecipes(
+          data.productId, 
+          data.quantityPlanned, 
+          user.id
+        )
+        calculationMethod = 'composite'
+      }
+      // Prioridade 2: Se recipeId fornecido
+      else if (data.recipeId) {
+        console.log('🎯 Usando receita fornecida')
+        ingredientsNeeded = await calculateIngredientsFromRecipe(
+          data.recipeId, 
+          data.quantityPlanned, 
+          user.id
+        )
+        calculationMethod = 'simple'
+      }
+      // Prioridade 3: Receita padrão do produto
+      else if (product.defaultRecipeId) {
+        console.log('🎯 Usando receita padrão do produto')
+        ingredientsNeeded = await calculateIngredientsFromRecipe(
+          product.defaultRecipeId, 
+          data.quantityPlanned, 
+          user.id
+        )
+        calculationMethod = 'default'
+      }
+      else {
+        console.log('⚠️ Nenhuma receita disponível, produção sem desconto de estoque')
+        calculationMethod = 'none'
+      }
+    } else {
+      console.log('📋 Status "Planejado" - não desconta estoque')
+      calculationMethod = 'planned'
+    }
+
+    // Validar estoque se há ingredientes
+    const stockMovements = []
+    const insufficientStock = []
+
+    if (ingredientsNeeded.length > 0) {
+      console.log('🔍 Validando estoque para', ingredientsNeeded.length, 'ingredientes...')
+      
+      for (const item of ingredientsNeeded) {
+        const ingredient = item.ingredient
+        
+        if (ingredient.currentStock < item.quantityNeeded) {
+          insufficientStock.push({
+            name: ingredient.name,
+            needed: item.quantityNeeded,
+            available: ingredient.currentStock,
+            unit: item.unit.name
+          })
+          continue
+        }
+
+        // Preparar movimentação de saída
+        stockMovements.push({
+          ingredientId: ingredient.id,
+          type: 'Saída',
+          quantity: item.quantityNeeded,
+          reason: `Produção - ${data.batchNumber}`,
+          reference: data.batchNumber,
+          ingredient: ingredient
+        })
+      }
+
+      // Se há estoque insuficiente, retornar erro
+      if (insufficientStock.length > 0) {
+        console.log('❌ POST production - Estoque insuficiente:', insufficientStock)
+        return NextResponse.json({
+          error: 'Insufficient stock for production',
+          details: insufficientStock,
+          message: `Estoque insuficiente para ${insufficientStock.length} ingrediente(s)`
+        }, { status: 400 })
+      }
+    }
+
+    // Usar transação para criar produção e movimentações
+    const result = await prisma.$transaction(async (tx) => {
       // Criar produção
       const production = await tx.production.create({
         data: {
@@ -261,81 +420,102 @@ export async function POST(request: NextRequest) {
           userId: user.id,
           batchNumber: data.batchNumber,
           quantityPlanned: data.quantityPlanned,
-          quantityProduced: data.quantityProduced || null,
-          lossPercentage: data.lossPercentage,
-          lossWeight: data.lossWeight,
-          productionDate: parseDate(data.productionDate) || new Date(),
-          expirationDate: parseDate(data.expirationDate),
-          notes: data.notes || '',
-          status: productionStatus
-        },
-        include: {
-          recipe: {
-            include: {
-              ingredients: {
-                include: {
-                  ingredient: {
-                    include: {
-                      unit: true,
-                      category: true
-                    }
-                  },
-                  unit: true
-                }
-              }
-            }
-          },
-          product: true,
-          user: true
+          quantityProduced: data.quantityProduced,
+          lossPercentage: data.lossPercentage || 0,
+          lossWeight: data.lossWeight || 0,
+          productionDate: data.productionDate ? new Date(data.productionDate) : new Date(),
+          expirationDate: data.expirationDate ? new Date(data.expirationDate) : null,
+          notes: data.notes,
+          status: data.status
         }
       })
 
       console.log('✅ Produção criada:', production.id)
 
-      // Processar desconto automático de ingredientes apenas se a produção for criada com status "Em_Andamento" ou "Completo"
-      let stockMovements = []
-      if (productionStatus === 'Em_Andamento' || productionStatus === 'Completo') {
-        console.log('🔄 Status permite desconto automático, processando...')
+      // Processar movimentações de estoque
+      if (stockMovements.length > 0) {
+        console.log('📦 Processando', stockMovements.length, 'movimentações de estoque...')
         
-        try {
-          stockMovements = await processStockMovements(
-            data.recipeId,
-            data.quantityPlanned,
-            data.batchNumber,
-            user.id,
-            tx
-          )
-          console.log('✅ Movimentações de estoque criadas:', stockMovements.length)
-        } catch (stockError) {
-          console.error('❌ Erro no desconto de estoque:', stockError)
-          throw stockError // Isso fará a transação ser revertida
+        for (const movement of stockMovements) {
+          // Criar movimentação
+          await tx.stockMovement.create({
+            data: {
+              ingredientId: movement.ingredientId,
+              type: movement.type,
+              quantity: movement.quantity,
+              reason: movement.reason,
+              reference: movement.reference
+            }
+          })
+
+          // Atualizar estoque do ingrediente
+          await tx.ingredient.update({
+            where: { id: movement.ingredientId },
+            data: {
+              currentStock: {
+                decrement: movement.quantity
+              }
+            }
+          })
+
+          console.log(`✅ Estoque atualizado: ${movement.ingredient.name} (-${movement.quantity})`)
         }
-      } else {
-        console.log('ℹ️ Status não requer desconto automático (Planejado/Cancelado)')
       }
 
-      return {
-        production,
-        stockMovements
-      }
+      return production
     }, {
-      timeout: 10000 // 10 segundos de timeout
+      timeout: 30000 // 30 segundos de timeout
     })
 
-    console.log('✅ POST productions - Produção criada com sucesso!')
-    console.log('📊 Movimentações de estoque:', result.stockMovements.length)
+    console.log('🎉 POST production - Produção criada com sucesso!')
 
-    // Retornar produção com informações sobre movimentações
+    // Buscar produção completa para retorno
+    const completeProduction = await prisma.production.findUnique({
+      where: { id: result.id },
+      include: {
+        product: {
+          include: {
+            category: true,
+            productRecipes: {
+              include: {
+                recipe: {
+                  include: {
+                    category: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        recipe: {
+          include: {
+            category: true
+          }
+        },
+        ingredients: {
+          include: {
+            ingredient: {
+              include: {
+                unit: true,
+                category: true
+              }
+            },
+            unit: true
+          }
+        }
+      }
+    })
+
     return NextResponse.json({
-      ...result.production,
-      stockMovements: result.stockMovements,
-      message: result.stockMovements.length > 0 
-        ? `Produção criada e ${result.stockMovements.length} ingredientes descontados do estoque automaticamente.`
-        : 'Produção criada. Nenhum desconto de estoque necessário.'
+      ...completeProduction,
+      calculationMethod,
+      ingredientsProcessed: ingredientsNeeded.length,
+      stockMovements: stockMovements.length,
+      hasCompositeRecipes: completeProduction?.product.productRecipes.length > 0
     }, { status: 201 })
 
   } catch (error) {
-    console.error('❌ POST productions - Erro detalhado:', error)
+    console.error('❌ POST production - Erro:', error)
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -344,41 +524,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Tratar erros específicos de estoque
-    if (error instanceof Error && error.message.includes('Estoque insuficiente')) {
+    if (error instanceof Error && error.message.includes('not found or access denied')) {
       return NextResponse.json(
         { error: error.message },
-        { status: 400 }
+        { status: 404 }
       )
-    }
-
-    // Tratar erros de timeout
-    if (error instanceof Error && error.message.includes('timeout')) {
-      return NextResponse.json(
-        { error: 'Operation timeout - please try again' },
-        { status: 408 }
-      )
-    }
-
-    // Tratar erros de banco de dados
-    if (error && typeof error === 'object' && 'code' in error) {
-      console.error('❌ Erro de banco de dados:', error)
-      
-      // Erro de chave estrangeira
-      if (error.code === 'P2003') {
-        return NextResponse.json(
-          { error: 'Invalid recipe or product reference' },
-          { status: 400 }
-        )
-      }
-      
-      // Erro de duplicação
-      if (error.code === 'P2002') {
-        return NextResponse.json(
-          { error: 'Batch number already exists' },
-          { status: 409 }
-        )
-      }
     }
 
     return NextResponse.json(
