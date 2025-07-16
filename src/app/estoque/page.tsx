@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Package, 
   Plus, 
@@ -10,299 +10,220 @@ import {
   Calendar,
   AlertTriangle,
   TrendingDown,
-  TrendingUp
+  TrendingUp,
+  Loader2,
+  Eye,
+  Edit,
+  Trash2,
+  Factory,
+  DollarSign,
+  Clock,
+  Archive
 } from 'lucide-react'
+import { api } from '@/lib/api'
 
-export default function Estoque() {
+interface Ingredient {
+  id: string
+  name: string
+  categoryId: string
+  unitId: string
+  pricePerUnit: number
+  supplierId?: string
+  purchaseDate?: string
+  ingredientType: string
+  expirationDate?: string
+  storageCondition: string
+  currentStock: number
+  minimumStock: number
+  createdAt: string
+  updatedAt: string
+  category?: {
+    id: string
+    name: string
+  }
+  unit?: {
+    id: string
+    name: string
+    abbreviation: string
+  }
+  supplier?: {
+    id: string
+    name: string
+  }
+}
+
+interface StockMovement {
+  id: string
+  ingredientId: string
+  type: 'Entrada' | 'Saida'
+  quantity: number
+  reason: string
+  date: string
+  reference?: string
+  ingredient?: Ingredient
+}
+
+interface IngredientCategory {
+  id: string
+  name: string
+  description?: string
+}
+
+interface MeasurementUnit {
+  id: string
+  name: string
+  abbreviation: string
+  type: string
+}
+
+interface Supplier {
+  id: string
+  name: string
+  email?: string
+  phone?: string
+}
+
+// Sistema de toast simples sem dependências externas
+const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+  const toast = document.createElement('div')
+  toast.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white font-medium transition-all duration-300 transform translate-x-full ${
+    type === 'success' ? 'bg-green-500' : 'bg-red-500'
+  }`
+  toast.textContent = message
+  
+  document.body.appendChild(toast)
+  
+  setTimeout(() => {
+    toast.style.transform = 'translateX(0)'
+  }, 100)
+  
+  setTimeout(() => {
+    toast.style.transform = 'translateX(full)'
+    setTimeout(() => {
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast)
+      }
+    }, 300)
+  }, 3000)
+}
+
+export default function EstoqueConectado() {
   const [activeTab, setActiveTab] = useState('insumos')
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [, setEditingItem] = useState<{id: number; name: string; category: string; currentStock: number; minStock: number; expiryDate: string} | null>(null)
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const [isMovementModalOpen, setIsMovementModalOpen] = useState(false)
+  const [editingItem, setEditingItem] = useState<Ingredient | null>(null)
+  const [viewingItem, setViewingItem] = useState<Ingredient | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
+  
+  // Estados para dados
+  const [ingredients, setIngredients] = useState<Ingredient[]>([])
+  const [categories, setCategories] = useState<IngredientCategory[]>([])
+  const [units, setUnits] = useState<MeasurementUnit[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [movements, setMovements] = useState<StockMovement[]>([])
+  
+  // Estados de loading
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
+
+  // Formulário de ingrediente
   const [formData, setFormData] = useState({
-    type: 'entrada', // entrada, saida
-    itemId: 0,
-    itemName: '',
-    quantity: 0,
-    unit: 'g',
-    reason: '',
-    batchNumber: '',
+    name: '',
+    categoryId: '',
+    unitId: '',
+    pricePerUnit: 0,
+    supplierId: '',
+    purchaseDate: '',
+    ingredientType: 'PRINCIPAL',
     expirationDate: '',
-    supplier: '',
-    cost: 0,
-    observations: ''
+    storageCondition: 'AMBIENTE_SECO',
+    currentStock: 0,
+    minimumStock: 0
   })
 
-  const [estoqueInsumos, setEstoqueInsumos] = useState([
-    {
-      id: 1,
-      name: 'Farinha de Trigo Especial',
-      category: 'Farinhas',
-      currentStock: 25000,
-      unit: 'g',
-      minStock: 5000,
-      maxStock: 50000,
-      avgCost: 0.0045,
-      totalValue: 112.50,
-      lastEntry: '2025-06-25',
-      expirationDate: '2025-12-15',
-      supplier: 'Moinho São Paulo',
-      storageLocation: 'Estoque Seco - Prateleira A1',
-      status: 'normal',
-      batches: [
-        { batch: 'FT-20250625-001', quantity: 15000, expiration: '2025-12-15', cost: 0.0045 },
-        { batch: 'FT-20250620-001', quantity: 10000, expiration: '2025-11-30', cost: 0.0042 }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Açúcar Cristal',
-      category: 'Açúcares',
-      currentStock: 8000,
-      unit: 'g',
-      minStock: 3000,
-      maxStock: 20000,
-      avgCost: 0.0032,
-      totalValue: 25.60,
-      lastEntry: '2025-06-20',
-      expirationDate: '2026-06-20',
-      supplier: 'Usina Santa Clara',
-      storageLocation: 'Estoque Seco - Prateleira B2',
-      status: 'normal',
-      batches: [
-        { batch: 'AC-20250620-001', quantity: 8000, expiration: '2026-06-20', cost: 0.0032 }
-      ]
-    },
-    {
-      id: 3,
-      name: 'Fermento Biológico Seco',
-      category: 'Fermentos',
-      currentStock: 500,
-      unit: 'g',
-      minStock: 200,
-      maxStock: 1000,
-      avgCost: 0.08,
-      totalValue: 40.00,
-      lastEntry: '2025-06-28',
-      expirationDate: '2025-08-15',
-      supplier: 'Fermentec',
-      storageLocation: 'Geladeira - Prateleira 1',
-      status: 'baixo',
-      batches: [
-        { batch: 'FB-20250628-001', quantity: 300, expiration: '2025-08-15', cost: 0.08 },
-        { batch: 'FB-20250615-001', quantity: 200, expiration: '2025-07-30', cost: 0.075 }
-      ]
-    },
-    {
-      id: 4,
-      name: 'Manteiga sem Sal',
-      category: 'Gorduras',
-      currentStock: 1200,
-      unit: 'g',
-      minStock: 500,
-      maxStock: 3000,
-      avgCost: 0.0128,
-      totalValue: 15.36,
-      lastEntry: '2025-06-27',
-      expirationDate: '2025-07-10',
-      supplier: 'Laticínios Vale Verde',
-      storageLocation: 'Geladeira - Prateleira 2',
-      status: 'vencendo',
-      batches: [
-        { batch: 'MT-20250627-001', quantity: 1200, expiration: '2025-07-10', cost: 0.0128 }
-      ]
+  // Formulário de movimentação
+  const [movementData, setMovementData] = useState({
+    ingredientId: '',
+    type: 'Entrada' as 'Entrada' | 'Saida',
+    quantity: 0,
+    reason: '',
+    reference: ''
+  })
+
+  // Carregar dados
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true)
+      console.log('🔄 Carregando dados do estoque...')
+      
+      const [ingredientsRes, categoriesRes, unitsRes, suppliersRes] = await Promise.all([
+        api.get('/api/ingredients'),
+        api.get('/api/ingredient-categories'),
+        api.get('/api/measurement-units'),
+        api.get('/api/suppliers')
+      ])
+
+      if (ingredientsRes.data) {
+        setIngredients(Array.isArray(ingredientsRes.data) ? ingredientsRes.data : [])
+        console.log('✅ Ingredientes carregados:', ingredientsRes.data.length)
+      } else {
+        setIngredients([])
+      }
+
+      if (categoriesRes.data) {
+        setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : [])
+        console.log('✅ Categorias carregadas:', categoriesRes.data.length)
+      } else {
+        setCategories([])
+      }
+
+      if (unitsRes.data) {
+        setUnits(Array.isArray(unitsRes.data) ? unitsRes.data : [])
+        console.log('✅ Unidades carregadas:', unitsRes.data.length)
+      } else {
+        setUnits([])
+      }
+
+      if (suppliersRes.data) {
+        setSuppliers(Array.isArray(suppliersRes.data) ? suppliersRes.data : [])
+        console.log('✅ Fornecedores carregados:', suppliersRes.data.length)
+      } else {
+        setSuppliers([])
+      }
+
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados:', error)
+      showToast('Falha ao carregar dados. Verifique sua conexão.', 'error')
+    } finally {
+      setLoading(false)
     }
-  ])
+  }, [])
 
-  const [estoqueProdutos] = useState([
-    {
-      id: 1,
-      name: 'Pão Francês Tradicional',
-      category: 'Pães',
-      currentStock: 2400,
-      unit: 'g',
-      unitWeight: 50,
-      pieces: 48,
-      productionDate: '2025-06-29',
-      expirationDate: '2025-06-30',
-      batchNumber: 'PF-20250629-001',
-      productionCost: 3.45,
-      totalValue: 165.60,
-      status: 'normal',
-      storageLocation: 'Vitrine Principal'
-    },
-    {
-      id: 2,
-      name: 'Bolo de Chocolate Premium',
-      category: 'Bolos',
-      currentStock: 1200,
-      unit: 'g',
-      unitWeight: 1200,
-      pieces: 1,
-      productionDate: '2025-06-28',
-      expirationDate: '2025-07-02',
-      batchNumber: 'BC-20250628-001',
-      productionCost: 8.75,
-      totalValue: 8.75,
-      status: 'normal',
-      storageLocation: 'Vitrine Refrigerada'
-    },
-    {
-      id: 3,
-      name: 'Croissant Folhado',
-      category: 'Doces',
-      currentStock: 640,
-      unit: 'g',
-      unitWeight: 80,
-      pieces: 8,
-      productionDate: '2025-06-28',
-      expirationDate: '2025-06-29',
-      batchNumber: 'CF-20250628-001',
-      productionCost: 1.25,
-      totalValue: 10.00,
-      status: 'vencendo',
-      storageLocation: 'Vitrine Principal'
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  // Filtrar ingredientes
+  const filteredIngredients = ingredients.filter(ingredient => {
+    const matchesSearch = ingredient.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesCategory = filterCategory === '' || ingredient.categoryId === filterCategory
+    const matchesStatus = filterStatus === '' || getIngredientStatus(ingredient) === filterStatus
+    return matchesSearch && matchesCategory && matchesStatus
+  })
+
+  // Determinar status do ingrediente
+  const getIngredientStatus = (ingredient: Ingredient) => {
+    if (ingredient.currentStock <= ingredient.minimumStock) return 'baixo'
+    if (ingredient.expirationDate) {
+      const daysUntilExpiration = getDaysUntilExpiration(ingredient.expirationDate)
+      if (daysUntilExpiration <= 0) return 'vencido'
+      if (daysUntilExpiration <= 7) return 'vencendo'
     }
-  ])
-
-  const [movimentacoes, setMovimentacoes] = useState([
-    {
-      id: 1,
-      type: 'entrada',
-      itemName: 'Farinha de Trigo Especial',
-      quantity: 15000,
-      unit: 'g',
-      reason: 'Compra',
-      batchNumber: 'FT-20250625-001',
-      date: '2025-06-25T10:30:00',
-      user: 'João Silva',
-      cost: 67.50,
-      supplier: 'Moinho São Paulo'
-    },
-    {
-      id: 2,
-      type: 'saida',
-      itemName: 'Farinha de Trigo Especial',
-      quantity: 500,
-      unit: 'g',
-      reason: 'Produção - PF-20250629-001',
-      batchNumber: 'FT-20250625-001',
-      date: '2025-06-29T06:00:00',
-      user: 'Sistema',
-      cost: 2.25
-    },
-    {
-      id: 3,
-      type: 'entrada',
-      itemName: 'Pão Francês Tradicional',
-      quantity: 1000,
-      unit: 'g',
-      reason: 'Produção',
-      batchNumber: 'PF-20250629-001',
-      date: '2025-06-29T09:30:00',
-      user: 'Sistema',
-      cost: 3.45
-    }
-  ])
-
-  const categoriesInsumos = ['Farinhas', 'Açúcares', 'Fermentos', 'Gorduras', 'Líquidos', 'Temperos']
-  const categoriesProdutos = ['Pães', 'Bolos', 'Doces', 'Salgados', 'Biscoitos', 'Tortas']
-  const statusOptions = [
-    { value: 'normal', label: 'Normal', color: 'bg-green-100 text-green-800' },
-    { value: 'baixo', label: 'Estoque Baixo', color: 'bg-yellow-100 text-yellow-800' },
-    { value: 'vencendo', label: 'Vencendo', color: 'bg-orange-100 text-orange-800' },
-    { value: 'vencido', label: 'Vencido', color: 'bg-red-100 text-red-800' }
-  ]
-
-
-  const getCurrentCategories = () => {
-    return activeTab === 'insumos' ? categoriesInsumos : categoriesProdutos
-  }
-
-  
-
-
-  const handleAddMovement = () => {
-    setEditingItem(null)
-    setFormData({
-      type: 'entrada',
-      itemId: 0,
-      itemName: '',
-      quantity: 0,
-      unit: 'g',
-      reason: '',
-      batchNumber: '',
-      expirationDate: '',
-      supplier: '',
-      cost: 0,
-      observations: ''
-    })
-    setIsModalOpen(true)
-  }
-
-  const handleSaveMovement = () => {
-    const newMovement = {
-      id: Math.max(...movimentacoes.map(m => m.id)) + 1,
-      type: formData.type,
-      itemName: formData.itemName,
-      quantity: formData.quantity,
-      unit: formData.unit,
-      reason: formData.reason,
-      batchNumber: formData.batchNumber,
-      date: new Date().toISOString(),
-      user: 'Usuário Atual',
-      cost: formData.cost,
-      supplier: formData.supplier
-    }
-
-    setMovimentacoes([newMovement, ...movimentacoes])
-    
-    if (activeTab === 'insumos') {
-      setEstoqueInsumos(estoqueInsumos.map(item => {
-        if (item.id === formData.itemId) {
-          const newStock = formData.type === 'entrada' 
-            ? item.currentStock + formData.quantity
-            : item.currentStock - formData.quantity
-          
-          return {
-            ...item,
-            currentStock: Math.max(0, newStock),
-            totalValue: newStock * item.avgCost,
-            lastEntry: formData.type === 'entrada' ? new Date().toISOString().split('T')[0] : item.lastEntry
-          }
-        }
-        return item
-      }))
-    }
-    
-    setIsModalOpen(false)
-  }
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig = statusOptions.find(s => s.value === status)
-    return statusConfig || statusOptions[0]
-  }
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value)
-  }
-
-  const formatWeight = (value: number, unit: string = 'g') => {
-    if (unit === 'g' && value >= 1000) {
-      return `${(value / 1000).toFixed(2)} kg`
-    }
-    if (unit === 'ml' && value >= 1000) {
-      return `${(value / 1000).toFixed(2)} L`
-    }
-    return `${value.toFixed(0)} ${unit}`
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR')
+    return 'normal'
   }
 
   const getDaysUntilExpiration = (expirationDate: string) => {
@@ -313,516 +234,738 @@ export default function Estoque() {
     return diffDays
   }
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'normal': return 'bg-green-100 text-green-800'
+      case 'baixo': return 'bg-yellow-100 text-yellow-800'
+      case 'vencendo': return 'bg-orange-100 text-orange-800'
+      case 'vencido': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'normal': return 'Normal'
+      case 'baixo': return 'Estoque Baixo'
+      case 'vencendo': return 'Vencendo'
+      case 'vencido': return 'Vencido'
+      default: return status
+    }
+  }
+
+  // Handlers
+  const handleAdd = () => {
+    setEditingItem(null)
+    setFormData({
+      name: '',
+      categoryId: '',
+      unitId: '',
+      pricePerUnit: 0,
+      supplierId: '',
+      purchaseDate: '',
+      ingredientType: 'PRINCIPAL',
+      expirationDate: '',
+      storageCondition: 'AMBIENTE_SECO',
+      currentStock: 0,
+      minimumStock: 0
+    })
+    setIsModalOpen(true)
+  }
+
+  const handleEdit = (item: Ingredient) => {
+    setEditingItem(item)
+    setFormData({
+      name: item.name,
+      categoryId: item.categoryId,
+      unitId: item.unitId,
+      pricePerUnit: item.pricePerUnit,
+      supplierId: item.supplierId || '',
+      purchaseDate: item.purchaseDate ? item.purchaseDate.split('T')[0] : '',
+      ingredientType: item.ingredientType,
+      expirationDate: item.expirationDate ? item.expirationDate.split('T')[0] : '',
+      storageCondition: item.storageCondition,
+      currentStock: item.currentStock,
+      minimumStock: item.minimumStock
+    })
+    setIsModalOpen(true)
+  }
+
+  const handleView = (item: Ingredient) => {
+    setViewingItem(item)
+    setIsViewModalOpen(true)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir este ingrediente?')) return
+
+    try {
+      setDeleting(id)
+      console.log('🗑️ Excluindo ingrediente:', id)
+      
+      const response = await api.delete(`/api/ingredients/${id}`)
+      
+      if (response.data || !response.error) {
+        setIngredients(ingredients.filter(item => item.id !== id))
+        showToast('Ingrediente excluído com sucesso!')
+        console.log('✅ Ingrediente excluído')
+      } else {
+        throw new Error(response.error || 'Falha ao excluir')
+      }
+    } catch (error) {
+      console.error('❌ Erro ao excluir:', error)
+      showToast('Falha ao excluir ingrediente. Tente novamente.', 'error')
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      setSaving(true)
+      console.log('💾 Salvando ingrediente...')
+      console.log('📋 Dados do formulário:', formData)
+
+      // Validações básicas
+      if (!formData.name.trim()) {
+        showToast('Nome do ingrediente é obrigatório', 'error')
+        return
+      }
+
+      if (!formData.categoryId) {
+        showToast('Categoria é obrigatória', 'error')
+        return
+      }
+
+      if (!formData.unitId) {
+        showToast('Unidade de medida é obrigatória', 'error')
+        return
+      }
+
+      const apiData = {
+        name: formData.name.trim(),
+        categoryId: formData.categoryId,
+        unitId: formData.unitId,
+        pricePerUnit: Number(formData.pricePerUnit),
+        supplierId: formData.supplierId || null,
+        purchaseDate: formData.purchaseDate || null,
+        ingredientType: formData.ingredientType,
+        expirationDate: formData.expirationDate || null,
+        storageCondition: formData.storageCondition,
+        currentStock: Number(formData.currentStock),
+        minimumStock: Number(formData.minimumStock)
+      }
+
+      console.log('📡 Dados para API:', apiData)
+
+      let response
+      if (editingItem) {
+        console.log('✏️ Atualizando ingrediente existente')
+        response = await api.put('/api/ingredients', { id: editingItem.id, ...apiData })
+      } else {
+        console.log('🆕 Criando novo ingrediente')
+        response = await api.post('/api/ingredients', apiData)
+      }
+
+      console.log('📊 Resposta da API:', response)
+
+      if (response.data && !response.error) {
+        showToast(editingItem ? 'Ingrediente atualizado com sucesso!' : 'Ingrediente criado com sucesso!')
+        setIsModalOpen(false)
+        
+        // Resetar formulário
+        setFormData({
+          name: '',
+          categoryId: '',
+          unitId: '',
+          pricePerUnit: 0,
+          supplierId: '',
+          purchaseDate: '',
+          ingredientType: 'PRINCIPAL',
+          expirationDate: '',
+          storageCondition: 'AMBIENTE_SECO',
+          currentStock: 0,
+          minimumStock: 0
+        })
+        
+        // Recarregar dados
+        console.log('🔄 Recarregando dados...')
+        await loadData()
+      } else {
+        console.error('❌ API retornou erro:', response.error)
+        throw new Error(response.error || 'Falha ao salvar')
+      }
+
+    } catch (error) {
+      console.error('❌ Erro ao salvar:', error)
+      
+      let errorMessage = 'Erro desconhecido'
+      if (error instanceof Error) {
+        errorMessage = error.message
+      }
+      
+      showToast(`Falha ao salvar ingrediente: ${errorMessage}`, 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleAddMovement = () => {
+    setMovementData({
+      ingredientId: '',
+      type: 'Entrada',
+      quantity: 0,
+      reason: '',
+      reference: ''
+    })
+    setIsMovementModalOpen(true)
+  }
+
+  // Calcular métricas
+  const totalIngredients = ingredients.length
+  const lowStockIngredients = ingredients.filter(i => getIngredientStatus(i) === 'baixo').length
+  const expiringIngredients = ingredients.filter(i => getIngredientStatus(i) === 'vencendo').length
+  const totalValue = ingredients.reduce((sum, ingredient) => sum + (ingredient.currentStock * ingredient.pricePerUnit), 0)
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value)
+  }
+
+  const formatWeight = (value: number, unit?: string) => {
+    const unitAbbr = unit || 'g'
+    if (unitAbbr === 'g' && value >= 1000) {
+      return `${(value / 1000).toFixed(2)} kg`
+    }
+    if (unitAbbr === 'ml' && value >= 1000) {
+      return `${(value / 1000).toFixed(2)} L`
+    }
+    return `${value.toFixed(0)} ${unitAbbr}`
+  }
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '-'
+    return new Date(dateString).toLocaleDateString('pt-BR')
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600 text-lg">Carregando estoque...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Estoque</h1>
-          <p className="text-gray-600 mt-1">Gerencie o estoque de insumos e produtos finais</p>
-        </div>
-        <button
-          onClick={handleAddMovement}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus size={16} />
-          <span>Nova Movimentação</span>
-        </button>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Package className="text-blue-600" size={20} />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Itens em Estoque</p>
-              <p className="text-xl font-bold text-gray-900">
-                {estoqueInsumos.length + estoqueProdutos.length}
-              </p>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div className="container mx-auto px-4 py-8 space-y-8">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">
+              Estoque
+            </h1>
+            <p className="text-gray-600 mt-2 text-lg">Gerencie o estoque de ingredientes e movimentações</p>
           </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <AlertTriangle className="text-yellow-600" size={20} />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Estoque Baixo</p>
-              <p className="text-xl font-bold text-gray-900">
-                {estoqueInsumos.filter(item => item.status === 'baixo').length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <Calendar className="text-orange-600" size={20} />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Vencendo</p>
-              <p className="text-xl font-bold text-gray-900">
-                {[...estoqueInsumos, ...estoqueProdutos].filter(item => item.status === 'vencendo').length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <TrendingUp className="text-green-600" size={20} />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Valor Total</p>
-              <p className="text-xl font-bold text-gray-900">
-                {formatCurrency([...estoqueInsumos, ...estoqueProdutos].reduce((sum, item) => sum + item.totalValue, 0))}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8 px-6">
+          <div className="flex space-x-3">
             <button
-              onClick={() => setActiveTab('insumos')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'insumos'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              onClick={handleAddMovement}
+              className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
-              Estoque de Insumos
+              <TrendingUp size={20} />
+              <span className="font-semibold">Nova Movimentação</span>
             </button>
             <button
-              onClick={() => setActiveTab('produtos')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'produtos'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              onClick={handleAdd}
+              className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
-              Estoque de Produtos
+              <Plus size={20} />
+              <span className="font-semibold">Novo Ingrediente</span>
             </button>
-            <button
-              onClick={() => setActiveTab('movimentacoes')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'movimentacoes'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Movimentações
-            </button>
-          </nav>
+          </div>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/50 p-8 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+            <div className="flex items-center space-x-4">
+              <div className="p-4 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg">
+                <Package className="text-white" size={28} />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Total de Ingredientes</p>
+                <p className="text-3xl font-bold text-gray-900">{totalIngredients}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/50 p-8 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+            <div className="flex items-center space-x-4">
+              <div className="p-4 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl shadow-lg">
+                <AlertTriangle className="text-white" size={28} />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Estoque Baixo</p>
+                <p className="text-3xl font-bold text-gray-900">{lowStockIngredients}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/50 p-8 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+            <div className="flex items-center space-x-4">
+              <div className="p-4 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl shadow-lg">
+                <Calendar className="text-white" size={28} />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Vencendo</p>
+                <p className="text-3xl font-bold text-gray-900">{expiringIngredients}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/50 p-8 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+            <div className="flex items-center space-x-4">
+              <div className="p-4 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl shadow-lg">
+                <DollarSign className="text-white" size={28} />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Valor Total</p>
+                <p className="text-3xl font-bold text-gray-900">{formatCurrency(totalValue)}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Filters */}
-        {activeTab !== 'movimentacoes' && (
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                  <input
-                    type="text"
-                    placeholder="Buscar por nome..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+        <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/50 p-8">
+          <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={24} />
+                <input
+                  type="text"
+                  placeholder="Buscar por nome do ingrediente..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-14 pr-6 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm text-lg"
+                />
+              </div>
+            </div>
+            <div className="lg:w-64">
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="w-full px-6 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm text-lg"
+              >
+                <option value="">Todas as categorias</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.id}>{category.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="lg:w-64">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full px-6 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm text-lg"
+              >
+                <option value="">Todos os status</option>
+                <option value="normal">Normal</option>
+                <option value="baixo">Estoque Baixo</option>
+                <option value="vencendo">Vencendo</option>
+                <option value="vencido">Vencido</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/50 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                <tr>
+                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Ingrediente</th>
+                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Estoque Atual</th>
+                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Estoque Mínimo</th>
+                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Preço/Unidade</th>
+                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Valor Total</th>
+                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Validade</th>
+                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Status</th>
+                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white/50 divide-y divide-gray-200">
+                {filteredIngredients.map((ingredient) => {
+                  const status = getIngredientStatus(ingredient)
+                  const totalValue = ingredient.currentStock * ingredient.pricePerUnit
+                  const daysUntilExpiration = ingredient.expirationDate ? getDaysUntilExpiration(ingredient.expirationDate) : null
+                  
+                  return (
+                    <tr key={ingredient.id} className="hover:bg-white/70 transition-colors duration-200">
+                      <td className="px-8 py-6 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm font-semibold text-gray-900">{ingredient.name}</div>
+                          <div className="text-sm text-gray-500">{ingredient.category?.name}</div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 whitespace-nowrap">
+                        <div className="text-sm font-semibold text-gray-900">
+                          {formatWeight(ingredient.currentStock, ingredient.unit?.abbreviation)}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {formatWeight(ingredient.minimumStock, ingredient.unit?.abbreviation)}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {formatCurrency(ingredient.pricePerUnit)}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 whitespace-nowrap">
+                        <div className="text-sm font-semibold text-gray-900">
+                          {formatCurrency(totalValue)}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {ingredient.expirationDate ? formatDate(ingredient.expirationDate) : '-'}
+                        </div>
+                        {daysUntilExpiration !== null && (
+                          <div className={`text-xs ${
+                            daysUntilExpiration <= 0 ? 'text-red-600' : 
+                            daysUntilExpiration <= 7 ? 'text-orange-600' : 'text-gray-500'
+                          }`}>
+                            {daysUntilExpiration > 0 ? `${daysUntilExpiration} dias` : 'Vencido'}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-8 py-6 whitespace-nowrap">
+                        <span className={`px-4 py-2 text-sm font-semibold rounded-full ${getStatusColor(status)}`}>
+                          {getStatusLabel(status)}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-3">
+                          <button
+                            onClick={() => handleView(ingredient)}
+                            className="text-green-600 hover:text-green-900 p-2 rounded-xl hover:bg-green-50 transition-colors"
+                            title="Visualizar detalhes"
+                          >
+                            <Eye size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleEdit(ingredient)}
+                            className="text-blue-600 hover:text-blue-900 p-2 rounded-xl hover:bg-blue-50 transition-colors"
+                            title="Editar ingrediente"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(ingredient.id)}
+                            disabled={deleting === ingredient.id}
+                            className="text-red-600 hover:text-red-900 p-2 rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50"
+                            title="Excluir ingrediente"
+                          >
+                            {deleting === ingredient.id ? (
+                              <Loader2 size={18} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={18} />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {filteredIngredients.length === 0 && (
+            <div className="text-center py-16">
+              <Package className="mx-auto h-16 w-16 text-gray-400 mb-6" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Nenhum ingrediente encontrado</h3>
+              <p className="text-gray-500 text-lg">Comece cadastrando seus primeiros ingredientes.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Modal de Criação/Edição */}
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-6 w-full max-w-4xl shadow-2xl border border-white/50 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  {editingItem ? 'Editar Ingrediente' : 'Novo Ingrediente'}
+                </h3>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 p-2 rounded-xl hover:bg-gray-100 transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Informações Básicas */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Nome do Ingrediente *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                      placeholder="Ex: Farinha de Trigo Especial"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Categoria *</label>
+                    <select
+                      value={formData.categoryId}
+                      onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    >
+                      <option value="">Selecione uma categoria</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Unidade de Medida *</label>
+                    <select
+                      value={formData.unitId}
+                      onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    >
+                      <option value="">Selecione uma unidade</option>
+                      {units.map((unit) => (
+                        <option key={unit.id} value={unit.id}>
+                          {unit.name} ({unit.abbreviation})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Preço por Unidade (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.pricePerUnit || ''}
+                      onChange={(e) => setFormData({ ...formData, pricePerUnit: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                      placeholder="Ex: 0.0045"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Estoque Atual</label>
+                    <input
+                      type="number"
+                      value={formData.currentStock || ''}
+                      onChange={(e) => setFormData({ ...formData, currentStock: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                      placeholder="Ex: 25000"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Estoque Mínimo</label>
+                    <input
+                      type="number"
+                      value={formData.minimumStock || ''}
+                      onChange={(e) => setFormData({ ...formData, minimumStock: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                      placeholder="Ex: 5000"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Fornecedor</label>
+                    <select
+                      value={formData.supplierId}
+                      onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    >
+                      <option value="">Selecione um fornecedor</option>
+                      {suppliers.map((supplier) => (
+                        <option key={supplier.id} value={supplier.id}>
+                          {supplier.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Data de Compra</label>
+                    <input
+                      type="date"
+                      value={formData.purchaseDate}
+                      onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Data de Validade</label>
+                    <input
+                      type="date"
+                      value={formData.expirationDate}
+                      onChange={(e) => setFormData({ ...formData, expirationDate: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Condição de Armazenamento</label>
+                    <select
+                      value={formData.storageCondition}
+                      onChange={(e) => setFormData({ ...formData, storageCondition: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    >
+                      <option value="AMBIENTE_SECO">Ambiente Seco</option>
+                      <option value="REFRIGERADO">Refrigerado</option>
+                      <option value="CONGELADO">Congelado</option>
+                      <option value="TEMPERATURA_CONTROLADA">Temperatura Controlada</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Tipo de Ingrediente</label>
+                    <select
+                      value={formData.ingredientType}
+                      onChange={(e) => setFormData({ ...formData, ingredientType: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/70 backdrop-blur-sm"
+                    >
+                      <option value="PRINCIPAL">Principal</option>
+                      <option value="SECUNDARIO">Secundário</option>
+                      <option value="TEMPERO">Tempero</option>
+                      <option value="ADITIVO">Aditivo</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-              <div className="md:w-48">
-                <select
-                  value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+
+              <div className="flex space-x-4 mt-8">
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !formData.name || !formData.categoryId || !formData.unitId}
+                  className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                 >
-                  <option value="">Todas as categorias</option>
-                  {getCurrentCategories().map(categoria => (
-                    <option key={categoria} value={categoria}>{categoria}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="md:w-48">
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  {saving ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin" />
+                      <span>Salvando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={20} />
+                      <span>{editingItem ? 'Atualizar' : 'Salvar'} Ingrediente</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={saving}
+                  className="flex-1 px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                 >
-                  <option value="">Todos os status</option>
-                  {statusOptions.map(status => (
-                    <option key={status.value} value={status.value}>{status.label}</option>
-                  ))}
-                </select>
+                  Cancelar
+                </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Content */}
-        <div className="p-6">
-          {activeTab === 'insumos' && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Insumo</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estoque Atual</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min/Max</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Validade</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Local</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {estoqueInsumos.filter(item => {
-                    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase())
-                    const matchesCategory = filterCategory === '' || item.category === filterCategory
-                    const matchesStatus = filterStatus === '' || item.status === filterStatus
-                    return matchesSearch && matchesCategory && matchesStatus
-                  }).map((item) => {
-                    const statusBadge = getStatusBadge(item.status)
-                    const daysUntilExpiration = getDaysUntilExpiration(item.expirationDate)
-                    
-                    return (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                            <div className="text-sm text-gray-500">{item.category}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {formatWeight(item.currentStock, item.unit)}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatWeight(item.minStock, item.unit)} / {formatWeight(item.maxStock, item.unit)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{formatCurrency(item.totalValue)}</div>
-                          <div className="text-sm text-gray-500">{formatCurrency(item.avgCost)}/{item.unit}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{formatDate(item.expirationDate)}</div>
-                          <div className={`text-xs ${
-                            daysUntilExpiration <= 7 ? 'text-red-600' : 
-                            daysUntilExpiration <= 30 ? 'text-yellow-600' : 'text-gray-500'
-                          }`}>
-                            {daysUntilExpiration > 0 ? `${daysUntilExpiration} dias` : 'Vencido'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.storageLocation}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs rounded-full ${statusBadge.color}`}>
-                            {statusBadge.label}
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {activeTab === 'produtos' && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produto</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estoque</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lote</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produção</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Validade</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {estoqueProdutos.filter(item => {
-                    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase())
-                    const matchesCategory = filterCategory === '' || item.category === filterCategory
-                    const matchesStatus = filterStatus === '' || item.status === filterStatus
-                    return matchesSearch && matchesCategory && matchesStatus
-                  }).map((item) => {
-                    const statusBadge = getStatusBadge(item.status)
-                    const daysUntilExpiration = getDaysUntilExpiration(item.expirationDate)
-                    
-                    return (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                            <div className="text-sm text-gray-500">{item.category}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {formatWeight(item.currentStock, item.unit)}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {item.pieces} {item.pieces === 1 ? 'unidade' : 'unidades'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.batchNumber}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatDate(item.productionDate)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{formatDate(item.expirationDate)}</div>
-                          <div className={`text-xs ${
-                            daysUntilExpiration <= 1 ? 'text-red-600' : 
-                            daysUntilExpiration <= 3 ? 'text-yellow-600' : 'text-gray-500'
-                          }`}>
-                            {daysUntilExpiration > 0 ? `${daysUntilExpiration} dias` : 'Vencido'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{formatCurrency(item.totalValue)}</div>
-                          <div className="text-sm text-gray-500">Custo: {formatCurrency(item.productionCost)}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs rounded-full ${statusBadge.color}`}>
-                            {statusBadge.label}
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {activeTab === 'movimentacoes' && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantidade</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Motivo</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuário</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {movimentacoes.map((movement) => (
-                    <tr key={movement.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          movement.type === 'entrada' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {movement.type === 'entrada' ? (
-                            <><TrendingUp className="inline w-3 h-3 mr-1" />Entrada</>
-                          ) : (
-                            <><TrendingDown className="inline w-3 h-3 mr-1" />Saída</>
-                          )}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{movement.itemName}</div>
-                        {movement.batchNumber && (
-                          <div className="text-sm text-gray-500">Lote: {movement.batchNumber}</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatWeight(movement.quantity, movement.unit)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {movement.reason}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(movement.date).toLocaleString('pt-BR')}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {movement.user}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {movement.cost ? formatCurrency(movement.cost) : '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Modal for Movement */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Nova Movimentação</h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Movimentação</label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        {/* Modal de Visualização */}
+        {isViewModalOpen && viewingItem && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-6 w-full max-w-2xl shadow-2xl border border-white/50">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Detalhes do Ingrediente
+                </h3>
+                <button
+                  onClick={() => setIsViewModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 p-2 rounded-xl hover:bg-gray-100 transition-colors"
                 >
-                  <option value="entrada">Entrada</option>
-                  <option value="saida">Saída</option>
-                </select>
+                  <X size={24} />
+                </button>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Item</label>
-                <select
-                  value={formData.itemId}
-                  onChange={(e) => {
-                    const itemId = parseInt(e.target.value)
-                    const item = estoqueInsumos.find(i => i.id === itemId)
-                    setFormData({ 
-                      ...formData, 
-                      itemId, 
-                      itemName: item?.name || '',
-                      unit: item?.unit || 'g'
-                    })
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Nome</label>
+                    <p className="text-gray-900">{viewingItem.name}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Categoria</label>
+                    <p className="text-gray-900">{viewingItem.category?.name || 'Não informado'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Estoque Atual</label>
+                    <p className="text-gray-900">{formatWeight(viewingItem.currentStock, viewingItem.unit?.abbreviation)}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Estoque Mínimo</label>
+                    <p className="text-gray-900">{formatWeight(viewingItem.minimumStock, viewingItem.unit?.abbreviation)}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Preço por Unidade</label>
+                    <p className="text-gray-900">{formatCurrency(viewingItem.pricePerUnit)}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Valor Total</label>
+                    <p className="text-gray-900">{formatCurrency(viewingItem.currentStock * viewingItem.pricePerUnit)}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Fornecedor</label>
+                    <p className="text-gray-900">{viewingItem.supplier?.name || 'Não informado'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Data de Validade</label>
+                    <p className="text-gray-900">{viewingItem.expirationDate ? formatDate(viewingItem.expirationDate) : 'Não informado'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Condição de Armazenamento</label>
+                    <p className="text-gray-900">{viewingItem.storageCondition.replace('_', ' ')}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Status</label>
+                    <span className={`px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(getIngredientStatus(viewingItem))}`}>
+                      {getStatusLabel(getIngredientStatus(viewingItem))}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end mt-8">
+                <button
+                  onClick={() => setIsViewModalOpen(false)}
+                  className="px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-semibold"
                 >
-                  <option value={0}>Selecione o item</option>
-                  {estoqueInsumos.map(item => (
-                    <option key={item.id} value={item.id}>{item.name}</option>
-                  ))}
-                </select>
+                  Fechar
+                </button>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Quantidade</label>
-                <input
-                  type="number"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: 1000"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Motivo</label>
-                <input
-                  type="text"
-                  value={formData.reason}
-                  onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: Compra, Produção, Perda"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Número do Lote</label>
-                <input
-                  type="text"
-                  value={formData.batchNumber}
-                  onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: FT-20250629-001"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Custo (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.cost}
-                  onChange={(e) => setFormData({ ...formData, cost: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: 25.50"
-                />
-              </div>
-
-              {formData.type === 'entrada' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Fornecedor</label>
-                    <input
-                      type="text"
-                      value={formData.supplier}
-                      onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Ex: Moinho São Paulo"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Data de Validade</label>
-                    <input
-                      type="date"
-                      value={formData.expirationDate}
-                      onChange={(e) => setFormData({ ...formData, expirationDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Observações</label>
-                <textarea
-                  value={formData.observations}
-                  onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                  placeholder="Observações sobre a movimentação..."
-                />
-              </div>
-            </div>
-
-            <div className="flex space-x-3 mt-6">
-              <button
-                onClick={handleSaveMovement}
-                className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Save size={16} />
-                <span>Salvar Movimentação</span>
-              </button>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancelar
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
+
