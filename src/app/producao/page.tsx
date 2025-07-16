@@ -226,10 +226,7 @@ export default function ProducaoSemEdicao() {
     setIsModalOpen(true)
   }
 
-  // ❌ EDIÇÃO DESABILITADA TEMPORARIAMENTE
-    showToast('Edição temporariamente desabilitada. Use exclusão + nova criação como alternativa.', 'error')
-    console.log('⚠️ Edição desabilitada para evitar erro 400')
-  }
+
 
   const handleView = (item: Production) => {
     setViewingItem(item)
@@ -601,12 +598,6 @@ export default function ProducaoSemEdicao() {
                           title="Visualizar detalhes"
                         >
                           <Eye size={18} />
-                        </button>
-                        <button
-                          className="text-gray-400 p-2 rounded-xl cursor-not-allowed opacity-50"
-                          title="Edição temporariamente desabilitada"
-                          disabled
-                        >
                         </button>
                         <button
                           onClick={() => handleDelete(production.id)}
