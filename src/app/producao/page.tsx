@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Search, Plus, Edit, Trash2, X, Factory, Users, Package, TrendingUp, Calendar, Clock, Loader2, AlertCircle, ChevronDown, Eye } from 'lucide-react'
+import { Search, Plus, Trash2, X, Factory, Users, Package, TrendingUp, Calendar, Clock, Loader2, AlertCircle, ChevronDown, Eye } from 'lucide-react'
 import { api } from '@/lib/api'
 
 interface Production {
@@ -227,7 +227,6 @@ export default function ProducaoSemEdicao() {
   }
 
   // ❌ EDIÇÃO DESABILITADA TEMPORARIAMENTE
-  const handleEdit = (item: Production) => {
     showToast('Edição temporariamente desabilitada. Use exclusão + nova criação como alternativa.', 'error')
     console.log('⚠️ Edição desabilitada para evitar erro 400')
   }
@@ -465,19 +464,6 @@ export default function ProducaoSemEdicao() {
           </button>
         </div>
 
-        {/* Aviso sobre edição desabilitada */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6">
-          <div className="flex items-center space-x-3">
-            <AlertCircle className="text-yellow-600" size={24} />
-            <div>
-              <h3 className="text-lg font-semibold text-yellow-800">Edição Temporariamente Desabilitada</h3>
-              <p className="text-yellow-700 mt-1">
-                Para evitar erros, a edição está desabilitada. Use <strong>exclusão + nova criação</strong> como alternativa.
-                Apenas <strong>visualização</strong> e <strong>exclusão</strong> estão disponíveis.
-              </p>
-            </div>
-          </div>
-        </div>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -617,12 +603,10 @@ export default function ProducaoSemEdicao() {
                           <Eye size={18} />
                         </button>
                         <button
-                          onClick={() => handleEdit(production)}
                           className="text-gray-400 p-2 rounded-xl cursor-not-allowed opacity-50"
                           title="Edição temporariamente desabilitada"
                           disabled
                         >
-                          <Edit size={18} />
                         </button>
                         <button
                           onClick={() => handleDelete(production.id)}
