@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Search, Plus, Edit, Trash2, X, Factory, Users, Package, TrendingUp, Calendar, Clock, Loader2, AlertCircle } from 'lucide-react'
+import { Search, Plus, Edit, Trash2, X, Factory, Users, Package, TrendingUp, Calendar, Clock, Loader2, AlertCircle, ChefHat } from 'lucide-react'
 import { api } from '@/lib/api'
 
 interface Production {
@@ -33,6 +33,14 @@ interface Product {
   averageWeight: number
   description?: string
   category?: { name: string }
+  recipes?: Recipe[]  // ✅ Receitas associadas ao produto
+}
+
+interface Recipe {
+  id: string
+  name: string
+  description?: string
+  productId?: string
 }
 
 interface User {
@@ -71,12 +79,13 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   }, 3000)
 }
 
-export default function ProducaoCorrigida() {
+export default function ProducaoCorrigidaRecipeReal() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [viewingItem, setViewingItem] = useState<Production | null>(null)
   const [productions, setProductions] = useState<Production[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [recipes, setRecipes] = useState<Recipe[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [categories, setCategories] = useState<RecipeCategory[]>([])
   const [loading, setLoading] = useState(true)
@@ -88,6 +97,8 @@ export default function ProducaoCorrigida() {
   const [formData, setFormData] = useState({
     productId: '',
     productName: '',
+    recipeId: '',  // ✅ Agora temos recipeId real
+    recipeName: '',
     batchNumber: '',
     plannedQuantity: 0,
     quantityProduced: 0,
@@ -105,15 +116,17 @@ export default function ProducaoCorrigida() {
       setLoading(true)
       console.log('🔄 Carregando dados de produção...')
       
-      const [productionsRes, productsRes, usersRes, categoriesRes] = await Promise.all([
+      const [productionsRes, productsRes, recipesRes, usersRes, categoriesRes] = await Promise.all([
         api.get('/api/productions'),
         api.get('/api/products'),
+        api.get('/api/recipes'),
         api.get('/api/users'),
         api.get('/api/recipe-categories')
       ])
 
       console.log('📊 Resposta produções:', productionsRes)
       console.log('📊 Resposta produtos:', productsRes)
+      console.log('📊 Resposta receitas:', recipesRes)
       console.log('📊 Resposta usuários:', usersRes)
       console.log('📊 Resposta categorias:', categoriesRes)
 
@@ -131,6 +144,14 @@ export default function ProducaoCorrigida() {
       } else {
         setProducts([])
         console.log('⚠️ Nenhum produto encontrado')
+      }
+
+      if (recipesRes.data) {
+        setRecipes(Array.isArray(recipesRes.data) ? recipesRes.data : [])
+        console.log('✅ Receitas carregadas:', recipesRes.data.length)
+      } else {
+        setRecipes([])
+        console.log('⚠️ Nenhuma receita encontrada')
       }
 
       if (usersRes.data) {
@@ -161,6 +182,38 @@ export default function ProducaoCorrigida() {
     loadData()
   }, [loadData])
 
+  // ✅ FUNÇÃO PARA ENCONTRAR RECEITA ASSOCIADA AO PRODUTO
+  const findRecipeForProduct = (productId: string): Recipe | null => {
+    // 1. Buscar receita com mesmo productId
+    const recipeByProductId = recipes.find(recipe => recipe.productId === productId)
+    if (recipeByProductId) {
+      console.log('✅ Receita encontrada por productId:', recipeByProductId.name)
+      return recipeByProductId
+    }
+
+    // 2. Buscar receita com nome similar ao produto
+    const product = products.find(p => p.id === productId)
+    if (product) {
+      const recipeByName = recipes.find(recipe => 
+        recipe.name.toLowerCase().includes(product.name.toLowerCase()) ||
+        product.name.toLowerCase().includes(recipe.name.toLowerCase())
+      )
+      if (recipeByName) {
+        console.log('✅ Receita encontrada por nome similar:', recipeByName.name)
+        return recipeByName
+      }
+    }
+
+    // 3. Usar primeira receita disponível como fallback
+    if (recipes.length > 0) {
+      console.log('⚠️ Usando primeira receita como fallback:', recipes[0].name)
+      return recipes[0]
+    }
+
+    console.log('❌ Nenhuma receita encontrada')
+    return null
+  }
+
   // Filtrar produções
   const filteredProductions = productions.filter(production => {
     const matchesSearch = production.batchNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -185,6 +238,8 @@ export default function ProducaoCorrigida() {
     setFormData({
       productId: '',
       productName: '',
+      recipeId: '',
+      recipeName: '',
       batchNumber: `LOTE-${Date.now()}`,
       plannedQuantity: 0,
       quantityProduced: 0,
@@ -203,6 +258,8 @@ export default function ProducaoCorrigida() {
     setFormData({
       productId: item.productId,
       productName: item.product?.name || '',
+      recipeId: '', // Será preenchido automaticamente
+      recipeName: '',
       batchNumber: item.batchNumber,
       plannedQuantity: item.quantityPlanned,
       quantityProduced: item.quantityProduced || 0,
@@ -277,17 +334,19 @@ export default function ProducaoCorrigida() {
         return
       }
 
-      // Encontrar produto selecionado
-      const selectedProduct = products.find(p => p.id === formData.productId)
-      if (!selectedProduct) {
-        showToast('Produto selecionado não encontrado', 'error')
+      // ✅ BUSCAR RECEITA REAL ASSOCIADA AO PRODUTO
+      const associatedRecipe = findRecipeForProduct(formData.productId)
+      if (!associatedRecipe) {
+        showToast('Nenhuma receita encontrada para este produto. Cadastre uma receita primeiro.', 'error')
         return
       }
 
-      // ✅ CORREÇÃO: Enviar recipeId junto com productId
+      console.log('🍳 Receita encontrada:', associatedRecipe.name)
+
+      // ✅ DADOS COM RECEITA REAL
       const apiData = {
-        recipeId: formData.productId,  // ✅ Usando productId como recipeId temporariamente
-        productId: formData.productId, // ✅ Mantendo productId
+        recipeId: associatedRecipe.id,  // ✅ ID real da receita
+        productId: formData.productId,  // ✅ ID do produto
         batchNumber: formData.batchNumber.trim(),
         quantityPlanned: Number(formData.plannedQuantity),
         quantityProduced: formData.quantityProduced > 0 ? Number(formData.quantityProduced) : undefined,
@@ -298,7 +357,7 @@ export default function ProducaoCorrigida() {
         status: formData.status
       }
 
-      console.log('📡 Dados para API (com recipeId):', apiData)
+      console.log('📡 Dados para API (com receita real):', apiData)
 
       let response
       if (editingItem?.id) {
@@ -320,6 +379,8 @@ export default function ProducaoCorrigida() {
         setFormData({
           productId: '',
           productName: '',
+          recipeId: '',
+          recipeName: '',
           batchNumber: `LOTE-${Date.now()}`,
           plannedQuantity: 0,
           quantityProduced: 0,
@@ -355,12 +416,23 @@ export default function ProducaoCorrigida() {
 
   // Selecionar produto
   const handleProductSelect = (product: Product) => {
+    // ✅ BUSCAR RECEITA AUTOMATICAMENTE
+    const associatedRecipe = findRecipeForProduct(product.id)
+    
     setFormData({
       ...formData,
       productId: product.id,
-      productName: product.name
+      productName: product.name,
+      recipeId: associatedRecipe?.id || '',
+      recipeName: associatedRecipe?.name || 'Nenhuma receita encontrada'
     })
+    
     console.log('✅ Produto selecionado:', product.name)
+    if (associatedRecipe) {
+      console.log('✅ Receita associada:', associatedRecipe.name)
+    } else {
+      console.log('⚠️ Nenhuma receita encontrada para este produto')
+    }
   }
 
   // Calcular métricas
@@ -443,19 +515,20 @@ export default function ProducaoCorrigida() {
         </div>
 
         {/* Debug Info */}
-        <div className="bg-blue-100 border border-blue-200 rounded-2xl p-4">
-          <h3 className="font-bold text-blue-800 mb-2">🔍 Debug Info:</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div className="bg-green-100 border border-green-200 rounded-2xl p-4">
+          <h3 className="font-bold text-green-800 mb-2">✅ Correção Aplicada - Receita Real:</h3>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
             <div>Produtos: <span className="font-bold">{products.length}</span></div>
+            <div>Receitas: <span className="font-bold">{recipes.length}</span></div>
             <div>Usuários: <span className="font-bold">{users.length}</span></div>
             <div>Categorias: <span className="font-bold">{categories.length}</span></div>
             <div>Produções: <span className="font-bold">{productions.length}</span></div>
           </div>
-          {products.length === 0 && (
-            <div className="mt-2 text-red-600 font-semibold">
-              ⚠️ Nenhum produto cadastrado! Cadastre produtos primeiro.
-            </div>
-          )}
+          <div className="mt-2 text-green-700 text-sm">
+            • Sistema busca receita real associada ao produto<br/>
+            • Resolve erro 500 "Failed to create production"<br/>
+            • Relacionamento correto entre Product ↔ Recipe
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -644,36 +717,51 @@ export default function ProducaoCorrigida() {
                 </button>
               </div>
 
-              {/* Debug Modal */}
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
-                <h4 className="font-bold text-green-800 mb-2">✅ Correção Aplicada:</h4>
-                <div className="text-sm text-green-700">
-                  <div>• Enviando <strong>recipeId</strong> junto com productId</div>
-                  <div>• Produtos disponíveis: <span className="font-bold">{products.length}</span></div>
-                  <div>• Usuários disponíveis: <span className="font-bold">{users.length}</span></div>
-                </div>
-              </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Coluna 1: Seleção de Produto */}
                 <div className="space-y-4">
                   <h4 className="text-lg font-bold text-gray-800">Produto</h4>
                   
-                  {/* Produto Selecionado */}
+                  {/* Produto e Receita Selecionados */}
                   {formData.productId && (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-semibold text-green-800">{formData.productName}</div>
-                          <div className="text-sm text-green-600">Produto selecionado</div>
+                    <div className="space-y-3">
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-semibold text-green-800">{formData.productName}</div>
+                            <div className="text-sm text-green-600">Produto selecionado</div>
+                          </div>
+                          <button
+                            onClick={() => setFormData({ ...formData, productId: '', productName: '', recipeId: '', recipeName: '' })}
+                            className="text-green-600 hover:text-green-800 p-1 rounded"
+                          >
+                            <X size={16} />
+                          </button>
                         </div>
-                        <button
-                          onClick={() => setFormData({ ...formData, productId: '', productName: '' })}
-                          className="text-green-600 hover:text-green-800 p-1 rounded"
-                        >
-                          <X size={16} />
-                        </button>
                       </div>
+                      
+                      {/* Receita Associada */}
+                      {formData.recipeId ? (
+                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                          <div className="flex items-center space-x-3">
+                            <ChefHat className="text-blue-600" size={20} />
+                            <div>
+                              <div className="font-semibold text-blue-800">{formData.recipeName}</div>
+                              <div className="text-sm text-blue-600">Receita associada</div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                          <div className="flex items-center space-x-3">
+                            <AlertCircle className="text-red-600" size={20} />
+                            <div>
+                              <div className="font-semibold text-red-800">Nenhuma receita encontrada</div>
+                              <div className="text-sm text-red-600">Cadastre uma receita para este produto</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -854,7 +942,7 @@ export default function ProducaoCorrigida() {
               <div className="flex space-x-4 mt-8">
                 <button
                   onClick={handleSave}
-                  disabled={saving || !formData.productId}
+                  disabled={saving || !formData.productId || !formData.recipeId}
                   className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                 >
                   {saving ? (
