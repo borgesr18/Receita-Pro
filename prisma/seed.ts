@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🌱 Starting database seed...')
+  console.log('🌱 Iniciando seed do banco de dados...')
 
   const users = await Promise.all([
     prisma.user.upsert({
@@ -35,7 +35,7 @@ async function main() {
     })
   ])
 
-  console.log('✅ Created users')
+  console.log('✅ Usuários criados')
 
   const units = await Promise.all([
     prisma.measurementUnit.create({
@@ -86,10 +86,28 @@ async function main() {
         conversionFactor: 1,
         userId: users[0].id
       }
+    }),
+    prisma.measurementUnit.create({
+      data: {
+        name: 'Dúzia',
+        abbreviation: 'dz',
+        type: 'Duzia',
+        conversionFactor: 12,
+        userId: users[0].id
+      }
+    }),
+    prisma.measurementUnit.create({
+      data: {
+        name: 'Pacote',
+        abbreviation: 'pct',
+        type: 'Pacote',
+        conversionFactor: 1,
+        userId: users[0].id
+      }
     })
   ])
 
-  console.log('✅ Created measurement units')
+  console.log('✅ Unidades de medida criadas')
 
   const recipeCategories = await Promise.all([
     prisma.recipeCategory.create({
@@ -110,6 +128,20 @@ async function main() {
       data: {
         name: 'Doces',
         description: 'Doces e sobremesas',
+        userId: users[0].id
+      }
+    }),
+    prisma.recipeCategory.create({
+      data: {
+        name: 'Massas',
+        description: 'Massas básicas para produtos compostos',
+        userId: users[0].id
+      }
+    }),
+    prisma.recipeCategory.create({
+      data: {
+        name: 'Recheios',
+        description: 'Recheios doces e salgados',
         userId: users[0].id
       }
     })
@@ -150,10 +182,24 @@ async function main() {
         description: 'Leite, queijos, iogurtes',
         userId: users[0].id
       }
+    }),
+    prisma.ingredientCategory.create({
+      data: {
+        name: 'Carnes',
+        description: 'Carnes, frangos, peixes',
+        userId: users[0].id
+      }
+    }),
+    prisma.ingredientCategory.create({
+      data: {
+        name: 'Temperos',
+        description: 'Sal, pimenta, ervas, especiarias',
+        userId: users[0].id
+      }
     })
   ])
 
-  console.log('✅ Created categories')
+  console.log('✅ Categorias criadas')
 
   const suppliers = await Promise.all([
     prisma.supplier.create({
@@ -182,10 +228,19 @@ async function main() {
         email: 'pedidos@belavista.com.br',
         userId: users[0].id
       }
+    }),
+    prisma.supplier.create({
+      data: {
+        name: 'Frigorífico Central',
+        contact: 'Ana Costa',
+        phone: '(11) 5678-9012',
+        email: 'vendas@frigorifico.com.br',
+        userId: users[0].id
+      }
     })
   ])
 
-  console.log('✅ Created suppliers')
+  console.log('✅ Fornecedores criados')
 
   const salesChannels = await Promise.all([
     prisma.salesChannel.create({
@@ -211,10 +266,10 @@ async function main() {
     })
   ])
 
-  console.log('✅ Created sales channels')
-
+  console.log('✅ Canais de venda criados')
 
   const ingredients = await Promise.all([
+    // Farinhas
     prisma.ingredient.create({
       data: {
         name: 'Farinha de Trigo Especial',
@@ -229,6 +284,7 @@ async function main() {
         minimumStock: 5000
       }
     }),
+    // Açúcares
     prisma.ingredient.create({
       data: {
         name: 'Açúcar Cristal',
@@ -237,12 +293,13 @@ async function main() {
         pricePerUnit: 3.20,
         supplierId: suppliers[1].id,
         userId: users[0].id,
-        ingredientType: 'Açúcares',
+        ingredientType: 'Acucares',
         storageCondition: 'Ambiente_Seco',
         currentStock: 15000,
         minimumStock: 3000
       }
     }),
+    // Gorduras
     prisma.ingredient.create({
       data: {
         name: 'Manteiga sem Sal',
@@ -257,6 +314,7 @@ async function main() {
         minimumStock: 1000
       }
     }),
+    // Fermentos
     prisma.ingredient.create({
       data: {
         name: 'Fermento Biológico Seco',
@@ -270,6 +328,7 @@ async function main() {
         minimumStock: 500
       }
     }),
+    // Laticínios
     prisma.ingredient.create({
       data: {
         name: 'Leite Integral',
@@ -283,10 +342,52 @@ async function main() {
         currentStock: 12000,
         minimumStock: 2000
       }
+    }),
+    // Carnes
+    prisma.ingredient.create({
+      data: {
+        name: 'Frango Desfiado',
+        categoryId: ingredientCategories[5].id,
+        unitId: units[0].id,
+        pricePerUnit: 18.50,
+        supplierId: suppliers[3].id,
+        userId: users[0].id,
+        ingredientType: 'Derivados',
+        storageCondition: 'Refrigerado',
+        currentStock: 5000,
+        minimumStock: 1000
+      }
+    }),
+    // Temperos
+    prisma.ingredient.create({
+      data: {
+        name: 'Sal Refinado',
+        categoryId: ingredientCategories[6].id,
+        unitId: units[1].id,
+        pricePerUnit: 0.003,
+        userId: users[0].id,
+        ingredientType: 'Sal',
+        storageCondition: 'Ambiente_Seco',
+        currentStock: 10000,
+        minimumStock: 2000
+      }
+    }),
+    prisma.ingredient.create({
+      data: {
+        name: 'Tempero Completo',
+        categoryId: ingredientCategories[6].id,
+        unitId: units[1].id,
+        pricePerUnit: 0.02,
+        userId: users[0].id,
+        ingredientType: 'Temperos',
+        storageCondition: 'Ambiente_Seco',
+        currentStock: 3000,
+        minimumStock: 500
+      }
     })
   ])
 
-  console.log('✅ Created ingredients')
+  console.log('✅ Ingredientes criados')
 
   const products = await Promise.all([
     prisma.product.create({
@@ -306,11 +407,266 @@ async function main() {
         averageWeight: 1200,
         description: 'Bolo de chocolate com cobertura especial'
       }
+    }),
+    prisma.product.create({
+      data: {
+        name: 'Pão Recheado de Frango',
+        categoryId: recipeCategories[0].id,
+        userId: users[0].id,
+        averageWeight: 120,
+        description: 'Pão recheado com frango temperado - produto composto'
+      }
     })
   ])
 
-  console.log('✅ Created products')
+  console.log('✅ Produtos criados')
 
+  // Criar receitas básicas
+  const recipes = await Promise.all([
+    // Receita do Pão Francês (simples)
+    prisma.recipe.create({
+      data: {
+        name: 'Pão Francês Tradicional',
+        description: 'Receita clássica de pão francês com fermentação natural',
+        categoryId: recipeCategories[0].id,
+        productId: products[0].id,
+        userId: users[0].id,
+        preparationTime: 180,
+        ovenTemperature: 220,
+        instructions: 'Dissolva o fermento em água morna. Misture todos os ingredientes e sove por 10 minutos. Deixe fermentar por 1 hora. Modele os pães e deixe crescer por 45 minutos. Asse por 15-18 minutos.',
+        technicalNotes: 'Temperatura da água deve estar entre 32-35°C. Use farinha com 11-12% de proteína.'
+      }
+    }),
+    // Receita do Bolo (simples)
+    prisma.recipe.create({
+      data: {
+        name: 'Bolo de Chocolate Premium',
+        description: 'Bolo de chocolate úmido com cobertura cremosa',
+        categoryId: recipeCategories[1].id,
+        productId: products[1].id,
+        userId: users[0].id,
+        preparationTime: 90,
+        ovenTemperature: 180,
+        instructions: 'Pré-aqueça o forno. Bata a manteiga com açúcar. Adicione ovos um a um. Alterne ingredientes secos com leite. Asse por 35-40 minutos.',
+        technicalNotes: 'Para um bolo mais úmido, adicione 1 colher de sopa de café forte à massa.'
+      }
+    }),
+    // Receita da Massa do Pão (para produto composto)
+    prisma.recipe.create({
+      data: {
+        name: 'Massa de Pão Básica',
+        description: 'Massa básica para pães recheados',
+        categoryId: recipeCategories[3].id, // Massas
+        userId: users[0].id,
+        preparationTime: 120,
+        ovenTemperature: 200,
+        instructions: 'Misture farinha, sal e fermento. Adicione água morna e sove bem. Deixe fermentar por 1 hora.',
+        technicalNotes: 'Massa para ser usada em produtos compostos'
+      }
+    }),
+    // Receita do Recheio de Frango (para produto composto)
+    prisma.recipe.create({
+      data: {
+        name: 'Recheio de Frango Temperado',
+        description: 'Recheio saboroso de frango para pães',
+        categoryId: recipeCategories[4].id, // Recheios
+        userId: users[0].id,
+        preparationTime: 30,
+        instructions: 'Refogue o frango desfiado com temperos. Deixe esfriar antes de usar.',
+        technicalNotes: 'Recheio para produtos compostos'
+      }
+    })
+  ])
+
+  console.log('✅ Receitas criadas')
+
+  // Criar ingredientes das receitas
+  await Promise.all([
+    // Pão Francês - Ingredientes
+    prisma.recipeIngredient.upsert({
+      where: {
+        recipeId_ingredientId: {
+          recipeId: recipes[0].id,
+          ingredientId: ingredients[0].id // Farinha
+        }
+      },
+      update: {},
+      create: {
+        recipeId: recipes[0].id,
+        ingredientId: ingredients[0].id,
+        quantity: 1000,
+        percentage: 100.0,
+        unitId: units[1].id, // gramas
+        order: 1
+      }
+    }),
+    prisma.recipeIngredient.upsert({
+      where: {
+        recipeId_ingredientId: {
+          recipeId: recipes[0].id,
+          ingredientId: ingredients[1].id // Açúcar
+        }
+      },
+      update: {},
+      create: {
+        recipeId: recipes[0].id,
+        ingredientId: ingredients[1].id,
+        quantity: 30,
+        percentage: 3.0,
+        unitId: units[1].id,
+        order: 2
+      }
+    }),
+    prisma.recipeIngredient.upsert({
+      where: {
+        recipeId_ingredientId: {
+          recipeId: recipes[0].id,
+          ingredientId: ingredients[3].id // Fermento
+        }
+      },
+      update: {},
+      create: {
+        recipeId: recipes[0].id,
+        ingredientId: ingredients[3].id,
+        quantity: 8,
+        percentage: 0.8,
+        unitId: units[1].id,
+        order: 3
+      }
+    }),
+    prisma.recipeIngredient.upsert({
+      where: {
+        recipeId_ingredientId: {
+          recipeId: recipes[0].id,
+          ingredientId: ingredients[6].id // Sal
+        }
+      },
+      update: {},
+      create: {
+        recipeId: recipes[0].id,
+        ingredientId: ingredients[6].id,
+        quantity: 15,
+        percentage: 1.5,
+        unitId: units[1].id,
+        order: 4
+      }
+    }),
+
+    // Massa de Pão - Ingredientes
+    prisma.recipeIngredient.upsert({
+      where: {
+        recipeId_ingredientId: {
+          recipeId: recipes[2].id,
+          ingredientId: ingredients[0].id // Farinha
+        }
+      },
+      update: {},
+      create: {
+        recipeId: recipes[2].id,
+        ingredientId: ingredients[0].id,
+        quantity: 500,
+        percentage: 100.0,
+        unitId: units[1].id,
+        order: 1
+      }
+    }),
+    prisma.recipeIngredient.upsert({
+      where: {
+        recipeId_ingredientId: {
+          recipeId: recipes[2].id,
+          ingredientId: ingredients[3].id // Fermento
+        }
+      },
+      update: {},
+      create: {
+        recipeId: recipes[2].id,
+        ingredientId: ingredients[3].id,
+        quantity: 5,
+        percentage: 1.0,
+        unitId: units[1].id,
+        order: 2
+      }
+    }),
+    prisma.recipeIngredient.upsert({
+      where: {
+        recipeId_ingredientId: {
+          recipeId: recipes[2].id,
+          ingredientId: ingredients[6].id // Sal
+        }
+      },
+      update: {},
+      create: {
+        recipeId: recipes[2].id,
+        ingredientId: ingredients[6].id,
+        quantity: 8,
+        percentage: 1.6,
+        unitId: units[1].id,
+        order: 3
+      }
+    }),
+
+    // Recheio de Frango - Ingredientes
+    prisma.recipeIngredient.upsert({
+      where: {
+        recipeId_ingredientId: {
+          recipeId: recipes[3].id,
+          ingredientId: ingredients[5].id // Frango
+        }
+      },
+      update: {},
+      create: {
+        recipeId: recipes[3].id,
+        ingredientId: ingredients[5].id,
+        quantity: 200,
+        percentage: 100.0,
+        unitId: units[1].id,
+        order: 1
+      }
+    }),
+    prisma.recipeIngredient.upsert({
+      where: {
+        recipeId_ingredientId: {
+          recipeId: recipes[3].id,
+          ingredientId: ingredients[7].id // Tempero
+        }
+      },
+      update: {},
+      create: {
+        recipeId: recipes[3].id,
+        ingredientId: ingredients[7].id,
+        quantity: 10,
+        percentage: 5.0,
+        unitId: units[1].id,
+        order: 2
+      }
+    })
+  ])
+
+  console.log('✅ Ingredientes das receitas criados')
+
+  // Criar receitas compostas para o Pão Recheado
+  await Promise.all([
+    prisma.productRecipe.create({
+      data: {
+        productId: products[2].id, // Pão Recheado de Frango
+        recipeId: recipes[2].id,   // Massa de Pão Básica
+        quantity: 1.0,             // 1x a receita da massa
+        order: 1                   // Primeira etapa
+      }
+    }),
+    prisma.productRecipe.create({
+      data: {
+        productId: products[2].id, // Pão Recheado de Frango
+        recipeId: recipes[3].id,   // Recheio de Frango Temperado
+        quantity: 0.5,             // 0.5x a receita do recheio
+        order: 2                   // Segunda etapa
+      }
+    })
+  ])
+
+  console.log('✅ Receitas compostas criadas')
+
+  // Criar preços dos produtos
   await Promise.all([
     prisma.productPrice.upsert({
       where: { 
@@ -332,23 +688,6 @@ async function main() {
     prisma.productPrice.upsert({
       where: { 
         productId_channelId_userId: {
-          productId: products[0].id,
-          channelId: salesChannels[1].id,
-          userId: users[0].id
-        }
-      },
-      update: {},
-      create: {
-        productId: products[0].id,
-        channelId: salesChannels[1].id,
-        userId: users[0].id,
-        price: 0.35,
-        profitMargin: 40
-      }
-    }),
-    prisma.productPrice.upsert({
-      where: { 
-        productId_channelId_userId: {
           productId: products[1].id,
           channelId: salesChannels[0].id,
           userId: users[0].id
@@ -362,105 +701,52 @@ async function main() {
         price: 25.00,
         profitMargin: 65
       }
-    })
-  ])
-
-  console.log('✅ Created product prices')
-
-  const recipes = await Promise.all([
-    prisma.recipe.create({
-      data: {
-        name: 'Pão Francês Tradicional',
-        description: 'Receita clássica de pão francês com fermentação natural',
-        categoryId: recipeCategories[0].id,
-        productId: products[0].id,
+    }),
+    prisma.productPrice.upsert({
+      where: { 
+        productId_channelId_userId: {
+          productId: products[2].id,
+          channelId: salesChannels[0].id,
+          userId: users[0].id
+        }
+      },
+      update: {},
+      create: {
+        productId: products[2].id,
+        channelId: salesChannels[0].id,
         userId: users[0].id,
-        preparationTime: 180,
-        ovenTemperature: 220,
-        instructions: 'Dissolva o fermento em água morna. Misture todos os ingredientes e sove por 10 minutos. Deixe fermentar por 1 hora. Modele os pães e deixe crescer por 45 minutos. Asse por 15-18 minutos.',
-        technicalNotes: 'Temperatura da água deve estar entre 32-35°C. Use farinha com 11-12% de proteína.'
-      }
-    }),
-    prisma.recipe.create({
-      data: {
-        name: 'Bolo de Chocolate Premium',
-        description: 'Bolo de chocolate úmido com cobertura cremosa',
-        categoryId: recipeCategories[1].id,
-        productId: products[1].id,
-        userId: users[0].id,
-        preparationTime: 90,
-        ovenTemperature: 180,
-        instructions: 'Pré-aqueça o forno. Bata a manteiga com açúcar. Adicione ovos um a um. Alterne ingredientes secos com leite. Asse por 35-40 minutos.',
-        technicalNotes: 'Para um bolo mais úmido, adicione 1 colher de sopa de café forte à massa.'
+        price: 3.50,
+        profitMargin: 70
       }
     })
   ])
 
-  console.log('✅ Created recipes')
-
-  await Promise.all([
-    prisma.recipeIngredient.upsert({
-      where: {
-        recipeId_ingredientId: {
-          recipeId: recipes[0].id,
-          ingredientId: ingredients[0].id
-        }
-      },
-      update: {},
-      create: {
-        recipeId: recipes[0].id,
-        ingredientId: ingredients[0].id,
-        quantity: 1000,
-        percentage: 100.0,
-        unitId: units[1].id,
-        order: 1
-      }
-    }),
-    prisma.recipeIngredient.upsert({
-      where: {
-        recipeId_ingredientId: {
-          recipeId: recipes[0].id,
-          ingredientId: ingredients[1].id
-        }
-      },
-      update: {},
-      create: {
-        recipeId: recipes[0].id,
-        ingredientId: ingredients[1].id,
-        quantity: 30,
-        percentage: 3.0,
-        unitId: units[1].id,
-        order: 2
-      }
-    }),
-    prisma.recipeIngredient.upsert({
-      where: {
-        recipeId_ingredientId: {
-          recipeId: recipes[0].id,
-          ingredientId: ingredients[3].id
-        }
-      },
-      update: {},
-      create: {
-        recipeId: recipes[0].id,
-        ingredientId: ingredients[3].id,
-        quantity: 8,
-        percentage: 0.8,
-        unitId: units[1].id,
-        order: 3
-      }
-    })
-  ])
-
-  console.log('✅ Created recipe ingredients')
-  console.log('🎉 Database seeded successfully!')
+  console.log('✅ Preços dos produtos criados')
+  console.log('🎉 Banco de dados populado com sucesso!')
+  console.log('')
+  console.log('📊 RESUMO:')
+  console.log('- 3 usuários (admin, editor, viewer)')
+  console.log('- 7 unidades de medida')
+  console.log('- 5 categorias de receitas')
+  console.log('- 7 categorias de ingredientes')
+  console.log('- 4 fornecedores')
+  console.log('- 3 canais de venda')
+  console.log('- 8 ingredientes')
+  console.log('- 3 produtos (1 simples, 1 bolo, 1 composto)')
+  console.log('- 4 receitas (2 simples, 2 para composição)')
+  console.log('- 1 produto com receitas compostas (Pão Recheado)')
+  console.log('')
+  console.log('🎯 TESTE O SISTEMA:')
+  console.log('1. Crie uma produção do "Pão Recheado de Frango"')
+  console.log('2. Veja o desconto automático dos ingredientes!')
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Error seeding database:', e)
+    console.error('❌ Erro ao popular banco:', e)
     process.exit(1)
   })
   .finally(async () => {
     await prisma.$disconnect()
   })
+
