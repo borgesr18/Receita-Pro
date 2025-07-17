@@ -7,12 +7,11 @@ import { z } from 'zod'
 const recipeSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   description: z.string().optional().default(''),
-  instructions: z.string().optional().default(''), // ✅ EXISTE no schema
-  preparationTime: z.coerce.number().min(0).optional(), // ✅ EXISTE no schema (Int?)
-  ovenTemperature: z.coerce.number().min(0).optional(), // ✅ EXISTE no schema (Int?)
-  technicalNotes: z.string().optional().default(''), // ✅ EXISTE no schema
+  instructions: z.string().optional().default(''), // ✅ Campo 'instructions' no banco
+  preparationTime: z.coerce.number().min(0).optional(), // ✅ Campo 'preparationTime' no banco
+  ovenTemperature: z.coerce.number().min(0).optional(), // ✅ Campo 'ovenTemperature' no banco
+  technicalNotes: z.string().optional().default(''), // ✅ Campo 'technicalNotes' no banco
   categoryId: z.string().min(1, 'Categoria é obrigatória'),
-  productId: z.string().optional(),
   version: z.coerce.number().min(1).default(1),
   isActive: z.boolean().default(true),
   ingredients: z.array(z.any()).optional().default([])
@@ -98,8 +97,7 @@ export async function GET(request: NextRequest) {
           ...recipe,
           totalCost,
           ingredientsCount: recipe._count?.ingredients || 0,
-          // Campos de compatibilidade para a interface
-          servings: 1, // Valor padrão já que não existe no banco
+          // Campos de compatibilidade para a interface (sem 'servings')
           prepTime: recipe.preparationTime || 0, // Mapear preparationTime para prepTime
           cookTime: 0, // Valor padrão já que não existe no banco
           difficulty: 'Fácil', // Valor padrão já que não existe no banco
@@ -111,7 +109,6 @@ export async function GET(request: NextRequest) {
           ...recipe,
           totalCost: 0,
           ingredientsCount: 0,
-          servings: 1,
           prepTime: 0,
           cookTime: 0,
           difficulty: 'Fácil',
@@ -144,22 +141,30 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log('📤 POST recipe - Dados recebidos:', body)
 
-    // Mapear campos da interface para campos do banco
+    // Mapear campos da interface para campos do banco - MAPEAMENTO CORRETO
     const mappedData = {
       name: body.name,
       description: body.description || '',
-      instructions: body.instructions || '', // ✅ Campo existe no banco
-      preparationTime: Number(body.preparationTime) || null, // ✅ Campo existe no banco
-      ovenTemperature: Number(body.ovenTemperature) || null, // ✅ Campo existe no banco
-      technicalNotes: body.technicalNotes || '', // ✅ Campo existe no banco
+      // IMPORTANTE: Mapear corretamente os campos da interface para o banco
+      instructions: body.instructions || '', // ✅ Modo de Preparo → instructions
+      preparationTime: Number(body.preparationTime) || null, // ✅ Tempo de Preparo → preparationTime
+      ovenTemperature: Number(body.ovenTemperature) || null, // ✅ Temperatura → ovenTemperature
+      technicalNotes: body.technicalNotes || '', // ✅ Observações Técnicas → technicalNotes
       categoryId: body.categoryId,
-      productId: body.productId,
       version: Number(body.version) || 1,
       isActive: Boolean(body.isActive !== false),
       ingredients: body.ingredients || []
     }
 
-    console.log('🔄 POST recipe - Dados mapeados:', mappedData)
+    console.log('🔄 POST recipe - Dados mapeados para o banco:', {
+      name: mappedData.name,
+      description: mappedData.description,
+      instructions: mappedData.instructions,
+      preparationTime: mappedData.preparationTime,
+      ovenTemperature: mappedData.ovenTemperature,
+      technicalNotes: mappedData.technicalNotes,
+      categoryId: mappedData.categoryId
+    })
 
     // Validar dados básicos
     const data = recipeSchema.parse(mappedData)
@@ -227,41 +232,45 @@ export async function POST(request: NextRequest) {
 
     // Criar receita com proteção total
     const recipe = await prisma.$transaction(async (tx) => {
-      // Limpar productId - IMPORTANTE: só enviar se não for vazio
-      const cleanProductId = data.productId && data.productId.trim() !== '' ? data.productId : null
-
-      console.log('🔄 POST recipe - Criando receita com dados:', {
+      console.log('🔄 POST recipe - Criando receita no banco com dados:', {
         name: data.name,
         description: data.description,
-        instructions: data.instructions,
-        preparationTime: data.preparationTime,
-        ovenTemperature: data.ovenTemperature,
-        technicalNotes: data.technicalNotes,
+        instructions: data.instructions, // ✅ Campo correto
+        preparationTime: data.preparationTime, // ✅ Campo correto
+        ovenTemperature: data.ovenTemperature, // ✅ Campo correto
+        technicalNotes: data.technicalNotes, // ✅ Campo correto
         categoryId: data.categoryId,
-        productId: cleanProductId,
+        productId: null, // ✅ Sempre NULL como solicitado
         version: data.version,
         isActive: data.isActive,
         userId: user.id
       })
 
-      // Criar receita
+      // Criar receita - DADOS EXATOS DO BANCO
       const newRecipe = await tx.recipe.create({
         data: {
           name: data.name,
           description: data.description,
-          instructions: data.instructions, // ✅ Campo correto
-          preparationTime: data.preparationTime, // ✅ Campo correto
-          ovenTemperature: data.ovenTemperature, // ✅ Campo correto
-          technicalNotes: data.technicalNotes, // ✅ Campo correto
+          instructions: data.instructions, // ✅ Modo de Preparo
+          preparationTime: data.preparationTime, // ✅ Tempo de Preparo
+          ovenTemperature: data.ovenTemperature, // ✅ Temperatura do Forno
+          technicalNotes: data.technicalNotes, // ✅ Observações Técnicas
           categoryId: data.categoryId,
-          productId: cleanProductId,
+          productId: null, // ✅ Sempre NULL
           version: data.version,
           isActive: data.isActive,
           userId: user.id
         }
       })
 
-      console.log('✅ POST recipe - Receita criada no banco:', newRecipe.id)
+      console.log('✅ POST recipe - Receita criada no banco:', {
+        id: newRecipe.id,
+        name: newRecipe.name,
+        instructions: newRecipe.instructions,
+        technicalNotes: newRecipe.technicalNotes,
+        preparationTime: newRecipe.preparationTime,
+        ovenTemperature: newRecipe.ovenTemperature
+      })
 
       // Adicionar ingredientes válidos
       if (validIngredients.length > 0) {
@@ -308,7 +317,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    console.log('✅ POST recipe - Receita criada:', recipe?.id)
+    console.log('✅ POST recipe - Receita criada com sucesso:', recipe?.id)
 
     // Calcular custo com proteção
     let totalCost = 0
