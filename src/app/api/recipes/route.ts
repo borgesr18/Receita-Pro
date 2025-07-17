@@ -108,31 +108,12 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({
-      data: recipesWithCalculations,
-      total: recipesWithCalculations.length,
-      summary: {
-        totalRecipes: recipesWithCalculations.length,
-        totalCost: recipesWithCalculations.reduce((sum, r) => sum + (r.totalCost || 0), 0),
-        averageCost: recipesWithCalculations.length > 0 
-          ? recipesWithCalculations.reduce((sum, r) => sum + (r.totalCost || 0), 0) / recipesWithCalculations.length 
-          : 0,
-        totalIngredients: recipesWithCalculations.reduce((sum, r) => sum + (r.ingredientsCount || 0), 0)
-      }
-    })
+    // CORREÇÃO: Retornar array diretamente como a interface espera
+    return NextResponse.json(recipesWithCalculations)
   } catch (error) {
     console.error('❌ GET recipes - Erro:', error)
-    // Retornar dados vazios em caso de erro em vez de falhar
-    return NextResponse.json({
-      data: [],
-      total: 0,
-      summary: {
-        totalRecipes: 0,
-        totalCost: 0,
-        averageCost: 0,
-        totalIngredients: 0
-      }
-    })
+    // Retornar array vazio em caso de erro
+    return NextResponse.json([])
   }
 }
 
