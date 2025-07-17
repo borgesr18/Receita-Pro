@@ -336,7 +336,7 @@ export async function POST(request: NextRequest) {
         { error: 'Validation failed', details: error.format() },
         { status: 400 }
       )
-    )
+    }
 
     return NextResponse.json(
       { error: 'Failed to create recipe' },
