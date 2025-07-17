@@ -3,19 +3,19 @@ import { prisma } from '@/lib/prisma'
 import { getUser } from '@/lib/auth'
 import { z } from 'zod'
 
-// Schema flexível que aceita qualquer entrada e limpa automaticamente
+// Schema que mapeia EXATAMENTE os campos do banco de dados
 const recipeSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   description: z.string().optional().default(''),
-  instructions: z.string().optional().default(''),
-  preparationTime: z.coerce.number().min(0).optional().default(0),
-  ovenTemperature: z.coerce.number().min(0).optional().default(0),
-  technicalNotes: z.string().optional().default(''),
+  instructions: z.string().optional().default(''), // ✅ EXISTE no schema
+  preparationTime: z.coerce.number().min(0).optional(), // ✅ EXISTE no schema (Int?)
+  ovenTemperature: z.coerce.number().min(0).optional(), // ✅ EXISTE no schema (Int?)
+  technicalNotes: z.string().optional().default(''), // ✅ EXISTE no schema
   categoryId: z.string().min(1, 'Categoria é obrigatória'),
   productId: z.string().optional(),
   version: z.coerce.number().min(1).default(1),
   isActive: z.boolean().default(true),
-  ingredients: z.array(z.any()).optional().default([]) // Aceita qualquer coisa
+  ingredients: z.array(z.any()).optional().default([])
 })
 
 // Função para limpar e validar ingredientes
@@ -93,22 +93,33 @@ export async function GET(request: NextRequest) {
           return sum + (isNaN(cost) ? 0 : cost)
         }, 0) || 0
 
+        // Mapear campos para compatibilidade com a interface
         return {
           ...recipe,
           totalCost,
-          ingredientsCount: recipe._count?.ingredients || 0
+          ingredientsCount: recipe._count?.ingredients || 0,
+          // Campos de compatibilidade para a interface
+          servings: 1, // Valor padrão já que não existe no banco
+          prepTime: recipe.preparationTime || 0, // Mapear preparationTime para prepTime
+          cookTime: 0, // Valor padrão já que não existe no banco
+          difficulty: 'Fácil', // Valor padrão já que não existe no banco
+          observations: recipe.technicalNotes || '' // Mapear technicalNotes para observations
         }
       } catch (err) {
         console.warn('Erro ao calcular receita:', recipe.id, err)
         return {
           ...recipe,
           totalCost: 0,
-          ingredientsCount: 0
+          ingredientsCount: 0,
+          servings: 1,
+          prepTime: 0,
+          cookTime: 0,
+          difficulty: 'Fácil',
+          observations: ''
         }
       }
     })
 
-    // CORREÇÃO: Retornar array diretamente como a interface espera
     return NextResponse.json(recipesWithCalculations)
   } catch (error) {
     console.error('❌ GET recipes - Erro:', error)
@@ -133,8 +144,25 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log('📤 POST recipe - Dados recebidos:', body)
 
+    // Mapear campos da interface para campos do banco
+    const mappedData = {
+      name: body.name,
+      description: body.description || '',
+      instructions: body.instructions || '', // ✅ Campo existe no banco
+      preparationTime: Number(body.preparationTime) || null, // ✅ Campo existe no banco
+      ovenTemperature: Number(body.ovenTemperature) || null, // ✅ Campo existe no banco
+      technicalNotes: body.technicalNotes || '', // ✅ Campo existe no banco
+      categoryId: body.categoryId,
+      productId: body.productId,
+      version: Number(body.version) || 1,
+      isActive: Boolean(body.isActive !== false),
+      ingredients: body.ingredients || []
+    }
+
+    console.log('🔄 POST recipe - Dados mapeados:', mappedData)
+
     // Validar dados básicos
-    const data = recipeSchema.parse(body)
+    const data = recipeSchema.parse(mappedData)
     
     // Limpar ingredientes automaticamente
     const cleanedIngredients = cleanIngredients(data.ingredients)
@@ -199,18 +227,32 @@ export async function POST(request: NextRequest) {
 
     // Criar receita com proteção total
     const recipe = await prisma.$transaction(async (tx) => {
-      // Limpar productId
+      // Limpar productId - IMPORTANTE: só enviar se não for vazio
       const cleanProductId = data.productId && data.productId.trim() !== '' ? data.productId : null
+
+      console.log('🔄 POST recipe - Criando receita com dados:', {
+        name: data.name,
+        description: data.description,
+        instructions: data.instructions,
+        preparationTime: data.preparationTime,
+        ovenTemperature: data.ovenTemperature,
+        technicalNotes: data.technicalNotes,
+        categoryId: data.categoryId,
+        productId: cleanProductId,
+        version: data.version,
+        isActive: data.isActive,
+        userId: user.id
+      })
 
       // Criar receita
       const newRecipe = await tx.recipe.create({
         data: {
           name: data.name,
-          description: data.description || '',
-          instructions: data.instructions || '',
-          preparationTime: data.preparationTime || null,
-          ovenTemperature: data.ovenTemperature || null,
-          technicalNotes: data.technicalNotes || '',
+          description: data.description,
+          instructions: data.instructions, // ✅ Campo correto
+          preparationTime: data.preparationTime, // ✅ Campo correto
+          ovenTemperature: data.ovenTemperature, // ✅ Campo correto
+          technicalNotes: data.technicalNotes, // ✅ Campo correto
           categoryId: data.categoryId,
           productId: cleanProductId,
           version: data.version,
@@ -218,6 +260,8 @@ export async function POST(request: NextRequest) {
           userId: user.id
         }
       })
+
+      console.log('✅ POST recipe - Receita criada no banco:', newRecipe.id)
 
       // Adicionar ingredientes válidos
       if (validIngredients.length > 0) {
@@ -232,6 +276,7 @@ export async function POST(request: NextRequest) {
               order: ing.order
             }))
           })
+          console.log('✅ POST recipe - Ingredientes adicionados:', validIngredients.length)
         } catch (err) {
           console.warn('Erro ao criar ingredientes, continuando sem eles:', err)
         }
@@ -291,7 +336,7 @@ export async function POST(request: NextRequest) {
         { error: 'Validation failed', details: error.format() },
         { status: 400 }
       )
-    }
+    )
 
     return NextResponse.json(
       { error: 'Failed to create recipe' },
