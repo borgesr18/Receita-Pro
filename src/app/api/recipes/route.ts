@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getUser } from '@/lib/auth'
 import { z } from 'zod'
 
-// Schema de validação para receita (campos corretos do banco)
+// Schema de validação compatível com o banco atual
 const recipeSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   description: z.string().optional(),
@@ -11,7 +11,6 @@ const recipeSchema = z.object({
   preparationTime: z.coerce.number().min(0, 'Tempo de preparo deve ser maior ou igual a 0').optional(),
   ovenTemperature: z.coerce.number().min(0, 'Temperatura do forno deve ser maior ou igual a 0').optional(),
   technicalNotes: z.string().optional(),
-  servings: z.coerce.number().min(1, 'Porções deve ser maior que 0').optional(),
   categoryId: z.string().min(1, 'Categoria é obrigatória'),
   productId: z.string().optional(),
   version: z.coerce.number().min(1, 'Versão deve ser maior que 0').default(1),
@@ -19,12 +18,11 @@ const recipeSchema = z.object({
   ingredients: z.array(z.object({
     ingredientId: z.string().min(1, 'Ingrediente é obrigatório'),
     quantity: z.coerce.number().min(0.01, 'Quantidade deve ser maior que 0'),
+    percentage: z.coerce.number().min(0, 'Porcentagem deve ser maior ou igual a 0').default(0),
     unitId: z.string().min(1, 'Unidade é obrigatória'),
     order: z.coerce.number().min(0, 'Ordem deve ser maior ou igual a 0').default(0)
   })).optional()
 })
-
-const recipeUpdateSchema = recipeSchema.partial()
 
 // GET /api/recipes - Listar todas as receitas do usuário
 export async function GET(request: NextRequest) {
@@ -62,8 +60,7 @@ export async function GET(request: NextRequest) {
         },
         _count: {
           select: {
-            ingredients: true,
-            productRecipes: true
+            ingredients: true
           }
         }
       },
@@ -84,9 +81,7 @@ export async function GET(request: NextRequest) {
       return {
         ...recipe,
         totalCost,
-        costPerServing: recipe.servings ? totalCost / recipe.servings : totalCost,
-        ingredientsCount: recipe._count.ingredients,
-        productsCount: recipe._count.productRecipes
+        ingredientsCount: recipe._count.ingredients
       }
     })
 
@@ -203,7 +198,7 @@ export async function POST(request: NextRequest) {
 
     // Criar receita com ingredientes em transação
     const recipe = await prisma.$transaction(async (tx) => {
-      // Criar receita
+      // Criar receita (APENAS campos que existem no schema atual)
       const newRecipe = await tx.recipe.create({
         data: {
           name: data.name,
@@ -212,12 +207,12 @@ export async function POST(request: NextRequest) {
           preparationTime: data.preparationTime,
           ovenTemperature: data.ovenTemperature,
           technicalNotes: data.technicalNotes,
-          servings: data.servings,
           categoryId: data.categoryId,
           productId: data.productId,
           version: data.version,
           isActive: data.isActive,
           userId: user.id
+          // REMOVIDO: servings (não existe no schema atual)
         }
       })
 
@@ -228,6 +223,7 @@ export async function POST(request: NextRequest) {
             recipeId: newRecipe.id,
             ingredientId: ing.ingredientId,
             quantity: ing.quantity,
+            percentage: ing.percentage,
             unitId: ing.unitId,
             order: ing.order
           }))
@@ -266,8 +262,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ...recipe,
-      totalCost,
-      costPerServing: recipe?.servings ? totalCost / recipe.servings : totalCost
+      totalCost
     }, { status: 201 })
 
   } catch (error) {
@@ -286,4 +281,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-
