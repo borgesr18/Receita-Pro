@@ -141,24 +141,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verificar se produto pertence ao usuário (se fornecido)
-    if (data.productId) {
-      const product = await prisma.product.findFirst({
-        where: {
-          id: data.productId,
-          userId: user.id
-        }
-      })
-
-      if (!product) {
-        console.log('❌ POST recipe - Produto não encontrado')
-        return NextResponse.json(
-          { error: 'Product not found or access denied' },
-          { status: 404 }
-        )
-      }
-    }
-
     // Verificar se ingredientes pertencem ao usuário (se fornecidos)
     if (data.ingredients && data.ingredients.length > 0) {
       const ingredientIds = data.ingredients.map(ing => ing.ingredientId)
@@ -198,7 +180,7 @@ export async function POST(request: NextRequest) {
 
     // Criar receita com ingredientes em transação
     const recipe = await prisma.$transaction(async (tx) => {
-      // Criar receita (APENAS campos que existem no schema atual)
+      // Criar receita (CORREÇÃO: productId vazio vira null)
       const newRecipe = await tx.recipe.create({
         data: {
           name: data.name,
@@ -208,11 +190,10 @@ export async function POST(request: NextRequest) {
           ovenTemperature: data.ovenTemperature,
           technicalNotes: data.technicalNotes,
           categoryId: data.categoryId,
-          productId: data.productId,
+          productId: data.productId && data.productId.trim() !== '' ? data.productId : null, // CORREÇÃO DEFINITIVA
           version: data.version,
           isActive: data.isActive,
           userId: user.id
-          // REMOVIDO: servings (não existe no schema atual)
         }
       })
 
