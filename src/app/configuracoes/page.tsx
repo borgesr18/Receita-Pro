@@ -11,7 +11,6 @@ import {
   Package,
   Scale,
   Tag,
-  Settings,
   Search
 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -329,7 +328,7 @@ export default function Configuracoes() {
   const handleDelete = async (item: ConfigurationItem) => {
     if (!item?.id || !item?.name) return
     
-    if (!confirm(`Tem certeza que deseja excluir "${item.name}"?`)) return
+    if (!confirm(`Tem certeza que deseja excluir &quot;${item.name}&quot;?`)) return
 
     try {
       setLoading(true)
@@ -712,7 +711,7 @@ export default function Configuracoes() {
                   {currentTab && <currentTab.icon className="h-16 w-16 mx-auto" />}
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum item cadastrado</h3>
-                <p className="text-gray-600 mb-6">Clique em "Adicionar" para começar</p>
+                <p className="text-gray-600 mb-6">Clique em &quot;Adicionar&quot; para começar</p>
               </div>
             ) : (
               <div className="overflow-x-auto">

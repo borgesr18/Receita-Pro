@@ -10,10 +10,10 @@ const productRecipeSchema = z.object({
   order: z.coerce.number().min(0, 'Order must be greater than or equal to 0').default(0)
 })
 
-const productRecipeUpdateSchema = z.object({
-  quantity: z.coerce.number().min(0.01, 'Quantity must be greater than 0').optional(),
-  order: z.coerce.number().min(0, 'Order must be greater than or equal to 0').optional()
-})
+// const productRecipeUpdateSchema = z.object({
+//   quantity: z.coerce.number().min(0.01, 'Quantity must be greater than 0').optional(),
+//   order: z.coerce.number().min(0, 'Order must be greater than or equal to 0').optional()
+// })
 
 // GET /api/products/[id]/recipes - Listar receitas do produto
 export async function GET(

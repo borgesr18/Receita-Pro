@@ -50,7 +50,7 @@ interface DropdownPortalProps {
   categories: RecipeCategory[]
   onSelect: (recipe: Recipe) => void
   onClose: () => void
-  calculateRecipeData: (recipe: Recipe) => { totalWeight: number; totalCost: number }
+  // calculateRecipeData: (recipe: Recipe) => { totalWeight: number; totalCost: number }
   loading?: boolean
 }
 
@@ -65,7 +65,7 @@ export const DropdownPortal: React.FC<DropdownPortalProps> = ({
   categories,
   onSelect,
   onClose,
-  calculateRecipeData,
+  // calculateRecipeData,
   loading = false
 }) => {
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 })
@@ -145,7 +145,7 @@ export const DropdownPortal: React.FC<DropdownPortalProps> = ({
               <div className="text-center py-4 text-gray-500">Nenhuma receita encontrada</div>
             ) : (
               filteredRecipes.map(recipe => {
-                const recipeData = calculateRecipeData(recipe)
+                // const recipeData = calculateRecipeData(recipe)
                 return (
                   <div
                     key={recipe.id}

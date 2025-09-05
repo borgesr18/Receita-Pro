@@ -9,19 +9,16 @@ import {
   X, 
   Save, 
   Package, 
-  TrendingUp, 
   AlertTriangle, 
   Eye,
   Filter,
-  ChefHat,
   Utensils,
   Clock,
-  Calendar,
-  Thermometer,
   DollarSign
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/contexts/ToastContext'
+import { API_ENDPOINTS } from '@/lib/config'
 
 interface Ingredient {
   id: string
@@ -101,11 +98,11 @@ export default function Insumos() {
       console.log('🔄 Carregando dados dos insumos...')
       
       const [ingredientsRes, categoriesRes, unitsRes, suppliersRes, ingredientTypesRes] = await Promise.all([
-        api.get('/api/ingredients'),
-        api.get('/api/ingredient-categories'),
-        api.get('/api/measurement-units'),
-        api.get('/api/suppliers'),
-        api.get('/api/enums/ingredient-types')
+        api.get(API_ENDPOINTS.INGREDIENTS),
+        api.get(API_ENDPOINTS.INGREDIENT_CATEGORIES),
+        api.get(API_ENDPOINTS.MEASUREMENT_UNITS),
+        api.get(API_ENDPOINTS.SUPPLIERS),
+        api.get(API_ENDPOINTS.INGREDIENT_TYPES)
       ])
 
       console.log('📊 Dados carregados:', {
@@ -166,11 +163,11 @@ export default function Insumos() {
       console.log('📤 Dados preparados para envio:', dataToSend)
 
       if (editingItem) {
-        const response = await api.put(`/api/ingredients/${editingItem.id}`, dataToSend)
+        const response = await api.put(`${API_ENDPOINTS.INGREDIENTS}/${editingItem.id}`, dataToSend)
         setInsumos(insumos.map(item => item.id === editingItem.id ? response.data as Ingredient : item))
         showSuccess('Insumo atualizado com sucesso!')
       } else {
-        const response = await api.post('/api/ingredients', dataToSend)
+        const response = await api.post(API_ENDPOINTS.INGREDIENTS, dataToSend)
         setInsumos([...insumos, response.data as Ingredient])
         showSuccess('Insumo criado com sucesso!')
       }
@@ -230,7 +227,7 @@ export default function Insumos() {
   const handleDelete = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir este insumo?')) {
       try {
-        await api.delete(`/api/ingredients/${id}`)
+        await api.delete(`${API_ENDPOINTS.INGREDIENTS}/${id}`)
         setInsumos(insumos.filter(item => item.id !== id))
         showSuccess('Insumo excluído com sucesso!')
       } catch (error) {

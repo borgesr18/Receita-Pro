@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Search, Plus, Edit, Trash2, X, Package, TrendingUp, AlertTriangle, Eye, Loader2, ChefHat, Calculator, Layers, ArrowRight, DollarSign } from 'lucide-react'
+import { Search, Plus, Edit, Trash2, X, Package, Eye, Loader2, ChefHat, Layers } from 'lucide-react'
 import { api } from '@/lib/api'
+import { API_ENDPOINTS } from '@/lib/config'
 
 interface Product {
   id: string
@@ -121,9 +122,9 @@ export default function ProdutosReceitasCompostas() {
       console.log('🔄 Carregando dados dos produtos...')
       
       const [productsRes, categoriesRes, recipesRes] = await Promise.all([
-        api.get('/api/products'),
-        api.get('/api/recipe-categories'),
-        api.get('/api/recipes')
+        api.get(API_ENDPOINTS.PRODUCTS),
+        api.get(API_ENDPOINTS.RECIPE_CATEGORIES),
+        api.get(API_ENDPOINTS.RECIPES)
       ])
 
       console.log('📊 Resposta produtos:', productsRes)
@@ -239,7 +240,7 @@ export default function ProdutosReceitasCompostas() {
 
       const response = editingItem
         ? await api.put(`/api/products/${editingItem.id}`, formData)
-        : await api.post('/api/products', formData)
+        : await api.post(API_ENDPOINTS.PRODUCTS, formData)
 
       console.log('📊 Resposta da API:', response)
 
@@ -703,7 +704,7 @@ export default function ProdutosReceitasCompostas() {
                     <div className="text-center text-gray-500">
                       <ChefHat className="w-12 h-12 mx-auto mb-3 text-gray-400" />
                       <p>Funcionalidade de receitas compostas será configurada após salvar o produto.</p>
-                      <p className="text-sm mt-1">Salve o produto primeiro, depois use o botão "Gerenciar Receitas" na lista.</p>
+                      <p className="text-sm mt-1">Salve o produto primeiro, depois use o botão &quot;Gerenciar Receitas&quot; na lista.</p>
                     </div>
                   </div>
                 )}
@@ -783,7 +784,7 @@ export default function ProdutosReceitasCompostas() {
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Receitas Compostas</label>
                     <div className="space-y-3">
-                      {viewingItem.productRecipes.map((pr, index) => (
+                      {viewingItem.productRecipes.map((pr) => (
                         <div key={pr.id} className="bg-gray-50 px-4 py-3 rounded-xl">
                           <div className="flex items-center justify-between">
                             <div>
@@ -919,7 +920,7 @@ export default function ProdutosReceitasCompostas() {
                     <div className="space-y-3">
                       {productRecipes
                         .sort((a, b) => a.order - b.order)
-                        .map((productRecipe, index) => (
+                        .map((productRecipe) => (
                           <div key={productRecipe.id} className="bg-white border border-gray-200 rounded-xl p-4">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-4">

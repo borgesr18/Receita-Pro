@@ -12,18 +12,20 @@ import {
   AlertTriangle,
   Calendar,
   DollarSign,
-  Users,
   Clock,
   ArrowUpRight,
   ArrowDownRight,
-  MoreHorizontal,
   Plus,
-  Eye,
   ChefHat,
-  Utensils,
-  Thermometer,
   Calculator
 } from 'lucide-react'
+import {
+  StatCard,
+  ActivityFeed,
+  QuickActions,
+  PerformanceMetrics,
+  RevenueChart
+} from '@/components/dashboard'
 
 export default function Dashboard() {
   const { user, loading } = useAuth()
@@ -78,72 +80,68 @@ export default function Dashboard() {
       title: 'Receitas Ativas',
       value: '24',
       change: '+12%',
-      trend: 'up',
+      trend: 'up' as const,
       icon: FileText,
-      color: 'from-blue-500 to-blue-600'
+      color: 'blue'
     },
     {
       title: 'Insumos Cadastrados',
       value: '156',
       change: '+8%',
-      trend: 'up',
+      trend: 'up' as const,
       icon: Package,
-      color: 'from-emerald-500 to-emerald-600'
+      color: 'emerald'
     },
     {
       title: 'Produtos em Estoque',
       value: '89',
       change: '-3%',
-      trend: 'down',
+      trend: 'down' as const,
       icon: Warehouse,
-      color: 'from-purple-500 to-purple-600'
+      color: 'purple'
     },
     {
       title: 'Vendas do Mês',
       value: 'R$ 12.450',
       change: '+24%',
-      trend: 'up',
+      trend: 'up' as const,
       icon: DollarSign,
-      color: 'from-orange-500 to-orange-600'
+      color: 'orange'
     }
   ]
 
   const recentActivity = [
     {
-      type: 'production',
+      id: '1',
+      type: 'production' as const,
       title: 'Produção Concluída',
       description: 'Pão Francês - Lote #001234',
       time: '2 horas atrás',
-      status: 'completed',
-      icon: Factory,
-      color: 'text-green-600 bg-green-50'
+      user: 'Sistema'
     },
     {
-      type: 'sale',
+      id: '2',
+      type: 'sale' as const,
       title: 'Nova Venda',
       description: '50 Pães de Açúcar - Canal Varejo',
       time: '4 horas atrás',
-      status: 'completed',
-      icon: TrendingUp,
-      color: 'text-blue-600 bg-blue-50'
+      user: 'João Silva'
     },
     {
-      type: 'warning',
+      id: '3',
+      type: 'warning' as const,
       title: 'Estoque Baixo',
       description: 'Farinha de Trigo (2kg restantes)',
       time: '6 horas atrás',
-      status: 'warning',
-      icon: AlertTriangle,
-      color: 'text-amber-600 bg-amber-50'
+      user: 'Sistema'
     },
     {
-      type: 'recipe',
+      id: '4',
+      type: 'recipe' as const,
       title: 'Receita Atualizada',
       description: 'Nova versão do Bolo de Chocolate',
       time: '1 dia atrás',
-      status: 'info',
-      icon: FileText,
-      color: 'text-purple-600 bg-purple-50'
+      user: 'Maria Santos'
     }
   ]
 
