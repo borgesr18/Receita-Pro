@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -110,11 +110,11 @@ model Ingredient {
   storageCondition      StorageCondition         @default(Ambiente_Seco)
   currentStock          Float                    @default(0)
   minimumStock          Float                    @default(0)
-  conversionFactor      Float?
-  baseUnit              String?
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
   userId                String
+  baseUnit              String?
+  conversionFactor      Float?
   priceHistory          IngredientPriceHistory[]
   category              IngredientCategory       @relation(fields: [categoryId], references: [id])
   supplier              Supplier?                @relation(fields: [supplierId], references: [id])
@@ -144,15 +144,15 @@ model Product {
   categoryId      String
   averageWeight   Float
   description     String?
-  defaultRecipeId String?         // NOVO: Receita padrão para compatibilidade
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   userId          String
+  defaultRecipeId String?
   prices          ProductPrice[]
+  productRecipes  ProductRecipe[]
   productions     Production[]
-  productRecipes  ProductRecipe[] // NOVO: Receitas compostas
   category        RecipeCategory  @relation(fields: [categoryId], references: [id])
-  defaultRecipe   Recipe?         @relation("ProductDefaultRecipe", fields: [defaultRecipeId], references: [id]) // NOVO
+  defaultRecipe   Recipe?         @relation("ProductDefaultRecipe", fields: [defaultRecipeId], references: [id])
   user            User            @relation(fields: [userId], references: [id])
   recipes         Recipe[]        @relation("ProductRecipes")
   sales           Sale[]
@@ -160,13 +160,12 @@ model Product {
   @@map("products")
 }
 
-// NOVA TABELA: Receitas compostas para produtos
 model ProductRecipe {
   id        String   @id @default(cuid())
   productId String
   recipeId  String
-  quantity  Float    @default(1.0) // Quantas vezes usar esta receita
-  order     Int      @default(0)   // Ordem de execução
+  quantity  Float    @default(1.0)
+  order     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -209,27 +208,27 @@ model ProductPrice {
 }
 
 model Recipe {
-  id              String             @id @default(cuid())
-  name            String
-  description     String?
-  categoryId      String
-  productId       String?
-  version         Int                @default(1)
-  preparationTime Int?
-  ovenTemperature Int?
-  instructions    String?
-  technicalNotes  String?
-  isActive        Boolean            @default(true)
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  userId          String
-  productions     Production[]
-  ingredients     RecipeIngredient[]
-  productRecipes  ProductRecipe[]    @relation("ProductRecipeRelation") // NOVO: Para receitas compostas
-  category        RecipeCategory     @relation(fields: [categoryId], references: [id])
-  product         Product?           @relation("ProductRecipes", fields: [productId], references: [id])
-  defaultForProducts Product[]       @relation("ProductDefaultRecipe") // NOVO: Produtos que usam como receita padrão
-  user            User               @relation(fields: [userId], references: [id])
+  id                 String             @id @default(cuid())
+  name               String
+  description        String?
+  categoryId         String
+  productId          String?
+  version            Int                @default(1)
+  preparationTime    Int?
+  ovenTemperature    Int?
+  instructions       String?
+  technicalNotes     String?
+  isActive           Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  userId             String
+  productRecipes     ProductRecipe[]    @relation("ProductRecipeRelation")
+  productions        Production[]
+  defaultForProducts Product[]          @relation("ProductDefaultRecipe")
+  ingredients        RecipeIngredient[]
+  category           RecipeCategory     @relation(fields: [categoryId], references: [id])
+  product            Product?           @relation("ProductRecipes", fields: [productId], references: [id])
+  user               User               @relation(fields: [userId], references: [id])
 
   @@map("recipes")
 }
@@ -407,5 +406,5 @@ enum ProductionStatus {
 
 enum MovementType {
   Entrada
-  Saída
+  // Saída
 }
