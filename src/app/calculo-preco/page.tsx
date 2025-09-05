@@ -37,7 +37,7 @@ import {
   // Loader2,
 } from 'lucide-react'
 import { api } from '@/lib/api'
-import { useToast } from '@/contexts/ToastContext'
+import { useToast } from '@/components/ui/Toast'
 
 interface Recipe {
   id: string

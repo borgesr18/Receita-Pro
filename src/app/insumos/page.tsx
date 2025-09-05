@@ -17,7 +17,7 @@ import {
   DollarSign
 } from 'lucide-react'
 import { api } from '@/lib/api'
-import { useToast } from '@/contexts/ToastContext'
+import { useToast } from '@/components/ui/Toast'
 import { API_ENDPOINTS } from '@/lib/config'
 
 interface Ingredient {

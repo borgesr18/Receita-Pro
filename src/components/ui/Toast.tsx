@@ -210,5 +210,4 @@ const ToastComponent: React.FC<{ toast: Toast }> = ({ toast }) => {
   )
 }
 
-// Export the hook for components to use directly
-export { useToast }
+// Hook já exportado acima como 'export const useToast'

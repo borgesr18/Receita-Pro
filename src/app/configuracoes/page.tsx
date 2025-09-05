@@ -14,7 +14,7 @@ import {
   Search
 } from 'lucide-react'
 import { api } from '@/lib/api'
-import { useToast } from '@/contexts/ToastContext'
+import { useToast } from '@/components/ui/Toast'
 
 interface ConfigurationItem {
   id: string
@@ -782,4 +782,3 @@ export default function Configuracoes() {
     </div>
   )
 }
-
