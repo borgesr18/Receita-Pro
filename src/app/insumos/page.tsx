@@ -6,18 +6,12 @@ import {
   Plus, 
   Edit, 
   Trash2, 
-  X, 
   Save, 
   Package, 
-  TrendingUp, 
   AlertTriangle, 
-  Eye,
   Filter,
-  ChefHat,
   Utensils,
   Clock,
-  Calendar,
-  Thermometer,
   DollarSign
 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -462,7 +456,7 @@ export default function Insumos() {
                           className="p-1.5 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
                           title="Visualizar"
                         >
-                          <Eye className="h-4 w-4" />
+                          {/* <Eye className="h-4 w-4" /> */}
                         </button>
                         <button
                           onClick={() => handleEdit(insumo)}
@@ -506,7 +500,7 @@ export default function Insumos() {
                   onClick={() => setIsModalOpen(false)}
                   className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg p-2 transition-colors"
                 >
-                  <X className="h-5 w-5" />
+                  {/* <X className="h-5 w-5" /> */}
                 </button>
               </div>
             </div>
@@ -748,7 +742,7 @@ export default function Insumos() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white/20 rounded-xl">
-                    <Eye className="h-5 w-5 text-white" />
+                    {/* <Eye className="h-5 w-5 text-white" /> */}
                   </div>
                   <h2 className="text-xl font-bold text-white">Detalhes do Insumo</h2>
                 </div>
@@ -756,7 +750,7 @@ export default function Insumos() {
                   onClick={() => setIsViewModalOpen(false)}
                   className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg p-2 transition-colors"
                 >
-                  <X className="h-5 w-5" />
+                  {/* <X className="h-5 w-5" /> */}
                 </button>
               </div>
             </div>
