@@ -783,14 +783,14 @@ export default function FichasTecnicas() {
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Nome</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Categoria</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Porções</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Tempo</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Dificuldade</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Ações</th>
+                <thead>
+                  <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                    <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Nome</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Categoria</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Porções</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Tempo</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Dificuldade</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">

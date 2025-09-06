@@ -806,16 +806,16 @@ export default function EstoqueCompleto() {
             {activeTab === 'insumos' && (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                    <tr>
-                      <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Ingrediente</th>
-                      <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Estoque Atual</th>
-                      <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Estoque Mínimo</th>
-                      <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Preço/Unidade</th>
-                      <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Valor Total</th>
-                      <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Validade</th>
-                      <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Status</th>
-                      <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Ações</th>
+                  <thead>
+                    <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                      <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Ingrediente</th>
+                      <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Estoque Atual</th>
+                      <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Estoque Mínimo</th>
+                      <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Preço/Unidade</th>
+                      <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Valor Total</th>
+                      <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Validade</th>
+                      <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Status</th>
+                      <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white/50 divide-y divide-gray-200">
@@ -925,15 +925,15 @@ export default function EstoqueCompleto() {
                   </div>
                 ) : (
                   <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                      <tr>
-                        <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Tipo</th>
-                        <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Ingrediente</th>
-                        <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Quantidade</th>
-                        <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Motivo</th>
-                        <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Referência</th>
-                        <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Data</th>
-                        <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Ações</th>
+                    <thead>
+                      <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                        <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Tipo</th>
+                        <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Ingrediente</th>
+                        <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Quantidade</th>
+                        <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Motivo</th>
+                        <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Referência</th>
+                        <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Data</th>
+                        <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Ações</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white/50 divide-y divide-gray-200">

@@ -548,15 +548,15 @@ export default function ProducaoSemEdicao() {
         <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/50 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                <tr>
-                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Lote</th>
-                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Produto</th>
-                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Quantidade</th>
-                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Status</th>
-                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Data Produção</th>
-                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Data Validade</th>
-                  <th className="px-8 py-6 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Ações</th>
+              <thead>
+                <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                  <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Lote</th>
+                  <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Produto</th>
+                  <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Quantidade</th>
+                  <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Status</th>
+                  <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Data Produção</th>
+                  <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Data Validade</th>
+                  <th className="px-8 py-6 text-left text-xs font-medium uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
               <tbody className="bg-white/50 divide-y divide-gray-200">
