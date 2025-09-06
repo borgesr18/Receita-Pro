@@ -1,17 +1,18 @@
 'use client'
 
 import React, { useState } from 'react'
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
+import {
+  Plus,
+  Edit,
+  Trash2,
   Save,
   X,
   Search,
   DollarSign,
   TrendingUp,
   Receipt,
-  ShoppingCart
+  ShoppingCart,
+  Filter
 } from 'lucide-react'
 
 export default function Vendas() {
@@ -357,100 +358,114 @@ export default function Vendas() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Vendas</h1>
-          <p className="text-gray-600 mt-1">Registre e gerencie as vendas por canal</p>
-        </div>
-        <button
-          onClick={handleAdd}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus size={16} />
-          <span>Nova Venda</span>
-        </button>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <DollarSign className="text-green-600" size={20} />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 space-y-6">
+      {/* Header Moderno */}
+      <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
+        <div className="flex items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-lg">
+              <ShoppingCart className="w-8 h-8 text-white" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Vendas Hoje</p>
-              <p className="text-xl font-bold text-gray-900">
-                {formatCurrency(vendas.filter(v => v.saleDate === new Date().toISOString().split('T')[0] && v.status === 'concluida').reduce((sum, v) => sum + v.totalPrice, 0))}
-              </p>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                Vendas
+              </h1>
+              <p className="text-gray-600 mt-1 text-lg">Registre e gerencie as vendas por canal</p>
             </div>
           </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <TrendingUp className="text-blue-600" size={20} />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Lucro Total</p>
-              <p className="text-xl font-bold text-gray-900">
-                {formatCurrency(getTotalProfit())}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Receipt className="text-purple-600" size={20} />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Ticket Médio</p>
-              <p className="text-xl font-bold text-gray-900">
-                {formatCurrency(getAverageTicket())}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <ShoppingCart className="text-orange-600" size={20} />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Vendas Concluídas</p>
-              <p className="text-xl font-bold text-gray-900">
-                {vendas.filter(v => v.status === 'concluida').length}
-              </p>
-            </div>
-          </div>
+          <button
+            onClick={handleAdd}
+            className="px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 flex items-center gap-2 shadow-sm hover:shadow-md transition-all"
+          >
+            <Plus className="h-5 w-5" />
+            Nova Venda
+          </button>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-md">
+              <DollarSign className="text-white" size={24} />
+            </div>
+            <div className="text-sm font-medium text-green-600 bg-green-50 px-3 py-1 rounded-full shadow-sm">
+              Hoje
+            </div>
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-gray-600 mb-1">Vendas Hoje</h3>
+            <p className="text-2xl font-bold text-gray-900">{formatCurrency(vendas.filter(v => v.saleDate === new Date().toISOString().split('T')[0] && v.status === 'concluida').reduce((sum, v) => sum + v.totalPrice, 0))}</p>
+          </div>
+        </div>
+
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+              <TrendingUp className="text-white" size={24} />
+            </div>
+            <div className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full shadow-sm">
+              Desempenho
+            </div>
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-gray-600 mb-1">Lucro Total</h3>
+            <p className="text-2xl font-bold text-gray-900">{formatCurrency(getTotalProfit())}</p>
+          </div>
+        </div>
+
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-md">
+              <Receipt className="text-white" size={24} />
+            </div>
+            <div className="text-sm font-medium text-purple-600 bg-purple-50 px-3 py-1 rounded-full shadow-sm">
+              Ticket
+            </div>
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-gray-600 mb-1">Ticket Médio</h3>
+            <p className="text-2xl font-bold text-gray-900">{formatCurrency(getAverageTicket())}</p>
+          </div>
+        </div>
+
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-md">
+              <ShoppingCart className="text-white" size={24} />
+            </div>
+            <div className="text-sm font-medium text-orange-600 bg-orange-50 px-3 py-1 rounded-full shadow-sm">
+              Total
+            </div>
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-gray-600 mb-1">Vendas Concluídas</h3>
+            <p className="text-2xl font-bold text-gray-900">{vendas.filter(v => v.status === 'concluida').length}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="md:col-span-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <input
                 type="text"
                 placeholder="Buscar por produto ou cliente..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
               />
             </div>
           </div>
-          <div className="md:w-48">
+          <div>
             <select
               value={filterChannel}
               onChange={(e) => setFilterChannel(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm appearance-none"
             >
               <option value="">Todos os canais</option>
               {salesChannels.map(channel => (
@@ -458,11 +473,11 @@ export default function Vendas() {
               ))}
             </select>
           </div>
-          <div className="md:w-48">
+          <div>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm appearance-none"
             >
               <option value="">Todos os status</option>
               {statusOptions.map(status => (
@@ -470,42 +485,46 @@ export default function Vendas() {
               ))}
             </select>
           </div>
-          <div className="md:w-48">
+          <div>
             <input
               type="date"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
             />
           </div>
+          <button className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all">
+            <Filter className="h-5 w-5" />
+            Filtros
+          </button>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      {/* Tabela de Vendas */}
+      <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produto</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantidade</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Canal</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lucro</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data/Hora</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+            <thead>
+              <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Produto</th>
+                <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Quantidade</th>
+                <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Canal</th>
+                <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Cliente</th>
+                <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Valor</th>
+                <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Lucro</th>
+                <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Data/Hora</th>
+                <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Ações</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white/50 divide-y divide-gray-200">
               {filteredVendas.map((venda) => {
                 const statusBadge = getStatusBadge(venda.status)
                 const profit = venda.totalPrice - venda.costPrice
                 const profitPercentage = venda.costPrice > 0 ? (profit / venda.costPrice) * 100 : 0
                 
                 return (
-                  <tr key={venda.id} className="hover:bg-gray-50">
+                  <tr key={venda.id} className="hover:bg-blue-50/50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{venda.productName}</div>
                     </td>
@@ -544,18 +563,22 @@ export default function Vendas() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleEdit(venda)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(venda.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleEdit(venda)}
+                          className="p-1.5 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
+                          title="Editar"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(venda.id)}
+                          className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                          title="Excluir"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -567,193 +590,197 @@ export default function Vendas() {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {editingItem ? 'Editar' : 'Adicionar'} Venda
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Produto</label>
-                <select
-                  value={formData.productId}
-                  onChange={(e) => handleProductSelect(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-white">
+                  {editingItem ? 'Editar' : 'Adicionar'} Venda
+                </h3>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg p-2 transition-colors"
                 >
-                  <option value={0}>Selecione o produto</option>
-                  {availableProducts.map(product => (
-                    <option key={product.id} value={product.id}>
-                      {product.name} - Estoque: {formatWeight(product.currentStock)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Quantidade</label>
-                <input
-                  type="number"
-                  value={formData.quantity}
-                  onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: 10"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Canal de Venda</label>
-                <select
-                  value={formData.channel}
-                  onChange={(e) => handleChannelChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {salesChannels.map(channel => (
-                    <option key={channel.value} value={channel.value}>
-                      {channel.label} - {channel.description}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Preço Unitário (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.unitPrice}
-                  onChange={(e) => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: 3.50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nome do Cliente</label>
-                <input
-                  type="text"
-                  value={formData.customerName}
-                  onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: Maria Silva"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Telefone do Cliente</label>
-                <input
-                  type="text"
-                  value={formData.customerPhone}
-                  onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: (11) 99999-9999"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Forma de Pagamento</label>
-                <select
-                  value={formData.paymentMethod}
-                  onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {paymentMethods.map(method => (
-                    <option key={method.value} value={method.value}>{method.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {statusOptions.map(status => (
-                    <option key={status.value} value={status.value}>{status.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Data da Venda</label>
-                <input
-                  type="date"
-                  value={formData.saleDate}
-                  onChange={(e) => setFormData({ ...formData, saleDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Hora da Venda</label>
-                <input
-                  type="time"
-                  value={formData.saleTime}
-                  onChange={(e) => setFormData({ ...formData, saleTime: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Observações</label>
-                <textarea
-                  value={formData.observations}
-                  onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                  placeholder="Observações sobre a venda..."
-                />
+                  <X size={20} />
+                </button>
               </div>
             </div>
 
-            {/* Sale Summary */}
-            {formData.quantity > 0 && formData.unitPrice > 0 && (
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-900 mb-3">Resumo da Venda</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-600">Peso Total:</span>
-                    <div className="font-medium">{formatWeight(formData.totalWeight)}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Valor Total:</span>
-                    <div className="font-medium text-green-600">{formatCurrency(formData.totalPrice)}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Margem de Lucro:</span>
-                    <div className={`font-medium ${formData.profitMargin >= 50 ? 'text-green-600' : formData.profitMargin >= 20 ? 'text-yellow-600' : 'text-red-600'}`}>
-                      {formData.profitMargin.toFixed(1)}%
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Preço/Grama:</span>
-                    <div className="font-medium">{formatCurrency(formData.totalWeight > 0 ? formData.totalPrice / formData.totalWeight : 0)}</div>
-                  </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Produto</label>
+                  <select
+                    value={formData.productId}
+                    onChange={(e) => handleProductSelect(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                  >
+                    <option value={0}>Selecione o produto</option>
+                    {availableProducts.map(product => (
+                      <option key={product.id} value={product.id}>
+                        {product.name} - Estoque: {formatWeight(product.currentStock)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Quantidade</label>
+                  <input
+                    type="number"
+                    value={formData.quantity}
+                    onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                    placeholder="Ex: 10"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Canal de Venda</label>
+                  <select
+                    value={formData.channel}
+                    onChange={(e) => handleChannelChange(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                  >
+                    {salesChannels.map(channel => (
+                      <option key={channel.value} value={channel.value}>
+                        {channel.label} - {channel.description}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Preço Unitário (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.unitPrice}
+                    onChange={(e) => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                    placeholder="Ex: 3.50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nome do Cliente</label>
+                  <input
+                    type="text"
+                    value={formData.customerName}
+                    onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+                    className="w-full px-3 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                    placeholder="Ex: Maria Silva"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Telefone do Cliente</label>
+                  <input
+                    type="text"
+                    value={formData.customerPhone}
+                    onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
+                    className="w-full px-3 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                    placeholder="Ex: (11) 99999-9999"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Forma de Pagamento</label>
+                  <select
+                    value={formData.paymentMethod}
+                    onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+                    className="w-full px-3 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                  >
+                    {paymentMethods.map(method => (
+                      <option key={method.value} value={method.value}>{method.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full px-3 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                  >
+                    {statusOptions.map(status => (
+                      <option key={status.value} value={status.value}>{status.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Data da Venda</label>
+                  <input
+                    type="date"
+                    value={formData.saleDate}
+                    onChange={(e) => setFormData({ ...formData, saleDate: e.target.value })}
+                    className="w-full px-3 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Hora da Venda</label>
+                  <input
+                    type="time"
+                    value={formData.saleTime}
+                    onChange={(e) => setFormData({ ...formData, saleTime: e.target.value })}
+                    className="w-full px-3 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Observações</label>
+                  <textarea
+                    value={formData.observations}
+                    onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
+                    className="w-full px-3 py-2 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                    rows={3}
+                    placeholder="Observações sobre a venda..."
+                  />
                 </div>
               </div>
-            )}
 
-            <div className="flex space-x-3 mt-6">
+              {/* Sale Summary */}
+              {formData.quantity > 0 && formData.unitPrice > 0 && (
+                <div className="mt-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+                  <h4 className="text-sm font-medium text-green-900 mb-3">Resumo da Venda</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="text-green-700">Peso Total:</span>
+                      <div className="font-medium">{formatWeight(formData.totalWeight)}</div>
+                    </div>
+                    <div>
+                      <span className="text-green-700">Valor Total:</span>
+                      <div className="font-medium text-green-700">{formatCurrency(formData.totalPrice)}</div>
+                    </div>
+                    <div>
+                      <span className="text-green-700">Margem de Lucro:</span>
+                      <div className={`font-medium ${formData.profitMargin >= 50 ? 'text-green-600' : formData.profitMargin >= 20 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        {formData.profitMargin.toFixed(1)}%
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-green-700">Preço/Grama:</span>
+                      <div className="font-medium">{formatCurrency(formData.totalWeight > 0 ? formData.totalPrice / formData.totalWeight : 0)}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-gray-200 bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
               <button
                 onClick={handleSave}
-                className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 flex items-center gap-2 shadow-sm hover:shadow-md transition-all"
               >
                 <Save size={16} />
-                <span>Salvar Venda</span>
+                Salvar Venda
               </button>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 shadow-sm"
               >
                 Cancelar
               </button>
