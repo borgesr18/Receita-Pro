@@ -1,6 +1,1 @@
-{"title":"chore: system fixes and improvements","head":"feature/system-fixes-and-improvements","base":"main","body":"- Supabase lazy initialization to avoid build-time env access
-- Fixed API route params typing and enum/status normalization
-- Added missing lucide-react icon imports across pages
-- Corrected UI barrel exports and Toast helpers
-- Hardened types in Table and DropdownPortal; aligned recipe cache types
-- Excluded .next from tsc include; cleaned lints"}
+{"title":"chore: system fixes and improvements","head":"feature/system-fixes-and-improvements","base":"main","body":"This PR includes:\n- Supabase lazy initialization to avoid build-time env access\n- Next.js API route param typing fixes\n- Enum normalization for productions and ingredients\n- Missing lucide-react icon imports\n- UI barrel export fixes (Toast, Breadcrumbs, Table types)\n- DropdownPortal ref typing and positioning\n- CachedRecipeList and cache hooks type alignment\n- tsconfig exclude .next, general lint and type fixes\n\nBuild: passing\nTS: clean\nLint: clean"}
