@@ -11,6 +11,7 @@ import {
   Copy,
   Info,
   History,
+  Search,
   ChefHat,
   Utensils,
   Clock,
@@ -27,17 +28,10 @@ import {
   PieChart,
   AlertCircle,
   CheckCircle,
-  TrendingDown,
-  // Plus,
-  // Minus,
-  // X,
-  // Save,
-  // Eye,
-  // AlertTriangle,
-  // Loader2,
+  TrendingDown
 } from 'lucide-react'
 import { api } from '@/lib/api'
-import { useToast } from '@/components/ui/Toast'
+import { useToast } from '@/contexts/ToastContext'
 
 interface Recipe {
   id: string
@@ -122,7 +116,7 @@ export default function CalculoPreco() {
   })
 
   const [calculationHistory, setCalculationHistory] = useState<CalculationHistory[]>([])
-  // const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<{[key: string]: string}>({})
 
   const { showSuccess, showError } = useToast()
@@ -305,7 +299,7 @@ export default function CalculoPreco() {
         }
       }
     }
-  }, [formData.finalWeight, formData.recipeCost, originalRecipeData, selectedRecipe, calculateProportionalCost])
+  }, [formData.finalWeight, originalRecipeData, selectedRecipe, calculateProportionalCost])
 
   // CÁLCULO AUTOMÁTICO EM TEMPO REAL
   useEffect(() => {

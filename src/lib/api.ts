@@ -1,5 +1,4 @@
 import { supabase } from './supabase'
-import { APP_CONFIG } from './config'
 
 export interface ApiResponse<T> {
   data?: T
@@ -22,7 +21,7 @@ export async function apiRequest<T>(
     // Obter sessão com retry
     let session = null
     let attempts = 0
-    const maxAttempts = APP_CONFIG.RETRY_ATTEMPTS
+    const maxAttempts = 3
 
     while (!session && attempts < maxAttempts) {
       console.log(`🔍 Tentativa ${attempts + 1} de obter sessão...`)
@@ -75,35 +74,10 @@ export async function apiRequest<T>(
     console.log('📡 Fazendo requisição HTTP...')
     console.log('🔧 Headers enviados:', Object.keys(headers))
     
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), APP_CONFIG.TIMEOUT)
-    
-    try {
-      const response = await fetch(url, {
-        headers,
-        signal: controller.signal,
-        ...options,
-      })
-      clearTimeout(timeoutId)
-      return await handleResponse(response)
-    } catch (error) {
-      clearTimeout(timeoutId)
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.error('❌ Timeout na requisição')
-        return { error: 'Timeout na requisição - tente novamente' }
-      }
-      throw error
-    }
-  } catch (error) {
-    console.error('❌ Erro geral na requisição:', error)
-    return { 
-      error: error instanceof Error ? error.message : 'Erro de rede desconhecido' 
-    }
-  }
-}
-
-async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
-  try {
+    const response = await fetch(url, {
+      headers,
+      ...options,
+    })
 
     console.log('📊 Status da resposta:', response.status)
     console.log('📊 Headers da resposta:', Object.fromEntries(response.headers.entries()))
@@ -140,9 +114,9 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
     
     return { data }
   } catch (error) {
-    console.error('❌ Erro no tratamento da resposta:', error)
+    console.error('❌ Erro geral na requisição:', error)
     return { 
-      error: error instanceof Error ? error.message : 'Erro ao processar resposta' 
+      error: error instanceof Error ? error.message : 'Erro de rede desconhecido' 
     }
   }
 }

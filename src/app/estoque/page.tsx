@@ -9,19 +9,24 @@ import {
   Search,
   Calendar,
   AlertTriangle,
+  TrendingDown,
   TrendingUp,
   Loader2,
   Eye,
   Edit,
   Trash2,
+  Factory,
   DollarSign,
+  Clock,
+  Archive,
   ArrowUpCircle,
   ArrowDownCircle,
   History,
+  Filter,
+  Download,
   RefreshCw
 } from 'lucide-react'
 import { api } from '@/lib/api'
-import { API_ENDPOINTS } from '@/lib/config'
 
 interface Ingredient {
   id: string
@@ -165,10 +170,10 @@ export default function EstoqueCompleto() {
       console.log('🔄 Carregando dados do estoque...')
       
       const [ingredientsRes, categoriesRes, unitsRes, suppliersRes] = await Promise.all([
-        api.get(API_ENDPOINTS.INGREDIENTS),
-        api.get(API_ENDPOINTS.INGREDIENT_CATEGORIES),
-        api.get(API_ENDPOINTS.MEASUREMENT_UNITS),
-        api.get(API_ENDPOINTS.SUPPLIERS)
+        api.get('/api/ingredients'),
+        api.get('/api/ingredient-categories'),
+        api.get('/api/measurement-units'),
+        api.get('/api/suppliers')
       ])
 
       if (ingredientsRes.data) {
@@ -213,7 +218,7 @@ export default function EstoqueCompleto() {
       setLoadingMovements(true)
       console.log('🔄 Carregando movimentações...')
       
-      const response = await api.get(API_ENDPOINTS.STOCK_MOVEMENTS)
+      const response = await api.get('/api/stock-movements')
       
       if (response.data) {
         setMovements(Array.isArray(response.data) ? response.data : [])
@@ -402,10 +407,10 @@ export default function EstoqueCompleto() {
       let response
       if (editingItem) {
         console.log('✏️ Atualizando ingrediente existente')
-        response = await api.put(API_ENDPOINTS.INGREDIENTS, { id: editingItem.id, ...apiData })
+        response = await api.put('/api/ingredients', { id: editingItem.id, ...apiData })
       } else {
         console.log('🆕 Criando novo ingrediente')
-        response = await api.post(API_ENDPOINTS.INGREDIENTS, apiData)
+        response = await api.post('/api/ingredients', apiData)
       }
 
       console.log('📊 Resposta da API:', response)
@@ -495,7 +500,7 @@ export default function EstoqueCompleto() {
 
       console.log('📡 Dados para API:', apiData)
 
-      const response = await api.post(API_ENDPOINTS.STOCK_MOVEMENTS, apiData)
+      const response = await api.post('/api/stock-movements', apiData)
 
       console.log('📊 Resposta da API:', response)
 

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Search, Plus, Trash2, X, Factory, Package, TrendingUp, Clock, Loader2, ChevronDown, Eye } from 'lucide-react'
+import { Search, Plus, Trash2, X, Factory, Users, Package, TrendingUp, Calendar, Clock, Loader2, AlertCircle, ChevronDown, Eye } from 'lucide-react'
 import { api } from '@/lib/api'
 
 interface Production {
@@ -43,11 +43,11 @@ interface Recipe {
   productId?: string
 }
 
-// interface User {
-//   id: string
-//   name: string
-//   role: string
-// }
+interface User {
+  id: string
+  name: string
+  email: string
+}
 
 interface RecipeCategory {
   id: string
@@ -86,7 +86,7 @@ export default function ProducaoSemEdicao() {
   const [productions, setProductions] = useState<Production[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [recipes, setRecipes] = useState<Recipe[]>([])
-  // const [users, setUsers] = useState<User[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [categories, setCategories] = useState<RecipeCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)

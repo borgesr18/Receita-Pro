@@ -20,7 +20,6 @@ import {
   Package
 } from 'lucide-react'
 import { api } from '@/lib/api'
-import { API_ENDPOINTS } from '@/lib/config'
 
 interface Recipe {
   id: string
@@ -413,11 +412,11 @@ export default function FichasTecnicas() {
       console.log('🔄 Carregando dados...')
       
       const [recipesRes, categoriesRes, ingredientsRes, unitsRes, productsRes] = await Promise.all([
-        api.get(API_ENDPOINTS.RECIPES),
-        api.get(API_ENDPOINTS.RECIPE_CATEGORIES),
-        api.get(API_ENDPOINTS.INGREDIENTS),
-        api.get(API_ENDPOINTS.MEASUREMENT_UNITS),
-        api.get(API_ENDPOINTS.PRODUCTS)
+        api.get('/api/recipes'),
+        api.get('/api/recipe-categories'),
+        api.get('/api/ingredients'),
+        api.get('/api/measurement-units'),
+        api.get('/api/products')
       ])
 
       console.log('✅ Dados carregados:', {
@@ -495,7 +494,7 @@ export default function FichasTecnicas() {
         await api.put(`/api/recipes/${editingId}`, payload)
         console.log('✅ Receita atualizada com sucesso!');
       } else {
-        await api.post(API_ENDPOINTS.RECIPES, payload)
+        await api.post('/api/recipes', payload)
         console.log('✅ Nova receita criada com sucesso!');
       }
 

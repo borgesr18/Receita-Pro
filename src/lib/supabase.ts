@@ -8,19 +8,16 @@ console.log('🔧 Configuração Supabase:')
 console.log('URL:', supabaseUrl ? '✅ Definida' : '❌ Não definida')
 console.log('Key:', supabaseAnonKey ? '✅ Definida' : '❌ Não definida')
 
-
-
-// Validar variáveis obrigatórias
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Variáveis de ambiente do Supabase são obrigatórias: NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY'
-  )
+  console.error('❌ Variáveis de ambiente do Supabase não encontradas!')
+  console.log('NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl)
+  console.log('NEXT_PUBLIC_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Presente' : 'Ausente')
 }
 
 // Criar cliente com configurações otimizadas
 export const supabase = createClient(
-  supabaseUrl,
-  supabaseAnonKey,
+  supabaseUrl || 'https://nuolpdhxcarpdmoavmrf.supabase.co',
+  supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51b2xwZGh4Y2FycGRtb2F2bXJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzOTIwMTIsImV4cCI6MjA2Njk2ODAxMn0.4ozPrMw7G8FHEpYDBQYwT6ZmghhtKMxVhHSOzkD2pTE',
   {
     auth: {
       persistSession: true,

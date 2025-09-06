@@ -1,27 +1,35 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
-import { AuthProvider } from '@/components/AuthProvider'
-import { ConditionalLayout } from '@/components/ConditionalLayout'
-import { ToastProvider } from '@/components/ui/Toast'
-import { SkipLinks } from '@/components/ui/SkipLinks'
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import { AuthProvider } from "@/components/AuthProvider";
+import { ConditionalLayout } from "@/components/ConditionalLayout";
+import { ToastProvider } from "@/contexts/ToastContext";
 
-const inter = Inter({ subsets: ['latin'] })
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
-  title: 'Receita Pro',
-  description: 'Sistema de gestão para panificação',
-}
+  title: "Receita Pro - Sistema de Gestão para Panificação",
+  description: "Sistema completo para gerenciar produção de pães e bolos com controle de receitas, custos, produção, estoque e vendas",
+};
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-      <body className={`${inter.className} transition-colors`} suppressHydrationWarning>
-        <SkipLinks />
+    <html lang="pt-BR">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
         <ToastProvider>
           <AuthProvider>
             <ConditionalLayout>
@@ -31,5 +39,5 @@ export default function RootLayout({
         </ToastProvider>
       </body>
     </html>
-  )
+  );
 }

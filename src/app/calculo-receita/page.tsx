@@ -22,8 +22,7 @@ import {
   Info
 } from 'lucide-react'
 import { api } from '@/lib/api'
-import { useToast } from '@/components/ui/Toast'
-import { API_ENDPOINTS } from '@/lib/config'
+import { useToast } from '@/contexts/ToastContext'
 
 interface Recipe {
   id: string
@@ -160,8 +159,8 @@ export default function CalculoReceita() {
       setLoading(true)
       
       const [recipesRes, categoriesRes] = await Promise.all([
-        api.get(API_ENDPOINTS.RECIPES),
-        api.get(API_ENDPOINTS.RECIPE_CATEGORIES)
+        api.get('/api/recipes'),
+        api.get('/api/recipe-categories')
       ])
 
       const recipesData = Array.isArray(recipesRes.data) ? recipesRes.data : []
