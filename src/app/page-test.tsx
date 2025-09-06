@@ -10,7 +10,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Plus,
-  Calculator
+  Calculator,
+  ChefHat,
+  AlertTriangle
 } from 'lucide-react'
 
 export default function Dashboard() {

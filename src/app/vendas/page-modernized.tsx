@@ -9,7 +9,12 @@ import {
   Search,
   Receipt,
   ShoppingCart,
-  Percent
+  Percent,
+  Calendar,
+  DollarSign,
+  Filter,
+  Eye,
+  Save
 } from 'lucide-react'
 
 export default function Vendas() {

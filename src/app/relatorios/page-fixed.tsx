@@ -11,7 +11,10 @@ import {
   CheckCircle,
   Clock,
   PieChart,
-  Filter
+  Filter,
+  AlertCircle,
+  DollarSign,
+  Package
 } from 'lucide-react'
 
 export default function Relatorios() {

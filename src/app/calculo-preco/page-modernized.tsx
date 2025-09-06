@@ -8,7 +8,11 @@ import {
   RotateCcw,
   Info,
   History,
-  Target
+  Target,
+  Copy,
+  DollarSign,
+  Percent,
+  TrendingUp
 } from 'lucide-react'
 
 export default function CalculoPreco() {

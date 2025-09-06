@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import getSupabaseClient from './supabase'
 
 export interface ApiResponse<T> {
   data?: T
@@ -12,7 +12,8 @@ export async function apiRequest<T>(
   try {
     console.log('🔄 Iniciando requisição para:', url)
     
-    // Verificar se o cliente Supabase está funcionando
+    const supabase = getSupabaseClient()
+    // Verificar se o cliente Supabase está funcionando (apenas no browser)
     if (!supabase) {
       console.error('❌ Cliente Supabase não inicializado')
       return { error: 'Cliente Supabase não inicializado' }
@@ -145,5 +146,3 @@ if (typeof window !== 'undefined') {
   (window as any).api = api
   console.log('🌐 API exposta globalmente para debug')
 }
-
-export { supabase }

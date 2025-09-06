@@ -34,19 +34,19 @@ export const useToast = () => {
   
   // Wrapper functions for compatibility with existing pages
   const showSuccess = (title: string, message?: string) => {
-    context.addToast({ type: 'success', title, message })
+    context.addToast({ type: 'success', title, description: message })
   }
   
   const showError = (title: string, message?: string) => {
-    context.addToast({ type: 'error', title, message })
+    context.addToast({ type: 'error', title, description: message })
   }
   
   const showWarning = (title: string, message?: string) => {
-    context.addToast({ type: 'warning', title, message })
+    context.addToast({ type: 'warning', title, description: message })
   }
   
   const showInfo = (title: string, message?: string) => {
-    context.addToast({ type: 'info', title, message })
+    context.addToast({ type: 'info', title, description: message })
   }
   
   return {

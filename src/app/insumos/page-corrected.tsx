@@ -10,7 +10,9 @@ import {
   Save, 
   Package, 
   AlertTriangle, 
-  DollarSign
+  DollarSign,
+  Filter,
+  Eye
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/contexts/ToastContext'

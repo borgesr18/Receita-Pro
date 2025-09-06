@@ -7,7 +7,12 @@ import {
   Trash2, 
   X,
   Search,
-  Filter
+  Filter,
+  Package,
+  AlertTriangle,
+  DollarSign,
+  Eye,
+  Save
 } from 'lucide-react'
 
 export default function Insumos() {

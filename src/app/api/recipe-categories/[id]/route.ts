@@ -4,7 +4,7 @@ import { getUser } from '@/lib/auth'
 
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { user, error } = await getUser(request)
@@ -12,7 +12,6 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
     const body = await request.json()
     
     const result = await prisma.recipeCategory.updateMany({
@@ -46,7 +45,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { user, error } = await getUser(request)
@@ -54,7 +53,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
     const result = await prisma.recipeCategory.deleteMany({
       where: { id: params.id, userId: user.id }
     })

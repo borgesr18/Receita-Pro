@@ -87,7 +87,7 @@ export default function CalculoPreco() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   
   // REF PARA O BOTÃO DO DROPDOWN
-  const dropdownButtonRef = useRef<HTMLButtonElement>(null)
+  const dropdownButtonRef = useRef<HTMLButtonElement | null>(null)
   
   // DADOS DA RECEITA ORIGINAL (para cálculo proporcional)
   const [originalRecipeData, setOriginalRecipeData] = useState<{
@@ -347,8 +347,8 @@ export default function CalculoPreco() {
   const fetchCalculationHistory = async () => {
     try {
       const response = await api.get('/api/calculo-preco/historico')
-      if (response.data) {
-        setCalculationHistory(response.data)
+      if (response.data && Array.isArray(response.data)) {
+        setCalculationHistory(response.data as any)
       }
     } catch (error) {
       console.error('Error fetching calculation history:', error)
@@ -628,11 +628,11 @@ Calculado em: ${new Date().toLocaleString('pt-BR')}`
                 filterCategory={filterCategory}
                 onSearch={setSearchTerm}
                 onCategoryChange={setFilterCategory}
-                recipes={filteredRecipes}
-                categories={categories}
-                onSelect={selectRecipe}
+                recipes={filteredRecipes as any}
+                categories={categories as any}
+                onSelect={selectRecipe as any}
                 onClose={() => setIsDropdownOpen(false)}
-                calculateRecipeData={calculateRecipeCost}
+                calculateRecipeData={calculateRecipeCost as any}
                 loading={loading}
               />
             </div>

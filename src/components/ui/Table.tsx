@@ -40,6 +40,7 @@ export interface TableProps<T = any> {
   columns: Column<T>[];
   data: T[];
   loading?: boolean;
+  totalItems?: number;
   pagination?: {
     current: number;
     pageSize: number;
@@ -72,7 +73,7 @@ export function Table<T = any>({
   data,
   loading = false,
   pagination,
-  rowKey = 'id',
+  rowKey,
   onRow,
   actions,
   searchable = false,
@@ -95,7 +96,8 @@ export function Table<T = any>({
     if (typeof rowKey === 'function') {
       return rowKey(record);
     }
-    return String(record[rowKey] || index);
+    const keyValue = rowKey ? (record as Record<string, unknown>)[rowKey as string] : undefined;
+    return keyValue !== undefined && keyValue !== null ? String(keyValue) : String(index);
   };
 
   // Filtered and sorted data
@@ -255,7 +257,7 @@ export function Table<T = any>({
                   <input
                     type="checkbox"
                     checked={selectedRows.length === processedData.length && processedData.length > 0}
-                    onChange={handleSelectAll}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
                     className="rounded border-border text-primary focus:ring-focus-ring"
                     aria-label={`Selecionar ${selectedRows.length === processedData.length ? 'nenhum' : 'todos'} os itens`}
                     aria-describedby="select-all-help"
@@ -521,6 +523,7 @@ export function useTable<T>({ data, columns, pageSize = 10, sortable = true, fil
     total: data.length
   });
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [tableData, setTableData] = useState<T[]>(data);
 
   const handlePaginationChange = (page: number, pageSize: number) => {
     setPagination(prev => ({ ...prev, current: page, pageSize }));
@@ -535,8 +538,8 @@ export function useTable<T>({ data, columns, pageSize = 10, sortable = true, fil
   };
 
   return {
-    data,
-    setData,
+    data: tableData,
+    setData: setTableData,
     loading,
     setLoading,
     pagination,
