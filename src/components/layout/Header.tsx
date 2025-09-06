@@ -1,7 +1,7 @@
 'use client';
 
 import { Search, Bell, User, Settings, LogOut, Sun, Moon, Menu } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { useTheme } from '@/hooks/useTheme';

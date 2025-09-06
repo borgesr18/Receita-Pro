@@ -20,11 +20,11 @@ import {
   Calculator
 } from 'lucide-react'
 import {
-  StatCard,
   ActivityFeed,
   QuickActions,
   PerformanceMetrics,
-  RevenueChart
+  RevenueChart,
+  StatCard
 } from '@/components/dashboard'
 
 export default function Dashboard() {
@@ -57,6 +57,80 @@ export default function Dashboard() {
     router.push('/calculo-receita')
   }
 
+  // Dados para métricas de performance
+  const performanceMetrics = [
+    {
+      label: 'Margem Média',
+      value: 58,
+      target: 60,
+      unit: '%',
+      color: 'blue'
+    },
+    {
+      label: 'Produtividade',
+      value: 85,
+      target: 80,
+      unit: '%',
+      color: 'green'
+    },
+    {
+      label: 'Satisfação Cliente',
+      value: 92,
+      target: 90,
+      unit: '%',
+      color: 'purple'
+    }
+  ]
+
+  // Dados para gráfico de receita
+  const revenueData = [
+    { month: 'Jan', revenue: 8500, target: 8000 },
+    { month: 'Fev', revenue: 9200, target: 8500 },
+    { month: 'Mar', revenue: 8800, target: 9000 },
+    { month: 'Abr', revenue: 10500, target: 9500 },
+    { month: 'Mai', revenue: 11200, target: 10000 },
+    { month: 'Jun', revenue: 12450, target: 11000 }
+  ]
+
+  // Dados para ações rápidas
+  const quickActionsData = [
+    {
+      title: 'Nova Receita',
+      description: 'Criar nova ficha técnica',
+      icon: FileText,
+      color: 'blue',
+      onClick: handleNovaReceita
+    },
+    {
+      title: 'Registrar Produção',
+      description: 'Lançar nova produção',
+      icon: Factory,
+      color: 'green',
+      onClick: handleRegistrarProducao
+    },
+    {
+      title: 'Cadastrar Insumo',
+      description: 'Adicionar novo insumo',
+      icon: Package,
+      color: 'purple',
+      onClick: handleCadastrarInsumo
+    },
+    {
+      title: 'Registrar Venda',
+      description: 'Lançar nova venda',
+      icon: TrendingUp,
+      color: 'orange',
+      onClick: handleRegistrarVenda
+    },
+    {
+      title: 'Calcular Receita',
+      description: 'Calcular custos e preços',
+      icon: Calculator,
+      color: 'indigo',
+      onClick: handleCalcularReceita
+    }
+  ]
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
@@ -79,34 +153,46 @@ export default function Dashboard() {
     {
       title: 'Receitas Ativas',
       value: '24',
-      change: '+12%',
-      trend: 'up' as const,
-      icon: FileText,
-      color: 'blue'
+      change: {
+        value: 12,
+        type: 'increase' as const,
+        period: 'vs mês anterior'
+      },
+      icon: <FileText className="w-6 h-6" />,
+      color: 'blue' as const
     },
     {
       title: 'Insumos Cadastrados',
       value: '156',
-      change: '+8%',
-      trend: 'up' as const,
-      icon: Package,
-      color: 'emerald'
+      change: {
+        value: 8,
+        type: 'increase' as const,
+        period: 'vs mês anterior'
+      },
+      icon: <Package className="w-6 h-6" />,
+      color: 'green' as const
     },
     {
       title: 'Produtos em Estoque',
       value: '89',
-      change: '-3%',
-      trend: 'down' as const,
-      icon: Warehouse,
-      color: 'purple'
+      change: {
+        value: 3,
+        type: 'decrease' as const,
+        period: 'vs mês anterior'
+      },
+      icon: <Warehouse className="w-6 h-6" />,
+      color: 'purple' as const
     },
     {
       title: 'Vendas do Mês',
       value: 'R$ 12.450',
-      change: '+24%',
-      trend: 'up' as const,
-      icon: DollarSign,
-      color: 'orange'
+      change: {
+        value: 24,
+        type: 'increase' as const,
+        period: 'vs mês anterior'
+      },
+      icon: <DollarSign className="w-6 h-6" />,
+      color: 'red' as const
     }
   ]
 
@@ -238,194 +324,50 @@ export default function Dashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => {
-          const Icon = stat.icon
-          return (
-            <div key={index} className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-md`}>
-                  <Icon className="text-white" size={24} />
-                </div>
-                <div className={`flex items-center space-x-1 text-sm font-medium ${
-                  stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
-                } bg-white/80 px-3 py-1 rounded-full shadow-sm`}>
-                  {stat.trend === 'up' ? (
-                    <ArrowUpRight size={16} />
-                  ) : (
-                    <ArrowDownRight size={16} />
-                  )}
-                  <span>{stat.change}</span>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-600 mb-1">{stat.title}</h3>
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-              </div>
-            </div>
-          )
-        })}
+        {stats.map((stat, index) => (
+           <StatCard
+             key={index}
+             title={stat.title}
+             value={stat.value}
+             change={stat.change}
+             icon={stat.icon}
+             color={stat.color}
+           />
+         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Activity */}
-        <div className="lg:col-span-2 bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-xl">
-                <Clock className="w-5 h-5 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-white">Atividade Recente</h3>
-            </div>
-          </div>
-          
-          <div className="p-6">
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => {
-                const Icon = activity.icon
-                return (
-                  <div key={index} className="flex items-start space-x-4 p-4 rounded-xl bg-white/50 hover:bg-white/80 transition-colors border border-gray-100 shadow-sm hover:shadow-md">
-                    <div className={`w-10 h-10 rounded-xl ${activity.color} flex items-center justify-center shadow-sm`}>
-                      <Icon size={18} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">{activity.title}</h4>
-                        <span className="text-xs text-gray-500 bg-white/80 px-2 py-1 rounded-full">{activity.time}</span>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-            
-            <div className="mt-6 text-center">
-              <button className="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 mx-auto">
-                <span>Ver todas as atividades</span>
-                <ArrowUpRight size={14} />
-              </button>
-            </div>
-          </div>
+        <div className="lg:col-span-2">
+          <ActivityFeed
+            activities={recentActivity}
+            title="Atividade Recente"
+            onShowAll={() => console.log('Ver todas as atividades')}
+          />
         </div>
 
-        {/* Top Recipes */}
-        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden">
-          <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-xl">
-                <TrendingUp className="w-5 h-5 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-white">Receitas Mais Lucrativas</h3>
-            </div>
-          </div>
-          
-          <div className="p-6">
-            <div className="space-y-4">
-              {topRecipes.map((recipe, index) => (
-                <div key={index} className="flex items-center justify-between p-4 rounded-xl bg-white/50 hover:bg-white/80 transition-colors border border-gray-100 shadow-sm hover:shadow-md">
-                  <div className="flex-1">
-                    <h4 className="text-sm font-semibold text-gray-900">{recipe.name}</h4>
-                    <div className="flex items-center mt-1">
-                      <div className="text-xs text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-                        Margem: {recipe.margin}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-green-600">{recipe.revenue}</p>
-                    <div className={`flex items-center justify-end space-x-1 ${
-                      recipe.trend === 'up' ? 'text-green-500' : 'text-red-500'
-                    }`}>
-                      {recipe.trend === 'up' ? (
-                        <ArrowUpRight size={12} />
-                      ) : (
-                        <ArrowDownRight size={12} />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <div className="mt-6 text-center">
-              <button className="text-sm text-green-600 hover:text-green-800 font-medium flex items-center gap-1 mx-auto">
-                <span>Ver relatório completo</span>
-                <ArrowUpRight size={14} />
-              </button>
-            </div>
-          </div>
+        {/* Performance Metrics */}
+        <div>
+          <PerformanceMetrics
+            metrics={performanceMetrics}
+            title="Métricas de Performance"
+            period="Últimos 30 dias"
+          />
         </div>
       </div>
+
+      {/* Revenue Chart */}
+      <RevenueChart
+        data={revenueData}
+        title="Receita Mensal"
+        period="Últimos 6 meses"
+      />
 
       {/* Quick Actions */}
-      <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden">
-        <div className="bg-gradient-to-r from-purple-600 to-violet-600 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/20 rounded-xl">
-              <Plus className="w-5 h-5 text-white" />
-            </div>
-            <h3 className="text-xl font-bold text-white">Ações Rápidas</h3>
-          </div>
-        </div>
-        
-        <div className="p-6">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <button 
-              onClick={handleNovaReceita}
-              className="group flex flex-col items-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl border border-blue-200 hover:border-blue-300 hover:shadow-md transition-all"
-            >
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl flex items-center justify-center mb-3 shadow-md group-hover:shadow-lg transition-all">
-                <FileText size={20} />
-              </div>
-              <span className="text-sm font-medium text-gray-900">Nova Receita</span>
-            </button>
-            
-            <button 
-              onClick={handleRegistrarProducao}
-              className="group flex flex-col items-center p-6 bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 rounded-xl border border-green-200 hover:border-green-300 hover:shadow-md transition-all"
-            >
-              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl flex items-center justify-center mb-3 shadow-md group-hover:shadow-lg transition-all">
-                <Factory size={20} />
-              </div>
-              <span className="text-sm font-medium text-gray-900">Registrar Produção</span>
-            </button>
-            
-            <button 
-              onClick={handleCadastrarInsumo}
-              className="group flex flex-col items-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 rounded-xl border border-purple-200 hover:border-purple-300 hover:shadow-md transition-all"
-            >
-              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl flex items-center justify-center mb-3 shadow-md group-hover:shadow-lg transition-all">
-                <Package size={20} />
-              </div>
-              <span className="text-sm font-medium text-gray-900">Cadastrar Insumo</span>
-            </button>
-            
-            <button 
-              onClick={handleRegistrarVenda}
-              className="group flex flex-col items-center p-6 bg-gradient-to-br from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 rounded-xl border border-orange-200 hover:border-orange-300 hover:shadow-md transition-all"
-            >
-              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl flex items-center justify-center mb-3 shadow-md group-hover:shadow-lg transition-all">
-                <TrendingUp size={20} />
-              </div>
-              <span className="text-sm font-medium text-gray-900">Registrar Venda</span>
-            </button>
-            
-            <button 
-              onClick={handleCalcularReceita}
-              className="group flex flex-col items-center p-6 bg-gradient-to-br from-indigo-50 to-indigo-100 hover:from-indigo-100 hover:to-indigo-200 rounded-xl border border-indigo-200 hover:border-indigo-300 hover:shadow-md transition-all"
-            >
-              <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl flex items-center justify-center mb-3 shadow-md group-hover:shadow-lg transition-all">
-                <Calculator size={20} />
-              </div>
-              <span className="text-sm font-medium text-gray-900">Calcular Receita</span>
-            </button>
-          </div>
-        </div>
-      </div>
+      <QuickActions
+        actions={quickActionsData}
+        title="Ações Rápidas"
+      />
     </div>
   )
 }
-
-
-

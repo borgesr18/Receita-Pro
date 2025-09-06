@@ -98,10 +98,38 @@ const api = {
     await new Promise(resolve => setTimeout(resolve, 300));
     
     return [
-      { id: '1', name: 'Farinha de Trigo', category: 'Grãos', unit: 'g' },
-      { id: '2', name: 'Açúcar', category: 'Doces', unit: 'g' },
-      { id: '3', name: 'Ovos', category: 'Proteínas', unit: 'unidade' },
-      { id: '4', name: 'Leite', category: 'Laticínios', unit: 'ml' }
+      { 
+        id: '1', 
+        name: 'Farinha de Trigo', 
+        unit: 'g', 
+        costPerUnit: 0.05,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      { 
+        id: '2', 
+        name: 'Açúcar', 
+        unit: 'g', 
+        costPerUnit: 0.08,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      { 
+        id: '3', 
+        name: 'Ovos', 
+        unit: 'unidade', 
+        costPerUnit: 0.50,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      { 
+        id: '4', 
+        name: 'Leite', 
+        unit: 'ml', 
+        costPerUnit: 0.003,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
     ];
   }
 };
@@ -114,7 +142,7 @@ export function useRecipesCache(filters?: RecipeFilters) {
   
   return useApiCache(
     cacheKey,
-    () => api.getRecipes(filters),
+    () => api.getRecipes(),
     {
       ttl: 5 * 60 * 1000, // 5 minutes
       persistToStorage: true

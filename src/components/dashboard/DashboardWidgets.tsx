@@ -16,10 +16,10 @@ import {
   Eye,
   Download
 } from 'lucide-react';
-import { Card } from '@/components/ui';
+import { Card } from '@/components/ui/Card';
 
 // Types
-interface StatCardProps {
+export interface StatCardProps {
   title: string;
   value: string | number;
   change?: {
@@ -33,7 +33,7 @@ interface StatCardProps {
   onClick?: () => void;
 }
 
-interface ChartData {
+export interface ChartData {
   name: string;
   value: number;
   color?: string;
@@ -290,54 +290,7 @@ export function ActivityFeed({
   );
 }
 
-// Quick Actions Widget
-export function QuickActions({ 
-  actions,
-  title = "Ações Rápidas"
-}: {
-  actions: Array<{
-    id: string;
-    label: string;
-    icon: React.ReactNode;
-    onClick: () => void;
-    color?: string;
-    disabled?: boolean;
-  }>;
-  title?: string;
-}) {
-  return (
-    <Card className="p-6">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">
-        {title}
-      </h3>
-      
-      <div className="grid grid-cols-2 gap-3">
-        {actions.map((action) => (
-          <button
-            key={action.id}
-            onClick={action.onClick}
-            disabled={action.disabled}
-            className={`
-              p-4 rounded-lg border border-gray-200 dark:border-gray-700
-              hover:bg-gray-50 dark:hover:bg-gray-700
-              transition-colors duration-200
-              disabled:opacity-50 disabled:cursor-not-allowed
-              flex flex-col items-center space-y-2
-            `}
-            style={{ color: action.color }}
-          >
-            <div className="text-2xl">
-              {action.icon}
-            </div>
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 text-center">
-              {action.label}
-            </span>
-          </button>
-        ))}
-      </div>
-    </Card>
-  );
-}
+
 
 // Performance Metrics Widget
 export function PerformanceMetrics({ 

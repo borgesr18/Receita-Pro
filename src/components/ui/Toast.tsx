@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react'
-import { useTheme } from '@/hooks/useTheme'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
@@ -32,7 +31,31 @@ export const useToast = () => {
   if (!context) {
     throw new Error('useToast must be used within a ToastProvider')
   }
-  return context
+  
+  // Wrapper functions for compatibility with existing pages
+  const showSuccess = (title: string, message?: string) => {
+    context.addToast({ type: 'success', title, message })
+  }
+  
+  const showError = (title: string, message?: string) => {
+    context.addToast({ type: 'error', title, message })
+  }
+  
+  const showWarning = (title: string, message?: string) => {
+    context.addToast({ type: 'warning', title, message })
+  }
+  
+  const showInfo = (title: string, message?: string) => {
+    context.addToast({ type: 'info', title, message })
+  }
+  
+  return {
+    ...context,
+    showSuccess,
+    showError,
+    showWarning,
+    showInfo
+  }
 }
 
 // Toast Provider
@@ -54,7 +77,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setToasts(prev => [...prev, newToast])
     
     // Auto remove toast after duration
-    if (newToast.duration > 0) {
+    if (newToast.duration && newToast.duration > 0) {
       setTimeout(() => {
         removeToast(id)
       }, newToast.duration)
@@ -76,6 +99,15 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 // Toast Container
 const ToastContainer: React.FC = () => {
   const { toasts } = useToast()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return null
+  }
 
   return (
     <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full">
@@ -89,14 +121,20 @@ const ToastContainer: React.FC = () => {
 // Individual Toast Component
 const ToastComponent: React.FC<{ toast: Toast }> = ({ toast }) => {
   const { removeToast } = useToast()
-  const { theme } = useTheme()
   const [isVisible, setIsVisible] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     // Trigger animation
     const timer = setTimeout(() => setIsVisible(true), 10)
     return () => clearTimeout(timer)
   }, [])
+
+  // Prevent hydration mismatch
+  if (!mounted) {
+    return null
+  }
 
   const handleClose = () => {
     setIsVisible(false)
@@ -141,10 +179,7 @@ const ToastComponent: React.FC<{ toast: Toast }> = ({ toast }) => {
           ? 'translate-x-0 opacity-100 scale-100' 
           : 'translate-x-full opacity-0 scale-95'
         }
-        ${theme === 'dark' 
-          ? 'bg-gray-800 border-gray-700 text-white' 
-          : 'bg-white border-gray-200 text-gray-900'
-        }
+        bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white
         border-l-4 ${getBorderColor()}
         rounded-lg shadow-lg border p-4 min-w-0
       `}
@@ -163,10 +198,7 @@ const ToastComponent: React.FC<{ toast: Toast }> = ({ toast }) => {
                 {toast.title}
               </h4>
               {toast.description && (
-                <p className={`
-                  text-sm mt-1
-                  ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}
-                `}>
+                <p className="text-sm mt-1 text-gray-600 dark:text-gray-300">
                   {toast.description}
                 </p>
               )}
@@ -174,13 +206,7 @@ const ToastComponent: React.FC<{ toast: Toast }> = ({ toast }) => {
             
             <button
               onClick={handleClose}
-              className={`
-                flex-shrink-0 p-1 rounded transition-colors
-                ${theme === 'dark'
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                }
-              `}
+              className="flex-shrink-0 p-1 rounded transition-colors text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-white dark:hover:bg-gray-700"
               aria-label="Fechar notificação"
             >
               <X size={16} />
@@ -193,11 +219,10 @@ const ToastComponent: React.FC<{ toast: Toast }> = ({ toast }) => {
                 onClick={toast.action.onClick}
                 className={`
                   text-sm font-medium px-3 py-1 rounded transition-colors
-                  ${toast.type === 'success' && 'text-green-600 hover:bg-green-50'}
-                  ${toast.type === 'error' && 'text-red-600 hover:bg-red-50'}
-                  ${toast.type === 'warning' && 'text-yellow-600 hover:bg-yellow-50'}
-                  ${toast.type === 'info' && 'text-blue-600 hover:bg-blue-50'}
-                  ${theme === 'dark' && 'hover:bg-gray-700'}
+                  ${toast.type === 'success' && 'text-green-600 hover:bg-green-50 dark:hover:bg-gray-700'}
+                  ${toast.type === 'error' && 'text-red-600 hover:bg-red-50 dark:hover:bg-gray-700'}
+                  ${toast.type === 'warning' && 'text-yellow-600 hover:bg-yellow-50 dark:hover:bg-gray-700'}
+                  ${toast.type === 'info' && 'text-blue-600 hover:bg-blue-50 dark:hover:bg-gray-700'}
                 `}
               >
                 {toast.action.label}

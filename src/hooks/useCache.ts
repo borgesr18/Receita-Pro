@@ -137,30 +137,6 @@ export function useCache<T>(
   // Update fetcher ref
   fetcherRef.current = fetcher;
 
-  // Load initial data from cache or storage
-  useEffect(() => {
-    // Try memory cache first
-    const cachedData = globalCache.get<T>(key);
-    if (cachedData) {
-      setDataState(cachedData);
-      return;
-    }
-
-    // Try localStorage if enabled
-    if (persistToStorage) {
-      const storedEntry = storage.get(storageKey);
-      if (storedEntry && Date.now() - storedEntry.timestamp < ttl) {
-        setDataState(storedEntry.data);
-        // Also set in memory cache
-        globalCache.set(key, storedEntry.data, ttl);
-        return;
-      }
-    }
-
-    // No cached data, fetch fresh
-    refetch();
-  }, [key, ttl, persistToStorage, storageKey, refetch]);
-
   const refetch = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -188,6 +164,30 @@ export function useCache<T>(
       setIsLoading(false);
     }
   }, [key, ttl, persistToStorage, storageKey]);
+
+  // Load initial data from cache or storage
+  useEffect(() => {
+    // Try memory cache first
+    const cachedData = globalCache.get<T>(key);
+    if (cachedData) {
+      setDataState(cachedData);
+      return;
+    }
+
+    // Try localStorage if enabled
+    if (persistToStorage) {
+      const storedEntry = storage.get(storageKey);
+      if (storedEntry && Date.now() - storedEntry.timestamp < ttl) {
+        setDataState(storedEntry.data);
+        // Also set in memory cache
+        globalCache.set(key, storedEntry.data, ttl);
+        return;
+      }
+    }
+
+    // No cached data, fetch fresh
+    refetch();
+  }, [key, ttl, persistToStorage, storageKey, refetch]);
 
   const invalidate = useCallback(() => {
     globalCache.delete(key);

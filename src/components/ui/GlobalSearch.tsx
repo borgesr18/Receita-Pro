@@ -309,7 +309,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     <Clock className="w-4 h-4 inline mr-2" />
                     Buscas Recentes
                   </div>
-                  {recentSearches.map((recentQuery) => (
+                  {recentSearches.map((recentQuery, index) => (
                     <button
                       key={index}
                       onClick={() => handleRecentSearchClick(recentQuery)}

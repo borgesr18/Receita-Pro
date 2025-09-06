@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Footer from './Footer';
-import { ToastProvider } from '@/components/ui/Toast';
 import { useSkipLinks } from '@/components/ui/SkipLinks';
 
 interface DashboardLayoutProps {
@@ -37,35 +36,33 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [addSkipTarget]);
 
   return (
-    <ToastProvider>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-        <Sidebar 
-          isOpen={isMobileMenuOpen} 
-          onClose={handleMenuClose}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+      <Sidebar 
+        isOpen={isMobileMenuOpen} 
+        onClose={handleMenuClose}
+      />
+      
+      <div className="lg:ml-64 transition-all duration-300">
+        <Header 
+          onMenuClick={handleMenuToggle}
+          isMobileMenuOpen={isMobileMenuOpen}
         />
         
-        <div className="lg:ml-64 transition-all duration-300">
-          <Header 
-            onMenuClick={handleMenuToggle}
-            isMobileMenuOpen={isMobileMenuOpen}
-          />
-          
-          <main 
-            id="main-content"
-            className="p-4 lg:p-6 min-h-[calc(100vh-160px)]"
-            role="main"
-            aria-label="Conteúdo principal"
-            tabIndex={-1}
-          >
-            <div className="max-w-7xl mx-auto">
-              {children}
-            </div>
-          </main>
-          
-          <Footer />
-        </div>
+        <main 
+          id="main-content"
+          className="p-4 lg:p-6 min-h-[calc(100vh-160px)]"
+          role="main"
+          aria-label="Conteúdo principal"
+          tabIndex={-1}
+        >
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
+        </main>
+        
+        <Footer />
       </div>
-    </ToastProvider>
+    </div>
   );
 }
 
