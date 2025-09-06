@@ -138,7 +138,8 @@ export default function Relatorios() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Relatórios</h1>
@@ -163,7 +164,7 @@ export default function Relatorios() {
       </div>
 
       {/* Date Range Filter */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
         <div className="flex flex-col md:flex-row gap-4 items-center">
           <div className="flex items-center space-x-4">
             <label className="text-sm font-medium text-gray-700">Período:</label>
@@ -207,7 +208,7 @@ export default function Relatorios() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8 px-6">
             <button
@@ -307,7 +308,7 @@ export default function Relatorios() {
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
                     <thead>
-                      <tr className="text-left text-sm text-gray-600">
+                      <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-left text-sm">
                         <th className="pb-3">Produto</th>
                         <th className="pb-3">Quantidade</th>
                         <th className="pb-3">Faturamento</th>
@@ -400,7 +401,7 @@ export default function Relatorios() {
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
                     <thead>
-                      <tr className="text-left text-sm text-gray-600">
+                      <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-left text-sm">
                         <th className="pb-3">Produto</th>
                         <th className="pb-3">Quantidade</th>
                         <th className="pb-3">Lotes</th>
@@ -479,7 +480,7 @@ export default function Relatorios() {
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
                     <thead>
-                      <tr className="text-left text-sm text-gray-600">
+                      <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-left text-sm">
                         <th className="pb-3">Insumo</th>
                         <th className="pb-3">Consumo</th>
                         <th className="pb-3">Custo</th>
@@ -621,7 +622,7 @@ export default function Relatorios() {
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
                     <thead>
-                      <tr className="text-left text-sm text-gray-600">
+                      <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-left text-sm">
                         <th className="pb-3">Mês</th>
                         <th className="pb-3">Receita</th>
                         <th className="pb-3">Lucro</th>

@@ -358,7 +358,7 @@ export default function ProdutosReceitasCompostas() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           <p className="text-gray-600 font-medium">Carregando produtos...</p>
@@ -368,7 +368,7 @@ export default function ProdutosReceitasCompostas() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -460,14 +460,14 @@ export default function ProdutosReceitasCompostas() {
         <div className="bg-white/70 backdrop-blur-sm rounded-3xl shadow-lg border border-white/20 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Produto</th>
-                  <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Categoria</th>
-                  <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Peso Médio</th>
-                  <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Receitas</th>
-                  <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Tipo</th>
-                  <th className="px-6 py-4 text-center text-sm font-bold text-gray-700">Ações</th>
+              <thead>
+                <tr className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Produto</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Categoria</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Peso Médio</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Receitas</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">Tipo</th>
+                  <th className="px-6 py-4 text-center text-xs font-medium uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
