@@ -1,5 +1,5 @@
 import { prisma } from './prisma'
-import { supabaseServer } from './auth'
+import { getSupabaseAdmin } from './auth'
 
 export async function syncUser(supabaseUserId: string, email: string) {
   try {
@@ -31,7 +31,11 @@ export async function syncUser(supabaseUserId: string, email: string) {
 export async function ensureUserExists(supabaseUserId: string) {
   try {
     // Buscar dados do usuário no Supabase Auth
-    const { data: { user }, error } = await supabaseServer.auth.admin.getUserById(supabaseUserId)
+    const supabase = getSupabaseAdmin()
+    if (!supabase) {
+      throw new Error('Supabase não configurado')
+    }
+    const { data: { user }, error } = await supabase.auth.admin.getUserById(supabaseUserId)
     
     if (error || !user) {
       throw new Error('Usuário não encontrado no Supabase Auth')

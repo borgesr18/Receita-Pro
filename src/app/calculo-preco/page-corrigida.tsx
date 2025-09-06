@@ -56,7 +56,9 @@ export default function CalculoPreco() {
     try {
       const response = await api.get('/api/calculo-preco/historico')
       if (response.data) {
-        setCalculationHistory(response.data)
+        if (Array.isArray(response.data)) {
+          setCalculationHistory(response.data as any)
+        }
       }
     } catch (error) {
       console.error('Error fetching calculation history:', error)

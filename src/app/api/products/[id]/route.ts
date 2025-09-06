@@ -6,7 +6,7 @@ import { z } from 'zod'
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { user, error } = await getUser(request)
@@ -14,7 +14,6 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
     const product = await prisma.product.findFirst({
       where: { id: params.id, userId: user.id },
       include: {
@@ -46,7 +45,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { user, error } = await getUser(request)
@@ -54,7 +53,6 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
     const body = await request.json()
     const data = productSchema.parse(body)
     
@@ -105,7 +103,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { user, error } = await getUser(request)
@@ -113,7 +111,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
     const result = await prisma.product.deleteMany({
       where: { id: params.id, userId: user.id }
     })

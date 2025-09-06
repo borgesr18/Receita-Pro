@@ -4,9 +4,15 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+let browserSupabase: ReturnType<typeof createClient> | null = null
+function getSupabase() {
+  if (typeof window === 'undefined') return null
+  if (browserSupabase) return browserSupabase
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://nuolpdhxcarpdmoavmrf.supabase.co'
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51b2xwZGh4Y2FycGRtb2F2bXJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzOTIwMTIsImV4cCI6MjA2Njk2ODAxMn0.4ozPrMw7G8FHEpYDBQYwT6ZmghhtKMxVhHSOzkD2pTE'
+  browserSupabase = createClient(supabaseUrl, supabaseAnonKey)
+  return browserSupabase
+}
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -22,6 +28,8 @@ export default function Login() {
     setError('')
 
     try {
+      const supabase = getSupabase()
+      if (!supabase) throw new Error('Supabase não disponível')
       let result
       if (isSignUp) {
         console.log('Attempting sign up with:', { email })

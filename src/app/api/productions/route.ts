@@ -37,7 +37,7 @@ async function calculateIngredientsFromRecipe(recipeId: string, quantityPlanned:
     return []
   }
 
-  const ingredientsNeeded = []
+  const ingredientsNeeded: Array<{ ingredientId: string; ingredient: any; quantityNeeded: number; unit: any; source: string; }> = []
   for (const recipeIngredient of recipe.ingredients) {
     const quantityNeeded = recipeIngredient.quantity * quantityPlanned
     
@@ -99,7 +99,7 @@ async function calculateIngredientsFromProductRecipes(productId: string, quantit
     return []
   }
 
-  const allIngredientsNeeded = []
+  const allIngredientsNeeded: Array<{ ingredientId: string; ingredient: any; quantityNeeded: number; unit: any; source: string; }> = []
   
   for (const productRecipe of productRecipes) {
     const recipe = productRecipe.recipe
@@ -167,7 +167,17 @@ export async function GET(request: NextRequest) {
     }
 
     if (status) {
-      where.status = status
+      const statusMap: Record<string, string> = {
+        planejada: 'Planejado',
+        em_andamento: 'Em_Andamento',
+        concluida: 'Completo',
+        cancelada: 'Cancelado',
+        PLANNED: 'Planejado',
+        IN_PROGRESS: 'Em_Andamento',
+        COMPLETED: 'Completo',
+        CANCELLED: 'Cancelado'
+      }
+      where.status = (statusMap[status] || status) as any
     }
 
     if (productId) {
@@ -237,12 +247,12 @@ export async function GET(request: NextRequest) {
 
     // Enriquecer dados com informações de receitas compostas
     const enrichedProductions = productions.map(production => {
-      const hasCompositeRecipes = production.product.productRecipes.length > 0
+      const hasCompositeRecipes = (production.product?.productRecipes?.length || 0) > 0
       
       return {
         ...production,
         hasCompositeRecipes,
-        compositeRecipesCount: production.product.productRecipes.length,
+        compositeRecipesCount: production.product?.productRecipes?.length || 0,
         recipeType: hasCompositeRecipes ? 'composite' : 'simple'
       }
     })
@@ -319,10 +329,23 @@ export async function POST(request: NextRequest) {
     }
 
     // LÓGICA INTELIGENTE: Determinar como calcular ingredientes
-    let ingredientsNeeded = []
+    let ingredientsNeeded: Array<{ ingredientId: string; ingredient: any; quantityNeeded: number; unit: any; source: string; }> = []
     let calculationMethod = 'none'
 
-    if (data.status === 'Em_Andamento' || data.status === 'Completo') {
+    const normalizeStatus = (s: string) => ({
+      planejada: 'Planejado',
+      em_andamento: 'Em_Andamento',
+      concluida: 'Completo',
+      cancelada: 'Cancelado',
+      PLANNED: 'Planejado',
+      IN_PROGRESS: 'Em_Andamento',
+      COMPLETED: 'Completo',
+      CANCELLED: 'Cancelado'
+    } as Record<string, string>)[s] || s
+
+    const normalizedStatus = normalizeStatus(data.status)
+
+    if (normalizedStatus === 'Em_Andamento' || normalizedStatus === 'Completo') {
       console.log('🧠 Aplicando lógica inteligente para cálculo de ingredientes...')
       
       // Prioridade 1: Se useProductRecipes=true ou produto tem receitas compostas
@@ -369,7 +392,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validar estoque se há ingredientes
-    const stockMovements = []
+    const stockMovements: Array<{ ingredientId: string; type: 'Entrada' | 'Saída'; quantity: number; reason: string; reference?: string; ingredient: any; unit?: any; }> = []
     const insufficientStock = []
 
     if (ingredientsNeeded.length > 0) {
@@ -426,7 +449,7 @@ export async function POST(request: NextRequest) {
           productionDate: data.productionDate ? new Date(data.productionDate) : new Date(),
           expirationDate: data.expirationDate ? new Date(data.expirationDate) : null,
           notes: data.notes,
-          status: data.status
+          status: normalizeStatus(data.status) as any
         }
       })
 
@@ -511,7 +534,7 @@ export async function POST(request: NextRequest) {
       calculationMethod,
       ingredientsProcessed: ingredientsNeeded.length,
       stockMovements: stockMovements.length,
-      hasCompositeRecipes: completeProduction?.product.productRecipes.length > 0
+      hasCompositeRecipes: (completeProduction?.product?.productRecipes?.length || 0) > 0
     }, { status: 201 })
 
   } catch (error) {

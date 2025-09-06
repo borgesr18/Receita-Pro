@@ -41,7 +41,7 @@ interface RecipeCategory {
 
 interface DropdownPortalProps {
   isOpen: boolean
-  anchorRef: React.RefObject<HTMLButtonElement>
+  anchorRef: React.RefObject<HTMLButtonElement | null>
   searchTerm: string
   filterCategory: string
   onSearch: (term: string) => void

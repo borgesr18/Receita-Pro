@@ -4,7 +4,7 @@ import { getUser } from '@/lib/auth'
 
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { user: authUser, error } = await getUser(request)
@@ -12,7 +12,6 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
     const body = await request.json()
     
     const updatedUser = await prisma.user.update({
@@ -36,7 +35,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { user: authUser, error } = await getUser(request)
@@ -44,7 +43,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
     await prisma.user.delete({
       where: { id: params.id }
     })

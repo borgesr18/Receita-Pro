@@ -2,13 +2,26 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest } from 'next/server'
 import { syncUser } from './user-sync'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+function getSupabaseServer() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return null
+  }
+  return createClient(supabaseUrl, supabaseServiceKey)
+}
 
-export const supabaseServer = createClient(supabaseUrl, supabaseServiceKey)
+export function getSupabaseAdmin() {
+  return getSupabaseServer()
+}
 
 export async function getUser(request: NextRequest) {
   try {
+    const supabaseServer = getSupabaseServer()
+    if (!supabaseServer) {
+      return { user: null, error: 'Supabase environment not configured' }
+    }
+
     const authHeader = request.headers.get('authorization')
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new Error('No authorization token provided')

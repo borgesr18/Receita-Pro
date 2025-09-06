@@ -6,11 +6,19 @@ import { useRecipesCache, useRecipeUICache } from '@/hooks/useRecipeCache';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Search, Filter, Grid, List, Clock, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Recipe } from '@/types';
+type Recipe = {
+  id: string;
+  title: string;
+  description?: string;
+  category?: string;
+  difficulty?: string;
+  prepTime?: number;
+  servings?: number;
+  image?: string;
+};
 
 // Recipe Card Component for Virtual List
 function RecipeCard({ 
@@ -36,9 +44,9 @@ function RecipeCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between mb-2">
               <h3 className="font-semibold text-lg truncate">{recipe.title}</h3>
-              <Badge variant="secondary" className="ml-2 flex-shrink-0">
+              <span className="ml-2 px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-700 flex-shrink-0">
                 {recipe.category}
-              </Badge>
+              </span>
             </div>
             
             <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
@@ -54,9 +62,9 @@ function RecipeCard({
                 <Users className="w-4 h-4" />
                 <span>{recipe.servings} porções</span>
               </div>
-              <Badge variant="outline" size="sm">
+              <span className="px-2 py-0.5 text-xs rounded border">
                 {recipe.difficulty}
-              </Badge>
+              </span>
             </div>
           </div>
         </div>
@@ -77,10 +85,10 @@ function RecipeCard({
       
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-lg line-clamp-2">{recipe.title}</CardTitle>
-          <Badge variant="secondary" className="flex-shrink-0">
+          <h3 className="text-lg font-semibold line-clamp-2">{recipe.title}</h3>
+          <span className="px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-700 flex-shrink-0">
             {recipe.category}
-          </Badge>
+          </span>
         </div>
       </CardHeader>
       
@@ -100,9 +108,9 @@ function RecipeCard({
               <span>{recipe.servings}</span>
             </div>
           </div>
-          <Badge variant="outline" size="sm">
+          <span className="px-2 py-0.5 text-xs rounded border">
             {recipe.difficulty}
-          </Badge>
+          </span>
         </div>
       </CardContent>
     </Card>
@@ -135,7 +143,9 @@ export function CachedRecipeList() {
   
   // Use UI cache for view preferences
   const { viewPreferences, searchFilters } = useRecipeUICache();
-  const [layout, setLayout] = useState<'grid' | 'list'>(viewPreferences.data.layout);
+  const [layout, setLayout] = useState<'grid' | 'list'>(
+    (viewPreferences.data.layout === 'list' ? 'list' : 'grid') as 'grid' | 'list'
+  );
   
   // Build filters for API call
   const filters = useMemo(() => ({
@@ -162,11 +172,11 @@ export function CachedRecipeList() {
     
     return recipes.filter(recipe => {
       const matchesSearch = !searchQuery || 
-        recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        recipe.description.toLowerCase().includes(searchQuery.toLowerCase());
+        (recipe.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (recipe.description || '').toLowerCase().includes(searchQuery.toLowerCase());
       
-      const matchesCategory = !selectedCategory || recipe.category === selectedCategory;
-      const matchesDifficulty = !selectedDifficulty || recipe.difficulty === selectedDifficulty;
+      const matchesCategory = !selectedCategory || (recipe.category || '') === selectedCategory;
+      const matchesDifficulty = !selectedDifficulty || (recipe.difficulty || '') === selectedDifficulty;
       
       return matchesSearch && matchesCategory && matchesDifficulty;
     });
@@ -244,7 +254,7 @@ export function CachedRecipeList() {
           {/* Layout toggle */}
           <div className="flex border rounded-md">
             <Button
-              variant={layout === 'grid' ? 'default' : 'ghost'}
+              variant={layout === 'grid' ? 'primary' : 'ghost'}
               size="sm"
               onClick={() => handleLayoutChange('grid')}
               className="rounded-r-none"
@@ -252,7 +262,7 @@ export function CachedRecipeList() {
               <Grid className="w-4 h-4" />
             </Button>
             <Button
-              variant={layout === 'list' ? 'default' : 'ghost'}
+              variant={layout === 'list' ? 'primary' : 'ghost'}
               size="sm"
               onClick={() => handleLayoutChange('list')}
               className="rounded-l-none"
@@ -297,12 +307,12 @@ export function CachedRecipeList() {
       ) : (
         <div className="border rounded-lg">
           <VirtualList
-            items={filteredRecipes}
+            items={filteredRecipes as any}
             itemHeight={itemHeight}
             containerHeight={containerHeight}
-            renderItem={renderItem}
+            renderItem={renderItem as any}
             className="p-4"
-            getItemKey={(recipe) => recipe.id}
+            getItemKey={(recipe) => (recipe as any).id}
           />
         </div>
       )}

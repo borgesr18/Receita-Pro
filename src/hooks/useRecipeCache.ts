@@ -1,9 +1,23 @@
 'use client';
 
 import { useApiCache, useUICache } from './useCache';
-import { Recipe, RecipeCategory, Ingredient } from '@/types';
+import { RecipeCategory, Ingredient } from '@/types';
 
 // Types for recipe-specific cache
+export interface RecipeListItem {
+  id: string;
+  title: string;
+  description?: string;
+  category?: string;
+  difficulty?: string;
+  prepTime?: number;
+  servings?: number;
+  image?: string;
+  ingredients?: any[];
+  instructions?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
 interface RecipeFilters {
   category?: string;
   difficulty?: string;
@@ -20,7 +34,7 @@ interface DashboardStats {
 
 // Mock API functions (replace with real API calls)
 const api = {
-  getRecipes: async (): Promise<Recipe[]> => {
+  getRecipes: async (): Promise<RecipeListItem[]> => {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
@@ -43,7 +57,7 @@ const api = {
     ];
   },
   
-  getRecipeById: async (id: string): Promise<Recipe | null> => {
+  getRecipeById: async (id: string): Promise<RecipeListItem | null> => {
     await new Promise(resolve => setTimeout(resolve, 300));
     
     // Mock single recipe
@@ -74,10 +88,10 @@ const api = {
     await new Promise(resolve => setTimeout(resolve, 200));
     
     return [
-      { id: '1', name: 'Sobremesas', count: 15, color: '#FF6B6B' },
-      { id: '2', name: 'Pratos Principais', count: 25, color: '#4ECDC4' },
-      { id: '3', name: 'Entradas', count: 12, color: '#45B7D1' },
-      { id: '4', name: 'Bebidas', count: 8, color: '#96CEB4' }
+      { id: '1', name: 'Sobremesas', createdAt: new Date(), updatedAt: new Date() },
+      { id: '2', name: 'Pratos Principais', createdAt: new Date(), updatedAt: new Date() },
+      { id: '3', name: 'Entradas', createdAt: new Date(), updatedAt: new Date() },
+      { id: '4', name: 'Bebidas', createdAt: new Date(), updatedAt: new Date() }
     ];
   },
   

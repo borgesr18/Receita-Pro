@@ -10,12 +10,26 @@ import {
   Thermometer,
   Clock,
   Search,
-  Copy
+  Copy,
+  Save,
+  Eye
 } from 'lucide-react'
-import { Recipe, Ingredient } from '@/lib/types'
+type RecipePrint = {
+  id: number;
+  name: string;
+  description?: string;
+  category: string;
+  prepTime: number;
+  ovenTemp: number;
+  yield: number;
+  version: string;
+  cost: number;
+  ingredients: Array<{ id: number; name: string; quantity: number; unit: string; cost: number; percentage?: number }>;
+  instructions: string[];
+}
 
 export default function Impressao() {
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null)
+  const [selectedRecipe, setSelectedRecipe] = useState<RecipePrint | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
   const [printSettings, setPrintSettings] = useState({
@@ -30,12 +44,13 @@ export default function Impressao() {
     fontSize: 'medium',
     showWeights: true,
     showHeader: true,
-    showFooter: true
+    showFooter: true,
+    showPercentages: false
   })
-  const [calculatedRecipe, setCalculatedRecipe] = useState<Recipe | null>(null)
+  const [calculatedRecipe, setCalculatedRecipe] = useState<RecipePrint | null>(null)
   const [flourQuantity, setFlourQuantity] = useState(1000)
 
-  const availableRecipes = [
+  const availableRecipes: RecipePrint[] = [
     {
       id: 1,
       name: 'Pão Francês Tradicional',

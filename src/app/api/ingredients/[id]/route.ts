@@ -6,7 +6,7 @@ import { z } from 'zod'
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { user, error } = await getUser(request)
@@ -14,7 +14,6 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
     const ingredient = await prisma.ingredient.findFirst({
       where: { id: params.id, userId: user.id },
       include: {
@@ -43,7 +42,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { user, error } = await getUser(request)
@@ -51,7 +50,6 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
     const body = await request.json()
     const data = ingredientSchema.parse(body)
     
@@ -80,7 +78,13 @@ export async function PUT(
         pricePerUnit: data.pricePerUnit,
         supplierId: data.supplierId || null,
         purchaseDate: parseDate(data.purchaseDate),
-        ingredientType: data.ingredientType,
+        ingredientType: ((): any => {
+          const map: Record<string, string> = {
+            'Açúcares': 'Acucares',
+            'Líquidos': 'Liquidos'
+          }
+          return (map[data.ingredientType as string] || data.ingredientType) as any
+        })(),
         expirationDate: parseDate(data.expirationDate),
         storageCondition: data.storageCondition,
         currentStock: data.currentStock,
@@ -124,7 +128,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { user, error } = await getUser(request)
@@ -132,7 +136,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
     const result = await prisma.ingredient.deleteMany({
       where: { id: params.id, userId: user.id }
     })

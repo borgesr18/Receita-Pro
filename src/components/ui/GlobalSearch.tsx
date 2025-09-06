@@ -13,7 +13,7 @@ export interface SearchResult {
   icon?: React.ReactNode;
 }
 
-interface GlobalSearchProps {
+export interface GlobalSearchProps {
   placeholder?: string;
   className?: string;
   onResultClick?: (result: SearchResult) => void;

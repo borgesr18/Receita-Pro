@@ -10,19 +10,38 @@ import {
   Clock,
   CheckCircle,
   Factory,
-  Square
+  Square,
+  TrendingUp,
+  Filter,
+  Eye,
+  Save
 } from 'lucide-react'
-import { Production } from '@/lib/types'
+type ProductionUI = {
+  recipeId: number;
+  recipeName: string;
+  quantityProduced: number;
+  plannedQuantity: number;
+  productionDate: string;
+  startTime: string;
+  endTime: string;
+  operator: string;
+  batchNumber: string;
+  losses: number;
+  lossType: 'weight' | 'percentage';
+  observations: string;
+  status: 'planejada' | 'em_andamento' | 'concluida' | 'cancelada';
+  ingredients: never[];
+}
 
 export default function Producao() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<Production | null>(null)
-  const [viewingItem, setViewingItem] = useState<Production | null>(null)
+  const [editingItem, setEditingItem] = useState<(ProductionUI & { id: number }) | null>(null)
+  const [viewingItem, setViewingItem] = useState<(ProductionUI & { id: number }) | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterDate, setFilterDate] = useState('')
-  const [formData, setFormData] = useState<Production>({
+  const [formData, setFormData] = useState<ProductionUI>({
     recipeId: 0,
     recipeName: '',
     quantityProduced: 0,
@@ -63,7 +82,7 @@ export default function Producao() {
     }
   ]
 
-  const mockProductions = [
+  const mockProductions: Array<ProductionUI & { id: number }> = [
     {
       id: 1,
       recipeId: 1,
@@ -100,7 +119,7 @@ export default function Producao() {
     }
   ]
 
-  const [productions, setProductions] = useState(mockProductions)
+  const [productions, setProductions] = useState<Array<ProductionUI & { id: number }>>(mockProductions)
 
   const filteredProductions = productions.filter(production => {
     const matchesSearch = production.recipeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -123,13 +142,13 @@ export default function Producao() {
     closeModal()
   }
 
-  const handleEdit = (production: Production & { id: number }) => {
+  const handleEdit = (production: ProductionUI & { id: number }) => {
     setFormData(production)
     setEditingItem(production)
     setIsModalOpen(true)
   }
 
-  const handleView = (production: Production & { id: number }) => {
+  const handleView = (production: ProductionUI & { id: number }) => {
     setViewingItem(production)
     setIsViewModalOpen(true)
   }

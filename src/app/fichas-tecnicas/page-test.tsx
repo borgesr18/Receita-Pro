@@ -11,7 +11,10 @@ import {
   Thermometer,
   Scale,
   Calculator,
-  Printer
+  Printer,
+  ChefHat,
+  Eye,
+  Copy
 } from 'lucide-react'
 
 export default function FichasTecnicas() {

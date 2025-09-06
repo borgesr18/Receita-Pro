@@ -4,7 +4,7 @@ import { getUser } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { user, error } = await getUser(request)
@@ -12,7 +12,6 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
     const unit = await prisma.measurementUnit.findFirst({
       where: { id: params.id, userId: user.id }
     })
@@ -50,7 +49,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { user, error } = await getUser(request)
@@ -58,7 +57,6 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
     const body = await request.json()
     console.log('📥 Dados de edição recebidos:', body)
     
@@ -130,7 +128,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { user, error } = await getUser(request)
@@ -138,7 +136,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const params = await context.params
     const result = await prisma.measurementUnit.deleteMany({
       where: { id: params.id, userId: user.id }
     })

@@ -4,7 +4,7 @@ import React from 'react';
 import { Loader2 } from 'lucide-react';
 
 // Loading Spinner Component
-interface LoadingSpinnerProps {
+export interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
   color?: 'primary' | 'secondary' | 'white' | 'gray';
@@ -37,7 +37,7 @@ export function LoadingSpinner({
 }
 
 // Loading Button Component
-interface LoadingButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface LoadingButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
   children: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
@@ -93,7 +93,7 @@ export function LoadingButton({
 }
 
 // Skeleton Components
-interface SkeletonProps {
+export interface SkeletonProps {
   className?: string;
   width?: string | number;
   height?: string | number;
@@ -132,7 +132,7 @@ export function Skeleton({
 }
 
 // Skeleton Text Lines
-interface SkeletonTextProps {
+export interface SkeletonTextProps {
   lines?: number;
   className?: string;
   lastLineWidth?: string;
@@ -157,7 +157,7 @@ export function SkeletonText({
 }
 
 // Card Skeleton
-interface SkeletonCardProps {
+export interface SkeletonCardProps {
   className?: string;
   showAvatar?: boolean;
   showImage?: boolean;
@@ -202,7 +202,7 @@ export function SkeletonCard({
 }
 
 // Table Skeleton
-interface SkeletonTableProps {
+export interface SkeletonTableProps {
   rows?: number;
   columns?: number;
   className?: string;
@@ -249,7 +249,7 @@ export function SkeletonTable({
 }
 
 // Page Loading Component
-interface PageLoadingProps {
+export interface PageLoadingProps {
   message?: string;
   className?: string;
 }
@@ -267,7 +267,7 @@ export function PageLoading({
 }
 
 // Inline Loading Component
-interface InlineLoadingProps {
+export interface InlineLoadingProps {
   message?: string;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
@@ -287,7 +287,7 @@ export function InlineLoading({
 }
 
 // Loading Overlay Component
-interface LoadingOverlayProps {
+export interface LoadingOverlayProps {
   isVisible: boolean;
   message?: string;
   className?: string;
@@ -319,7 +319,7 @@ export function LoadingOverlay({
 }
 
 // Progress Bar Component
-interface ProgressBarProps {
+export interface ProgressBarProps {
   value: number; // 0-100
   className?: string;
   showLabel?: boolean;
